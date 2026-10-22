@@ -1,6 +1,5 @@
 import {
   AsyncCounterDemoComposition,
-  EffectsLayer,
   init,
   update,
   view,
@@ -10,5 +9,4 @@ export const AsyncCounterDemoBlock = AsyncCounterDemoComposition.assembleBlock({
   init,
   update,
   view,
-  EffectsLayer,
 })

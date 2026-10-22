@@ -5,6 +5,7 @@ import {
   NoteDurationRadioGroupBlock,
   NotePlayerDemoDefinition,
 } from './definition'
+import { EffectsLayer, managedResources } from './effects'
 import { prependToLog } from './messageLog'
 
 export const NoteDurationRadioGroupBinding =
@@ -27,6 +28,8 @@ export const NoteDurationRadioGroupBinding =
 export const NotePlayerDemoComposition =
   NotePlayerDemoDefinition.makeComposition({
     bindings: [NoteDurationRadioGroupBinding],
+    managedResources,
+    EffectsLayer,
   })
 export type NotePlayerDemoViewBuilder = Block.ViewBuilderFor<
   typeof NotePlayerDemoComposition

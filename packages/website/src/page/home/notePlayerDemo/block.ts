@@ -1,16 +1,8 @@
 import { NotePlayerDemoComposition } from './composition'
-import {
-  EffectsLayer,
-  init,
-  managedResources,
-  update,
-  view,
-} from './notePlayerDemo'
+import { init, update, view } from './notePlayerDemo'
 
 export const NotePlayerDemoBlock = NotePlayerDemoComposition.assembleBlock({
   init,
   update,
   view,
-  managedResources,
-  EffectsLayer,
 })

@@ -27,14 +27,19 @@ type FieldOf<Value, Key extends PropertyKey> = Value extends unknown
 
 type ReturnOf<Value> = Value extends AnyFunction ? ReturnType<Value> : never
 
+type BindingsByPlacement<Children extends ReadonlyArray<AnyBinding>> = {
+  [BindingValue in Children[number] as BindingValue['placement']]: BindingValue
+}
+
 type BindingAt<
   Children extends ReadonlyArray<AnyBinding>,
   Placement extends string,
-> = Children[number] extends infer BindingValue
-  ? BindingValue extends Readonly<{ placement: Placement }>
-    ? BindingValue
+> =
+  BindingsByPlacement<Children> extends infer Index
+    ? Placement extends keyof Index
+      ? Index[Placement]
+      : never
     : never
-  : never
 
 type PolicyOfBinding<BindingValue> =
   BindingValue extends BindingPolicyEvidence<infer Policy> ? Policy : never

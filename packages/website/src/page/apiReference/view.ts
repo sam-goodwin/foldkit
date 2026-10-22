@@ -750,7 +750,7 @@ export const failureView = (error: string): Html =>
     ],
   )
 
-type ViewInputs = Readonly<{
+export type ViewInputs = Readonly<{
   moduleSlug: string
   renderHeadingLink: RenderHeadingLink
 }>

@@ -39,7 +39,7 @@ import * as ToastPage from './toastPage'
 import * as TooltipPage from './tooltipPage'
 import * as VirtualListPage from './virtualListPage'
 
-type ViewInputs = Readonly<{
+export type ViewInputs = Readonly<{
   page: typeof Page.Type
   url: Url
   renderCopyButton: CodeBlock.RenderCopyButton

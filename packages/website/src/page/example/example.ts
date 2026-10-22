@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Option, Schema, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 import { AsyncData } from 'foldkit'
 import { Html, inertHtml as ih } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -27,48 +27,14 @@ import { Message } from './message'
 import { type ExampleMeta, findBySlug } from './meta'
 import { CurrentSourcesAsyncData, Model } from './model'
 import { ObserveExampleUrlMessages } from './mount'
-import {
-  type ExampleSourceFile,
-  ExampleSources,
-  loadSourcesForSlug,
-} from './sources'
+import { type ExampleSourceFile, ExampleSources } from './sources'
 
 export { Message } from './message'
 export { CurrentSourcesAsyncData, Model } from './model'
 
-/** Loads the source files for the example identified by `slug`, producing the
- *  loaded sources on success or a failure Message when the fetch does not
- *  complete. */
-export const LoadExampleSources = ExampleDetailDefinition.makeCommand(
-  'LoadExampleSources',
-  {
-    args: { slug: Schema.String },
-    messages: [
-      Message.SucceededLoadExampleSources,
-      Message.FailedLoadExampleSources,
-    ],
-    handler: function* () {
-      return ({ slug }) =>
-        Effect.tryPromise({
-          try: () => loadSourcesForSlug(slug),
-          catch: error =>
-            error instanceof Error ? error.message : `Unknown example: ${slug}`,
-        }).pipe(
-          Effect.map(sources =>
-            Message.SucceededLoadExampleSources({ sources }),
-          ),
-          Effect.catch(error =>
-            Effect.succeed(Message.FailedLoadExampleSources({ error })),
-          ),
-        )
-    },
-  },
-)
+import { LoadExampleSources } from './command'
 
-export const EffectsLayer = Layer.mergeAll(
-  LoadExampleSources.layer,
-  ObserveExampleUrlMessages.layer,
-)
+export { EffectsLayer, LoadExampleSources } from './command'
 
 const isSourceAvailable = (slug: string): boolean =>
   Option.match(findBySlug(slug), {
@@ -623,7 +589,7 @@ const availableExampleContentView = (
   ),
 ]
 
-type ViewInputs = Readonly<{
+export type ViewInputs = Readonly<{
   slug: string
   isNarrowViewport: boolean
   renderSnippet: CodeBlock.RenderSnippet

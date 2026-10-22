@@ -88,7 +88,7 @@ export { tableOfContents }
 // than being built here. They establish the shared snippet controls and
 // dispatch the parent's heading-link Message. As top-level `viewInputs`
 // functions they run in the parent's boundary.
-type ViewInputs = Readonly<{
+export type ViewInputs = Readonly<{
   renderCopyButton: CodeBlock.RenderCopyButton
   renderSnippet: CodeBlock.RenderSnippet
   renderHeadingLink: RenderHeadingLink

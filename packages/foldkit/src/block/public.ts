@@ -46,10 +46,12 @@ export type {
   InitializationPlan,
   InitializationStep,
 } from './initialization.js'
-export { LocalMountsTypeId } from './definition.js'
+export { LocalMountsTypeId, declared } from './definition.js'
 export type {
   AnyBlock,
   Base,
+  ContractBlock,
+  Declared,
   MakeComposition,
   Composition,
   Completed,

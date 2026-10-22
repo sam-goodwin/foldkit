@@ -2,6 +2,7 @@ import { Block } from 'foldkit'
 
 import { Message } from './message'
 import { Model } from './model'
+import type { ViewInputs } from './view'
 
 export const ComingFromReactComposition = Block.makeDefinition(
   'ComingFromReact',
@@ -9,7 +10,7 @@ export const ComingFromReactComposition = Block.makeDefinition(
     Model,
     Message,
   },
-).makeComposition()
+).makeComposition({ viewInputs: Block.declared<ViewInputs>() })
 export type ComingFromReactViewBuilder = Block.ViewBuilderFor<
   typeof ComingFromReactComposition
 >

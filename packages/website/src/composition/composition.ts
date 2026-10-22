@@ -1,10 +1,13 @@
 import { Option, pipe } from 'effect'
-import { type Block } from 'foldkit'
+import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
+import type { Url } from 'foldkit/url'
 
 import { DialogBlock } from '@foldkit/ui'
 
 import { ApplicationDefinition } from '../definition'
+import type { Flags } from '../flags'
+import { EffectsLayer } from '../layer'
 import {
   ApiReferenceBlock,
   BlockPageBlock,
@@ -17,6 +20,7 @@ import { ApplicationRoute, maybeExampleSlugForRoute } from '../route'
 import { SearchBlock } from '../search'
 import { SnippetCopyBlock } from '../snippetCopy'
 import { SnippetDisclosureBlock } from '../snippetDisclosure'
+import { subscriptions } from '../subscription'
 import { ApplyTheme, SaveThemePreference, resolveTheme } from '../theme'
 import { type ThemePreference } from '../themePreference'
 import { ThemeMenu } from '../view'
@@ -153,6 +157,10 @@ export const ApplicationComposition = ApplicationDefinition.makeComposition({
     ThemeMenuBinding,
     UiPagesBinding,
   ],
+  EffectsLayer,
+  subscriptions,
+  initArgs: Block.declared<readonly [flags: typeof Flags.Type, url: Url]>(),
+  document: true,
 })
 export type ApplicationViewBuilder = Block.ViewBuilderFor<
   typeof ApplicationComposition
