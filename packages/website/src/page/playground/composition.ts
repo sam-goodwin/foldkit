@@ -1,9 +1,11 @@
-import { Tuple } from 'effect'
-import type { Block } from 'foldkit'
+import { type Option, Tuple } from 'effect'
+import { Block } from 'foldkit'
 
-import { PlaygroundDefinition } from './definition'
+import { Message, PlaygroundDefinition } from './definition'
+import { EffectsLayer, managedResources } from './effects'
 import { PlaygroundFileTabsBlock } from './fileTabs'
 import { MountPlaygroundEditor } from './mount'
+import type { ViewInputs } from './playground'
 
 export const FileTabsBinding = PlaygroundDefinition.makeBinding(
   PlaygroundFileTabsBlock,
@@ -23,6 +25,14 @@ export const FileTabsBinding = PlaygroundDefinition.makeBinding(
 export const PlaygroundComposition = PlaygroundDefinition.makeComposition({
   mounts: [MountPlaygroundEditor],
   bindings: [FileTabsBinding],
+  managedResources,
+  EffectsLayer,
+  operations: { informSupport: Message.InformedOfSupport },
+  viewInputs: Block.declared<ViewInputs>(),
+  initArgs:
+    Block.declared<
+      readonly [slug: string, maybeIsSupported?: Option.Option<boolean>]
+    >(),
 })
 export type PlaygroundViewBuilder = Block.ViewBuilderFor<
   typeof PlaygroundComposition

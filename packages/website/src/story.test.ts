@@ -31,7 +31,7 @@ import { SnippetCopyBlock } from './snippetCopy'
 import {
   CopySnippet,
   WaitBeforeHidingCopiedIndicator,
-} from './snippetCopy/update'
+} from './snippetCopy/command'
 import { SnippetDisclosureBlock } from './snippetDisclosure'
 import { update } from './update'
 import { ThemeMenuBlock } from './view/themeMenu'

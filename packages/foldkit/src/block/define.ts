@@ -2,9 +2,7 @@ import { Predicate, Schema } from 'effect'
 
 import type * as Mount from '../mount/index.js'
 import type { AnyBinding } from './binding.js'
-import type { Base, Composition, ValidateChildBindings } from './definition.js'
-import type { CompositionDeliveryArguments } from './delivery.js'
-import type { ValidateChildInitContext } from './initialization.js'
+import type { Base, MakeComposition } from './definition.js'
 import {
   type DefineCommand,
   type DefineMount,
@@ -80,61 +78,20 @@ export type Primitives<Id extends string, Message = unknown> = Readonly<{
 
 /** Registers the child and Mount graph for init, update and view authoring. This step only records composition; it does not construct Layers or
  * start lifecycle work. */
-export interface AuthoringMakeComposition<
+export type AuthoringMakeComposition<
   Id extends string,
   ModelSchema extends AnySchema,
   MessageSchema extends AnySchema,
   OutMessageSchema extends AnySchema | undefined,
   Concrete extends boolean = true,
   ChildInitContextSchema extends AnySchema | undefined = undefined,
-> {
-  (
-    ...validation: CompositionDeliveryArguments<
-      MessageSchema['Type'],
-      readonly []
-    >
-  ): Composition<
-    Owner<Id, Concrete>,
-    ModelSchema,
-    MessageSchema,
-    OutMessageSchema,
-    readonly [],
-    readonly []
-  >
-  <
-    const Mounts extends ReadonlyArray<Mount.LayeredMountDefinition> =
-      readonly [],
-    const Children extends ReadonlyArray<AnyBinding> = readonly [],
-  >(
-    config: Readonly<{
-      /** Mount definitions owned directly by this Block. Omitted Mounts default
-       * to an empty registry. */
-      mounts?: Mounts & Mount.PreciseMountRegistry<Mounts>
-      /** Child Bindings registered in this Block's composition graph. Omitted
-       * bindings default to an empty tuple. */
-      bindings?: Children
-    }> &
-      ValidateChildInitContext<
-        Children,
-        ChildInitContextSchema extends AnySchema
-          ? ChildInitContextSchema['Type']
-          : never
-      > &
-      ValidateChildBindings<
-        Children,
-        ModelSchema['Type'],
-        MessageSchema['Type'],
-        OutMessageSchema extends AnySchema ? OutMessageSchema['Type'] : never
-      >,
-  ): Composition<
-    Owner<Id, Concrete>,
-    ModelSchema,
-    MessageSchema,
-    OutMessageSchema,
-    Mounts,
-    Children
-  >
-}
+> = MakeComposition<
+  Owner<Id, Concrete>,
+  ModelSchema,
+  MessageSchema,
+  OutMessageSchema,
+  ChildInitContextSchema
+>
 
 /** Typed authoring helpers and owned effect declarations before graph
  * registration. */

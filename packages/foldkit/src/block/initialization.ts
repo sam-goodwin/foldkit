@@ -312,7 +312,9 @@ type FunctionArguments<FunctionValue> = FunctionValue extends (
   ? Arguments
   : never
 
-type CallableArguments<FunctionValue> = [...FunctionArguments<FunctionValue>]
+export type CallableArguments<FunctionValue> = [
+  ...FunctionArguments<FunctionValue>,
+]
 
 type NormalizedFunction<Init extends (...args: ReadonlyArray<any>) => any> = (
   ...args: CallableArguments<Init>
@@ -427,7 +429,7 @@ type ValidateInitializationFields<
       ]
   : readonly []
 
-type ValidateInit<
+export type ValidateInit<
   Init,
   ChildBindings extends ReadonlyArray<AnyBinding>,
 > = readonly [

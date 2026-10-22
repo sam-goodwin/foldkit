@@ -1,6 +1,5 @@
 import { ExampleDetailComposition } from './composition'
-import { EffectsLayer, init, update, view } from './example'
-import { Message } from './message'
+import { init, update, view } from './example'
 
 export { mounts } from './composition'
 export {
@@ -19,8 +18,4 @@ export const ExampleDetailBlock = ExampleDetailComposition.assembleBlock({
   init,
   update,
   view,
-  operations: {
-    informRouteChanged: Message.InformedOfRouteChange,
-  },
-  EffectsLayer,
 })

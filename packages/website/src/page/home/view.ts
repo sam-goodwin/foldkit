@@ -167,7 +167,7 @@ const playgroundMenuView = (
     }),
   )
 
-type ViewInputs = Readonly<{
+export type ViewInputs = Readonly<{
   renderCopyButton: CodeBlock.RenderCopyButton
   renderSnippet: CodeBlock.RenderSnippet
   isNarrowViewport: boolean

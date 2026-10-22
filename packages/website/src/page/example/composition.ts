@@ -1,9 +1,13 @@
 import { Option, Tuple } from 'effect'
-import type { Block } from 'foldkit'
+import { Block } from 'foldkit'
 
+import { EffectsLayer } from './command'
 import { ExampleDetailDefinition } from './definition'
+import type { ViewInputs } from './example'
 import { SourceFileTabsBlock } from './fileTabs'
+import { Message } from './message'
 import { ObserveExampleUrlMessages } from './mount'
+import type { ExampleSources } from './sources'
 
 export const SOURCE_FILE_TABS_ID = 'source-file-tabs'
 
@@ -28,6 +32,16 @@ export const ExampleDetailComposition = ExampleDetailDefinition.makeComposition(
   {
     bindings: [SourceFileTabsBinding],
     mounts,
+    operations: { informRouteChanged: Message.InformedOfRouteChange },
+    EffectsLayer,
+    viewInputs: Block.declared<ViewInputs>(),
+    initArgs:
+      Block.declared<
+        readonly [
+          maybeInitialSlug?: Option.Option<string>,
+          maybeExampleSources?: Option.Option<typeof ExampleSources.Type>,
+        ]
+      >(),
   },
 )
 export type ExampleDetailViewBuilder = Block.ViewBuilderFor<

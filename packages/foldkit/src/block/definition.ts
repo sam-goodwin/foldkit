@@ -91,6 +91,7 @@ import {
 } from './initRecipe.js'
 import type {
   CompositionInit,
+  InitializationPlan,
   ValidateChildInitContext,
   ValidateUniqueInitialFields,
 } from './initialization.js'
@@ -115,7 +116,9 @@ import { makeOwnedName } from './ownerName.js'
 import type { ValidateBindingPolicies } from './policyEvidence.js'
 import type {
   HandlerEvidence,
+  ChildHandlerEvidence,
   HandlerOfHostDefinition,
+  LayerOutputs,
   HandlerRequirements,
   ValidateComposition,
   ValidateImplementationComposition,
@@ -2496,7 +2499,7 @@ type AssembleBlockCompositionForValidation<
   CheckedImplementationValue<ImplementationValue>
 >
 
-type ValidateAssembleBlockComposition<
+export type ValidateAssembleBlockComposition<
   OwnerValue extends Owner<string>,
   _ModelSchema extends AnySchema,
   _MessageSchema extends AnySchema,
@@ -2528,6 +2531,92 @@ type PublicAssembleBlockImplementation<
   CheckedImplementationValue<ImplementationValue>
 >
 
+type ExactAssembleBlockInput<
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+> = Omit<
+  DefinitionImplementation<ModelSchema, MessageSchema, OutMessageSchema>,
+  'EffectsLayer'
+> &
+  Partial<
+    Pick<
+      DefinitionImplementation<ModelSchema, MessageSchema, OutMessageSchema>,
+      'EffectsLayer'
+    >
+  >
+
+type ExactAssembleBlockImplementation<ImplementationValue> =
+  'EffectsLayer' extends keyof ImplementationValue
+    ? ImplementationValue
+    : DefaultEffectsImplementation<ImplementationValue>
+
+type ExactAssembleBlockResult<
+  CompositionValue,
+  OwnerValue extends Owner<string>,
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+  Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
+  Children extends ReadonlyArray<AnyBinding>,
+  ImplementationValue,
+> = [OutMessageSchema] extends [undefined]
+  ? 'EffectsLayer' extends keyof ImplementationValue
+    ? ExactCompletedBlock<
+        OwnerValue,
+        ModelSchema,
+        MessageSchema,
+        OutMessageSchema,
+        Mounts,
+        Children,
+        ImplementationValue
+      >
+    : ImplementationValue extends Readonly<{ view: AnyAuthoredView }>
+      ? CompletedWithView<
+          CompositionValue,
+          DefaultEffectsImplementation<ImplementationValue>
+        >
+      : ExactCompletedBlock<
+          OwnerValue,
+          ModelSchema,
+          MessageSchema,
+          OutMessageSchema,
+          Mounts,
+          Children,
+          ImplementationValue
+        >
+  : ExactCompletedBlock<
+      OwnerValue,
+      ModelSchema,
+      MessageSchema,
+      OutMessageSchema,
+      Mounts,
+      Children,
+      ImplementationValue
+    >
+
+type ExactCompletedBlock<
+  OwnerValue extends Owner<string>,
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+  Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
+  Children extends ReadonlyArray<AnyBinding>,
+  ImplementationValue,
+> = CompletedBlock<
+  OwnerValue,
+  ModelSchema,
+  MessageSchema,
+  OutMessageSchema,
+  Mounts,
+  Children,
+  PublicAssembleBlockImplementation<
+    ModelSchema,
+    MessageSchema,
+    ExactAssembleBlockImplementation<ImplementationValue>
+  >
+>
+
 /** Completes a Composition with its implementation channels and returns a
  * passive Block. `init` and `update` are required. At an inferred concrete
  * call, an omitted `EffectsLayer` defaults to `Layer.empty`. Omitted local view,
@@ -2547,6 +2636,46 @@ export interface AssembleBlock<
   Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
   Children extends ReadonlyArray<AnyBinding>,
 > {
+  <
+    const CompositionValue,
+    const ImplementationValue extends ExactAssembleBlockInput<
+      ModelSchema,
+      MessageSchema,
+      OutMessageSchema
+    >,
+  >(
+    this: CompositionValue,
+    implementation: ImplementationValue &
+      NoInfer<
+        ExactImplementationKeys<ImplementationValue> &
+          ValidateInit<ImplementationValue> &
+          ValidateView<
+            ImplementationValue,
+            OwnerValue,
+            ModelSchema['Type'],
+            MessageSchema['Type'],
+            DefinitionViewRequirements<Mounts, Children>
+          > &
+          ValidateAssembleBlockComposition<
+            OwnerValue,
+            ModelSchema,
+            MessageSchema,
+            OutMessageSchema,
+            Mounts,
+            Children,
+            ExactAssembleBlockImplementation<ImplementationValue>
+          >
+      >,
+  ): ExactAssembleBlockResult<
+    CompositionValue,
+    OwnerValue,
+    ModelSchema,
+    MessageSchema,
+    OutMessageSchema,
+    Mounts,
+    Children,
+    ImplementationValue
+  >
   <
     const ImplementationValue extends DefinitionImplementation<
       ModelSchema,
@@ -3415,6 +3544,464 @@ export type Definition<
 /** A passive Definition with its child and Mount graph registered. A Composition
  * supplies graph-aware view authoring and Block completion; it does not build
  * Layers or start child lifecycle work. */
+declare const DeclaredTypeId: unique symbol
+
+/** A type-only contract piece, such as view inputs or init arguments, fixed by
+ * a Composition before its implementation exists. */
+export interface Declared<T> {
+  readonly [DeclaredTypeId]: (value: T) => T
+}
+
+const declaredMarker = Object.freeze({ declared: true })
+
+/** Declares a contract type for `makeComposition`, such as
+ * `viewInputs: Block.declared<ViewInputs>()`. */
+export const declared = <T>(): Declared<T> =>
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  declaredMarker as unknown as Declared<T>
+
+const isDeclaredMarker = (value: unknown): boolean => value === declaredMarker
+
+/** @internal Marks a Composition without a declared contract. */
+export interface NoContract {
+  readonly __noContract: true
+}
+
+/** @internal The public contract a Composition fixes before its implementation. */
+export type CompositionContract = Readonly<{
+  operations: object
+  EffectsLayer: AnyLayer
+  subscriptions: object
+  managedResources: object
+  hostHandlers: ReadonlyArray<unknown>
+  viewInputs: unknown
+  initArgs: ReadonlyArray<unknown>
+  updateContext: ReadonlyArray<unknown>
+  childInitContext: unknown
+  document: boolean
+}>
+
+declare const ContractTypeId: unique symbol
+
+/** Ties an authored init or update to the exact contract it was checked against. */
+type ContractBrand<Contract> = Readonly<{
+  [ContractTypeId]: (contract: Contract) => Contract
+}>
+
+type ContractSummaryInit<
+  Model,
+  Message,
+  InitArgs extends ReadonlyArray<unknown>,
+> = (...args: InitArgs) => Update.Return<Model, Message>
+
+type ContractSummaryUpdate<
+  Model,
+  Message,
+  OutMessage,
+  UpdateContext extends ReadonlyArray<unknown>,
+> = (
+  model: Model,
+  message: Message,
+  ...context: UpdateContext
+) => [OutMessage] extends [never]
+  ? Update.Return<Model, Message>
+  : Update.ReturnWithOutMessage<Model, Message, OutMessage>
+
+type ContractSummaryView<
+  OwnerValue,
+  Model,
+  Message,
+  ViewInputs,
+  Requirements,
+  IsDocument extends boolean = false,
+> = OwnedAuthoredView<
+  IsDocument extends true
+    ? DocumentView<Model, Message, Requirements>
+    : BlockView<Model, Message, ViewInputs, Requirements>,
+  OwnerValue,
+  Model,
+  Message,
+  Requirements
+>
+
+type ContractSummaryImplementation<
+  OwnerValue extends Owner<string>,
+  ModelSchema extends AnySchema,
+  DispatchSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+  Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
+  Children extends ReadonlyArray<AnyBinding>,
+  Contract extends CompositionContract,
+> = Readonly<{
+  init: ContractSummaryInit<
+    ModelSchema['Type'],
+    DispatchSchema['Type'],
+    Contract['initArgs']
+  >
+  update: ContractSummaryUpdate<
+    ModelSchema['Type'],
+    DispatchSchema['Type'],
+    OutMessageSchema extends AnySchema ? OutMessageSchema['Type'] : never,
+    Contract['updateContext']
+  >
+  view: ContractSummaryView<
+    OwnerValue,
+    ModelSchema['Type'],
+    DispatchSchema['Type'],
+    Contract['viewInputs'],
+    DefinitionViewRequirements<Mounts, Children>,
+    Contract['document']
+  >
+  operations: Contract['operations']
+  subscriptions: Contract['subscriptions']
+  managedResources: Contract['managedResources']
+  EffectsLayer: Contract['EffectsLayer']
+  hostHandlers: Contract['hostHandlers']
+}>
+
+type ValidateContractImplementation<
+  OwnerValue extends Owner<string>,
+  ModelSchema extends AnySchema,
+  DispatchSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+  Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
+  Children extends ReadonlyArray<AnyBinding>,
+  Implementation,
+> = ValidateAssembleBlockComposition<
+  OwnerValue,
+  ModelSchema,
+  DispatchSchema,
+  OutMessageSchema,
+  Mounts,
+  Children,
+  Implementation
+>
+
+/** Passes when the contract's own declarations satisfy the assembly checks, and
+ * otherwise carries the failed requirement into the assembleBlock argument. */
+type ContractImplementationCheck<Implementation, Validation> = [
+  Implementation,
+] extends [Validation]
+  ? unknown
+  : Readonly<{ 'Composition contract check failed': Validation }>
+
+/** Handler requirements an authored Command may carry: the contract's local
+ * handlers plus the handler contracts it leaves for the host. */
+type ContractAllowedRequirements<
+  Contract extends CompositionContract,
+  Children extends ReadonlyArray<AnyBinding>,
+> =
+  | LayerOutputs<CompleteEffectsLayer<Contract['EffectsLayer'], Children>>
+  | HandlerOfHostDefinition<Contract['hostHandlers'][number]>
+  | ChildHandlerEvidence<Children>
+
+type ContractCommandMessage<
+  DispatchMessage,
+  Children extends ReadonlyArray<AnyBinding>,
+> =
+  | DispatchMessage
+  | GeneratedMessageOfRequirement<RequirementsOfBindings<Children>>
+
+type ContractUpdateOutput<
+  Model,
+  DispatchMessage,
+  OutMessage,
+  Contract extends CompositionContract,
+  Children extends ReadonlyArray<AnyBinding>,
+> =
+  | ([OutMessage] extends [never]
+      ? Update.Return<
+          Model,
+          ContractCommandMessage<DispatchMessage, Children>,
+          ContractAllowedRequirements<Contract, Children>
+        >
+      : Update.ReturnWithOutMessage<
+          Model,
+          ContractCommandMessage<DispatchMessage, Children>,
+          OutMessage,
+          ContractAllowedRequirements<Contract, Children>
+        >)
+  | Update.ReturnWithRegistrationEvidence<
+      Model,
+      unknown,
+      OutMessage,
+      ContractAllowedRequirements<Contract, Children>,
+      unknown
+    >
+  | Update.AnyResultRecipe
+  | AnyBindingInitRecipe
+
+type ContractInitOutput<
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  Children extends ReadonlyArray<AnyBinding>,
+  Contract extends CompositionContract,
+> =
+  | (Omit<
+      InitializationPlan<
+        ModelSchema['Type'],
+        MessageSchema['Type'],
+        Children,
+        DispatchSchemaFor<MessageSchema, Children>['Type']
+      >,
+      'commands'
+    > &
+      Readonly<{
+        commands?:
+          | ReadonlyArray<
+              Command<
+                ContractCommandMessage<
+                  DispatchSchemaFor<MessageSchema, Children>['Type'],
+                  Children
+                >,
+                never,
+                ContractAllowedRequirements<Contract, Children>
+              >
+            >
+          | undefined
+      }>)
+  | AnyBindingInitRecipe
+
+type ContractCompositionInit<
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  Children extends ReadonlyArray<AnyBinding>,
+  Contract extends CompositionContract,
+> = (
+  create: (
+    ...args: Contract['initArgs']
+  ) => ContractInitOutput<ModelSchema, MessageSchema, Children, Contract>,
+) => ContractSummaryInit<
+  ModelSchema['Type'],
+  DispatchSchemaFor<MessageSchema, Children>['Type'],
+  Contract['initArgs']
+> &
+  ContractBrand<Contract>
+
+type ContractCompositionUpdate<
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+  Children extends ReadonlyArray<AnyBinding>,
+  Contract extends CompositionContract,
+  Model = ModelSchema['Type'],
+  Message = MessageSchema['Type'],
+  OutMessage = OutMessageSchema extends AnySchema
+    ? OutMessageSchema['Type']
+    : never,
+  DispatchMessage = DispatchSchemaFor<MessageSchema, Children>['Type'],
+  Summary = ContractSummaryUpdate<
+    Model,
+    DispatchMessage,
+    OutMessage,
+    Contract['updateContext']
+  > &
+    ContractBrand<Contract>,
+> = [AuthoredMessage<Message, Children>] extends [never]
+  ? () => Summary
+  : (
+      update: (
+        model: Update.CompositionInput<Model, RequirementsOfBindings<Children>>,
+        message: AuthoredMessage<Message, Children>,
+        ...context: Contract['updateContext']
+      ) => ContractUpdateOutput<
+        Model,
+        DispatchMessage,
+        OutMessage,
+        Contract,
+        Children
+      >,
+    ) => Summary
+
+type ContractViewParameters<
+  Model,
+  DispatchMessage,
+  Requirements,
+  ViewInputs,
+  IsDocument extends boolean,
+> = IsDocument extends true
+  ? (model: Model, h: HtmlBuilder<DispatchMessage, Requirements>) => Document
+  : [ViewInputs] extends [void]
+    ? (
+        model: Model,
+        h: HtmlBuilder<DispatchMessage, Requirements>,
+      ) => VNode | null
+    : (
+        model: Model,
+        viewInputs: ViewInputs,
+        h: HtmlBuilder<DispatchMessage, Requirements>,
+      ) => VNode | null
+
+type ContractCompositionView<
+  OwnerValue extends Owner<string>,
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
+  Children extends ReadonlyArray<AnyBinding>,
+  Contract extends CompositionContract,
+> = (
+  view: ContractViewParameters<
+    ModelSchema['Type'],
+    DispatchSchemaFor<MessageSchema, Children>['Type'],
+    DefinitionViewRequirements<Mounts, Children>,
+    Contract['viewInputs'],
+    Contract['document']
+  >,
+) => ContractSummaryView<
+  OwnerValue,
+  ModelSchema['Type'],
+  DispatchSchemaFor<MessageSchema, Children>['Type'],
+  Contract['viewInputs'],
+  DefinitionViewRequirements<Mounts, Children>,
+  Contract['document']
+>
+
+/** @internal The completed Block produced from a declared contract. */
+export type ContractBlock<
+  OwnerValue extends Owner<string>,
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+  Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
+  Children extends ReadonlyArray<AnyBinding>,
+  Contract extends CompositionContract,
+> = CompletedBlock<
+  OwnerValue,
+  ModelSchema,
+  DispatchSchemaFor<MessageSchema, Children>,
+  OutMessageSchema,
+  Mounts,
+  Children,
+  PublicAssembleBlockImplementation<
+    ModelSchema,
+    DispatchSchemaFor<MessageSchema, Children>,
+    ContractSummaryImplementation<
+      OwnerValue,
+      ModelSchema,
+      DispatchSchemaFor<MessageSchema, Children>,
+      OutMessageSchema,
+      Mounts,
+      Children,
+      Contract
+    >
+  >
+>
+
+type ContractCompositionMembers<
+  OwnerValue extends Owner<string>,
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+  Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
+  Children extends ReadonlyArray<AnyBinding>,
+  Contract extends CompositionContract,
+> = {
+  /** Authors initialization against this Composition's contract. */
+  readonly makeInit: ContractCompositionInit<
+    ModelSchema,
+    MessageSchema,
+    Children,
+    Contract
+  >
+  /** Authors update against this Composition's contract. */
+  readonly makeUpdate: ContractCompositionUpdate<
+    ModelSchema,
+    MessageSchema,
+    OutMessageSchema,
+    Children,
+    Contract
+  >
+  /** Authors the primary view against this Composition's contract. Use
+   * `makeView.withInputs` for additional views with their own inputs. */
+  readonly makeView: ContractCompositionView<
+    OwnerValue,
+    ModelSchema,
+    MessageSchema,
+    Mounts,
+    Children,
+    Contract
+  > &
+    Pick<
+      DefineView<
+        OwnerValue,
+        ModelSchema['Type'],
+        DispatchSchemaFor<MessageSchema, Children>['Type'],
+        DefinitionViewRequirements<Mounts, Children>
+      >,
+      'withInputs'
+    >
+  /** Completes this Composition. The completed Block's type is fixed by the
+   * contract, so other files read it without checking the implementation. */
+  readonly assembleBlock: (
+    implementation: Readonly<{
+      init: ContractSummaryInit<
+        ModelSchema['Type'],
+        DispatchSchemaFor<MessageSchema, Children>['Type'],
+        Contract['initArgs']
+      > &
+        ContractBrand<Contract>
+      update: ContractSummaryUpdate<
+        ModelSchema['Type'],
+        DispatchSchemaFor<MessageSchema, Children>['Type'],
+        OutMessageSchema extends AnySchema ? OutMessageSchema['Type'] : never,
+        Contract['updateContext']
+      > &
+        ContractBrand<Contract>
+      view: ContractSummaryView<
+        OwnerValue,
+        ModelSchema['Type'],
+        DispatchSchemaFor<MessageSchema, Children>['Type'],
+        Contract['viewInputs'],
+        DefinitionViewRequirements<Mounts, Children>,
+        Contract['document']
+      >
+    }> &
+      ContractImplementationCheck<
+        ContractSummaryImplementation<
+          OwnerValue,
+          ModelSchema,
+          DispatchSchemaFor<MessageSchema, Children>,
+          OutMessageSchema,
+          Mounts,
+          Children,
+          Contract
+        >,
+        ValidateContractImplementation<
+          OwnerValue,
+          ModelSchema,
+          DispatchSchemaFor<MessageSchema, Children>,
+          OutMessageSchema,
+          Mounts,
+          Children,
+          ContractSummaryImplementation<
+            OwnerValue,
+            ModelSchema,
+            DispatchSchemaFor<MessageSchema, Children>,
+            OutMessageSchema,
+            Mounts,
+            Children,
+            Contract
+          >
+        >
+      > &
+      ValidateChildInitContext<Children, Contract['childInitContext']> &
+      ValidateChildBindings<
+        Children,
+        ModelSchema['Type'],
+        MessageSchema['Type'],
+        OutMessageSchema extends AnySchema ? OutMessageSchema['Type'] : never
+      >,
+  ) => ContractBlock<
+    OwnerValue,
+    ModelSchema,
+    MessageSchema,
+    OutMessageSchema,
+    Mounts,
+    Children,
+    Contract
+  >
+}
+
 export type Composition<
   OwnerValue extends Owner<string>,
   ModelSchema extends AnySchema,
@@ -3422,6 +4009,7 @@ export type Composition<
   OutMessageSchema extends AnySchema | undefined,
   Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
   Children extends ReadonlyArray<AnyBinding>,
+  Contract extends CompositionContract | NoContract = NoContract,
 > = Pick<
   Definition<
     OwnerValue,
@@ -3440,6 +4028,33 @@ export type Composition<
 > & {
   /** Complete dispatch Codec, including this Composition's generated child Messages. */
   readonly Message: DispatchSchemaFor<MessageSchema, Children>
+} & (Contract extends CompositionContract
+    ? ContractCompositionMembers<
+        OwnerValue,
+        ModelSchema,
+        MessageSchema,
+        OutMessageSchema,
+        Mounts,
+        Children,
+        Contract
+      >
+    : UncontractedCompositionMembers<
+        OwnerValue,
+        ModelSchema,
+        MessageSchema,
+        OutMessageSchema,
+        Mounts,
+        Children
+      >)
+
+type UncontractedCompositionMembers<
+  OwnerValue extends Owner<string>,
+  ModelSchema extends AnySchema,
+  MessageSchema extends AnySchema,
+  OutMessageSchema extends AnySchema | undefined,
+  Mounts extends ReadonlyArray<Mount.LayeredMountDefinition>,
+  Children extends ReadonlyArray<AnyBinding>,
+> = {
   /** Authors initialization for this registered graph. The callback supplies
    * parent-owned fields and may prepare one shared ChildInitContext for its
    * child Binding init policies. Child initialization and listed Steps produce the
@@ -3513,6 +4128,16 @@ export interface MakeComposition<
     const Mounts extends ReadonlyArray<Mount.LayeredMountDefinition> =
       readonly [],
     const Children extends ReadonlyArray<AnyBinding> = readonly [],
+    const Operations extends Readonly<Record<string, AnyFunction>> | undefined =
+      undefined,
+    const EffectsLayer extends AnyLayer | undefined = undefined,
+    const Subscriptions extends AnySubscriptionInput | undefined = undefined,
+    const ManagedResources extends AnyManagedResources | undefined = undefined,
+    const HostHandlers extends ReadonlyArray<unknown> | undefined = undefined,
+    ViewInputs = NotDeclared,
+    InitArgs extends ReadonlyArray<unknown> | NotDeclared = NotDeclared,
+    UpdateContext extends ReadonlyArray<unknown> | NotDeclared = NotDeclared,
+    const IsDocument extends true | undefined = undefined,
   >(
     config: Readonly<{
       /** Mount definitions owned directly by this Block. Omitted Mounts default
@@ -3521,18 +4146,53 @@ export interface MakeComposition<
       /** Child Bindings registered in this Block's composition graph. Omitted
        * bindings default to an empty tuple. */
       bindings?: Children
+      /** Public operations, as local Message constructors or tuple producers. */
+      operations?: Operations
+      /** The Block's local handler recipe. */
+      EffectsLayer?: EffectsLayer
+      /** Subscription entries owned directly by this Block. */
+      subscriptions?: Subscriptions
+      /** ManagedResource entries owned directly by this Block. */
+      managedResources?: ManagedResources
+      /** Handler contracts left for the host to provide. */
+      hostHandlers?: HostHandlers
+      /** The primary view's per-render inputs. */
+      viewInputs?: Declared<ViewInputs>
+      /** The initializer's arguments. */
+      initArgs?: Declared<InitArgs>
+      /** The additional arguments update receives after the Message. */
+      updateContext?: Declared<UpdateContext>
+      /** Declares that the primary view owns the page `Document`. */
+      document?: IsDocument
     }> &
-      ValidateChildInitContext<
-        Children,
-        ChildInitContextSchema extends AnySchema
-          ? ChildInitContextSchema['Type']
-          : never
-      > &
-      ValidateChildBindings<
-        Children,
-        ModelSchema['Type'],
-        MessageSchema['Type'],
-        OutMessageSchema extends AnySchema ? OutMessageSchema['Type'] : never
+      NoInfer<
+        ContractOf<
+          Operations,
+          EffectsLayer,
+          Subscriptions,
+          ManagedResources,
+          HostHandlers,
+          ViewInputs,
+          InitArgs,
+          UpdateContext,
+          ChildInitContextSchema,
+          IsDocument
+        > extends NoContract
+          ? ValidateChildInitContext<
+              Children,
+              ChildInitContextSchema extends AnySchema
+                ? ChildInitContextSchema['Type']
+                : never
+            > &
+              ValidateChildBindings<
+                Children,
+                ModelSchema['Type'],
+                MessageSchema['Type'],
+                OutMessageSchema extends AnySchema
+                  ? OutMessageSchema['Type']
+                  : never
+              >
+          : unknown
       >,
   ): Composition<
     OwnerValue,
@@ -3540,9 +4200,106 @@ export interface MakeComposition<
     MessageSchema,
     OutMessageSchema,
     Mounts,
-    Children
+    Children,
+    ContractOf<
+      Operations,
+      EffectsLayer,
+      Subscriptions,
+      ManagedResources,
+      HostHandlers,
+      ViewInputs,
+      InitArgs,
+      UpdateContext,
+      ChildInitContextSchema,
+      IsDocument
+    >
   >
 }
+
+/** @internal Marks a contract piece that was not declared. */
+export interface NotDeclared {
+  readonly __notDeclared: true
+}
+
+type ContractOf<
+  Operations,
+  EffectsLayer,
+  Subscriptions,
+  ManagedResources,
+  HostHandlers,
+  ViewInputs,
+  InitArgs,
+  UpdateContext,
+  ChildInitContextSchema = undefined,
+  IsDocument = undefined,
+> = [
+  | Operations
+  | EffectsLayer
+  | Subscriptions
+  | ManagedResources
+  | HostHandlers
+  | IsDocument,
+] extends [undefined]
+  ? [ViewInputs | InitArgs | UpdateContext] extends [NotDeclared]
+    ? NoContract
+    : ContractValue<
+        Operations,
+        EffectsLayer,
+        Subscriptions,
+        ManagedResources,
+        HostHandlers,
+        ViewInputs,
+        InitArgs,
+        UpdateContext,
+        ChildInitContextSchema,
+        IsDocument
+      >
+  : ContractValue<
+      Operations,
+      EffectsLayer,
+      Subscriptions,
+      ManagedResources,
+      HostHandlers,
+      ViewInputs,
+      InitArgs,
+      UpdateContext,
+      ChildInitContextSchema,
+      IsDocument
+    >
+
+type ContractValue<
+  Operations,
+  EffectsLayer,
+  Subscriptions,
+  ManagedResources,
+  HostHandlers,
+  ViewInputs,
+  InitArgs,
+  UpdateContext,
+  ChildInitContextSchema,
+  IsDocument,
+> = Readonly<{
+  document: IsDocument extends true ? true : false
+  childInitContext: ChildInitContextSchema extends AnySchema
+    ? ChildInitContextSchema['Type']
+    : never
+  operations: Operations extends object ? Operations : EmptyRecord
+  EffectsLayer: EffectsLayer extends AnyLayer
+    ? EffectsLayer
+    : typeof Layer.empty
+  subscriptions: Subscriptions extends object ? Subscriptions : EmptyRecord
+  managedResources: ManagedResources extends object
+    ? ManagedResources
+    : EmptyRecord
+  hostHandlers: HostHandlers extends ReadonlyArray<unknown>
+    ? HostHandlers
+    : readonly []
+  viewInputs: [ViewInputs] extends [NotDeclared] ? void : ViewInputs
+  initArgs: InitArgs extends ReadonlyArray<unknown> ? InitArgs : readonly []
+  updateContext: UpdateContext extends ReadonlyArray<unknown>
+    ? UpdateContext
+    : readonly []
+}>
 
 /** Typed authoring helpers established before the child and Mount graph. Every
  * Definition proceeds through `makeComposition`, including an empty graph. */
@@ -4245,6 +5002,68 @@ type RuntimeCompositionGraph = Readonly<{
   bindings?: ReadonlyArray<AnyBinding>
 }>
 
+const contractFields = new Set([
+  'operations',
+  'EffectsLayer',
+  'subscriptions',
+  'managedResources',
+  'hostHandlers',
+  'viewInputs',
+  'initArgs',
+  'updateContext',
+  'document',
+])
+
+const declaredContractFields = new Set([
+  'viewInputs',
+  'initArgs',
+  'updateContext',
+])
+
+const splitCompositionConfig = (
+  config: Readonly<Record<string, unknown>>,
+): Readonly<{
+  graph: RuntimeCompositionGraph
+  contract: Readonly<Record<string, unknown>> | undefined
+}> => {
+  const graph: Record<string, unknown> = {}
+  const contract: Record<string, unknown> = {}
+  let hasContract = false
+
+  for (const [field, value] of Object.entries(config)) {
+    if (field === 'mounts' || field === 'bindings') {
+      graph[field] = value
+      continue
+    }
+
+    hasContract = true
+    if (field === 'document') {
+      if (value !== true) {
+        throw new Error(
+          '[foldkit] Definition.makeComposition field "document" must be true when present.',
+        )
+      }
+      continue
+    }
+    if (declaredContractFields.has(field)) {
+      if (!isDeclaredMarker(value)) {
+        throw new Error(
+          `[foldkit] Definition.makeComposition field "${field}" must be created with Block.declared().`,
+        )
+      }
+      continue
+    }
+
+    contract[field] = value
+  }
+
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  return {
+    graph: graph as RuntimeCompositionGraph,
+    contract: hasContract ? contract : undefined,
+  }
+}
+
 const assertCompositionGraph: (
   value: unknown,
 ) => asserts value is RuntimeCompositionGraph = value => {
@@ -4255,7 +5074,11 @@ const assertCompositionGraph: (
   }
 
   for (const field of Object.getOwnPropertyNames(value)) {
-    if (field !== 'mounts' && field !== 'bindings') {
+    if (
+      field !== 'mounts' &&
+      field !== 'bindings' &&
+      !contractFields.has(field)
+    ) {
       throw new Error(
         `[foldkit] Definition.makeComposition does not support the configuration field "${field}".`,
       )
@@ -4317,9 +5140,31 @@ export const makeBaseDefinition = (
 ): any => {
   const base = makeDefinition(owner, config)
 
-  const makeComposition = (graph: RuntimeCompositionGraph = {}) => {
-    assertCompositionGraph(graph)
+  const makeComposition = (compositionConfig: RuntimeCompositionGraph = {}) => {
+    assertCompositionGraph(compositionConfig)
+    const { graph, contract } = splitCompositionConfig(compositionConfig)
     const composition = makeDefinition(owner, { ...config, ...graph }, base)
+    const makeView =
+      contract !== undefined && Reflect.has(compositionConfig, 'viewInputs')
+        ? Object.assign(
+            (view: Parameters<typeof composition.makeView.withInputs>[0]) =>
+              composition.makeView.withInputs(view),
+            { withInputs: composition.makeView.withInputs },
+          )
+        : composition.makeView
+    const assembleBlock =
+      contract === undefined
+        ? composition.assembleBlock
+        : (implementation: Readonly<Record<string, unknown>>) => {
+            for (const field of Object.keys(implementation)) {
+              if (contractFields.has(field)) {
+                throw new Error(
+                  `[foldkit] Block "${owner.id}" declares "${field}" in its Composition contract; pass only init, update, and view to assembleBlock.`,
+                )
+              }
+            }
+            return composition.assembleBlock({ ...contract, ...implementation })
+          }
     const publicComposition = {
       owner: composition.owner,
       Model: composition.Model,
@@ -4332,8 +5177,8 @@ export const makeBaseDefinition = (
       bindings: composition.bindings,
       makeInit: composition.makeInit,
       makeUpdate: composition.makeUpdate,
-      makeView: composition.makeView,
-      assembleBlock: composition.assembleBlock,
+      makeView,
+      assembleBlock,
     }
 
     compositions.add(publicComposition)

@@ -10,9 +10,10 @@ import {
 } from 'foldkit/scene'
 import { describe, test } from 'vitest'
 
+import { CopySnippet, WaitBeforeHidingCopiedIndicator } from './command'
 import { init } from './init'
 import { Message } from './message'
-import { CopySnippet, WaitBeforeHidingCopiedIndicator, update } from './update'
+import { update } from './update'
 import { view } from './view'
 
 const snippetId = 'counter-example'

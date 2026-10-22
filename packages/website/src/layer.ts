@@ -1,7 +1,7 @@
 import { Layer } from 'effect'
 
 import * as Command from './command'
-import { LoadPlayground } from './composition'
+import { LoadPlayground } from './composition/home'
 import * as Subscription from './subscription'
 
 export const EffectsLayer = Layer.mergeAll(

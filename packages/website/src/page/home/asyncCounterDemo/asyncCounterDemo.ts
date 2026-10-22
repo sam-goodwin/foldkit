@@ -28,23 +28,6 @@ const clampResetSeconds = (seconds: number): number =>
     maximum: MAX_RESET_DURATION,
   })
 
-export const AsyncCounterDemoComposition =
-  AsyncCounterDemoDefinition.makeComposition()
-type AsyncCounterDemoViewBuilder = Block.ViewBuilderFor<
-  typeof AsyncCounterDemoComposition
->
-
-export const init = AsyncCounterDemoComposition.makeInit(() => ({
-  model: Model.make({
-    count: 0,
-    isResetting: false,
-    resetDuration: 2,
-    phase: 'Idle',
-    generation: 0,
-    messageLog: [],
-  }),
-}))
-
 export const DelayAdvanceAsyncCounterPhase =
   AsyncCounterDemoDefinition.makeCommand('DelayAdvanceAsyncCounterPhase', {
     args: { generation: Schema.Number, duration: Schema.DurationFromMillis },
@@ -60,6 +43,23 @@ export const DelayAdvanceAsyncCounterPhase =
   })
 
 export const EffectsLayer = DelayAdvanceAsyncCounterPhase.layer
+
+export const AsyncCounterDemoComposition =
+  AsyncCounterDemoDefinition.makeComposition({ EffectsLayer })
+type AsyncCounterDemoViewBuilder = Block.ViewBuilderFor<
+  typeof AsyncCounterDemoComposition
+>
+
+export const init = AsyncCounterDemoComposition.makeInit(() => ({
+  model: Model.make({
+    count: 0,
+    isResetting: false,
+    resetDuration: 2,
+    phase: 'Idle',
+    generation: 0,
+    messageLog: [],
+  }),
+}))
 
 const prependToLog =
   (entry: string) =>

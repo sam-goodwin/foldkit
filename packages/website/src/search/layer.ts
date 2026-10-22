@@ -5,7 +5,7 @@ import {
   FocusSearchInput,
   NavigateToResult,
   ScrollToResult,
-} from './update'
+} from './command'
 
 export const EffectsLayer = Layer.mergeAll(
   FetchSearchResults.layer,

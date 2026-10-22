@@ -93,7 +93,7 @@ type SatisfyRequirements<Requirements, Provided> = Requirements extends unknown
       : Requirements
   : never
 
-type ChildHandlerEvidence<Children> = Children extends readonly []
+export type ChildHandlerEvidence<Children> = Children extends readonly []
   ? never
   : Children extends ReadonlyArray<infer Binding>
     ? HandlerRequirementsOfBinding<Binding>

@@ -5,6 +5,8 @@ import { DialogBlock } from '@foldkit/ui'
 
 import { clearSearchQuery } from './clear'
 import { SearchDefinition } from './definition'
+import { EffectsLayer } from './layer'
+import { Message } from './message'
 
 export const DialogBinding = SearchDefinition.makeBinding(DialogBlock, {
   field: 'dialog',
@@ -19,5 +21,10 @@ export const DialogBinding = SearchDefinition.makeBinding(DialogBlock, {
 
 export const SearchComposition = SearchDefinition.makeComposition({
   bindings: [DialogBinding],
+  operations: {
+    requestOpen: Message.RequestedOpen,
+    informRouteChanged: Message.InformedOfRouteChange,
+  },
+  EffectsLayer,
 })
 export type SearchViewBuilder = Block.ViewBuilderFor<typeof SearchComposition>

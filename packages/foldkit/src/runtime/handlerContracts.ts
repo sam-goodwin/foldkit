@@ -59,51 +59,21 @@ type HandlerEntry<Requirements, OwnerId extends string | never> =
       : never
     : LocalHandlerEntry<Requirements, OwnerId>
 
-type Equal<Left, Right> =
-  (<Value>() => Value extends Left ? 1 : 2) extends <
-    Value,
-  >() => Value extends Right ? 1 : 2
-    ? (<Value>() => Value extends Right ? 1 : 2) extends <
-        Value,
-      >() => Value extends Left ? 1 : 2
-      ? true
-      : false
-    : false
-
-type IsUnion<Value, Whole = Value> = Value extends unknown
-  ? [Whole] extends [Value]
-    ? false
-    : true
+type UnionToIntersection<Union> = (
+  Union extends unknown ? (value: Union) => void : never
+) extends (value: infer Intersection) => void
+  ? Intersection
   : never
 
-type ConflictingPairKey<
-  Left extends HandlerEntryShape,
-  Right extends HandlerEntryShape,
-> =
-  Equal<Left['key'], Right['key']> extends true
-    ? Equal<Left['contract'], Right['contract']> extends false
-      ? Left['key']
-      : never
-    : never
+type ContractsByKey<Entries extends HandlerEntryShape> = {
+  [Entry in Entries as Entry['key']]: Entry['contract']
+}
 
-type ConflictingKeysForEntry<
-  Left extends HandlerEntryShape,
-  Entries extends HandlerEntryShape,
-> = Entries extends infer Right extends HandlerEntryShape
-  ? ConflictingPairKey<Left, Right>
-  : never
-
-type ConflictingIndexedKeys<
-  Entries extends HandlerEntryShape,
-  Index,
-> = Entries extends infer Left extends HandlerEntryShape
-  ? Left['key'] extends keyof Index
-    ? ConflictingKeysForEntry<
-        Left,
-        Extract<Index[Left['key']], HandlerEntryShape>
-      >
-    : never
-  : never
+type ConflictingKeys<Index> = {
+  [Key in keyof Index]: [Index[Key]] extends [UnionToIntersection<Index[Key]>]
+    ? never
+    : Key
+}[keyof Index]
 
 type ValidHandlerKindContracts<
   Requirements,
@@ -112,20 +82,13 @@ type ValidHandlerKindContracts<
   ? unknown
   : HandlerEntry<Requirements, OwnerId> extends infer Entries
     ? [Entries] extends [HandlerEntryShape]
-      ? true extends IsUnion<Entries>
-        ? ConflictingIndexedKeys<
-            Entries,
-            {
-              [Entry in Entries as Entry['key']]: Entry
-            }
-          > extends infer Conflicts
-          ? [Conflicts] extends [never]
-            ? unknown
-            : Readonly<{
-                'Conflicting Foldkit handler contracts': Conflicts
-              }>
-          : never
-        : unknown
+      ? ConflictingKeys<ContractsByKey<Entries>> extends infer Conflicts
+        ? [Conflicts] extends [never]
+          ? unknown
+          : Readonly<{
+              'Conflicting Foldkit handler contracts': Conflicts
+            }>
+        : never
       : unknown
     : unknown
 

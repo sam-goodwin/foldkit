@@ -268,7 +268,7 @@ type MissingDeliveryTags<Message, Bindings extends ReadonlyArray<unknown>> =
         : never
     : never
 
-type CompositionDeliveryErrors<
+export type CompositionDeliveryErrors<
   Message,
   Bindings extends ReadonlyArray<unknown>,
 > =
@@ -600,7 +600,7 @@ type CompositionDefinedUpdateValue<
   | RouteRegistration<Bindings>
 >
 
-type CompositionDefinedUpdate<
+export type CompositionDefinedUpdate<
   Model,
   Message,
   Context extends ReadonlyArray<unknown>,
@@ -619,7 +619,7 @@ type CompositionDefinedUpdate<
       >
     : unknown)
 
-type RoutedOnlyUpdate<
+export type RoutedOnlyUpdate<
   Model,
   Message,
   Bindings extends ReadonlyArray<AnyBinding>,
@@ -653,7 +653,7 @@ type AuthoredUpdateContext<AuthoredUpdate extends AnyFunction> =
     ? Context
     : readonly []
 
-type AuthoredUpdateFunction<
+export type AuthoredUpdateFunction<
   Model,
   Message,
   Context extends ReadonlyArray<unknown>,
@@ -665,7 +665,7 @@ type AuthoredUpdateFunction<
   ...context: Context
 ) => Output
 
-type ContextualAuthoredOutput<Model> =
+export type ContextualAuthoredOutput<Model> =
   | Readonly<{
       model: Model
       commands?: unknown
@@ -676,7 +676,7 @@ type ContextualAuthoredOutput<Model> =
 
 declare const InvalidAuthoredUpdateTypeId: unique symbol
 
-type ValidateAuthoredUpdateFunction<
+export type ValidateAuthoredUpdateFunction<
   Model,
   Message,
   DispatchMessage,

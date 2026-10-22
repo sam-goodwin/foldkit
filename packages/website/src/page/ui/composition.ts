@@ -31,6 +31,7 @@ import {
 import { ToastBlock } from './demo/toastModule'
 import { type DemoCard, type DemoColumn } from './domain/domain'
 import { Model } from './model'
+import type { ViewInputs } from './view'
 import { VirtualListChatDemoBindingWithOutMessagePolicy } from './virtualListChat'
 
 export { VirtualListChatDemoBinding } from './virtualListChat'
@@ -866,5 +867,7 @@ export const UiComposition = UiDefinition.makeComposition({
     VirtualListDemoBinding,
     VirtualListVariableDemoBinding,
   ],
+  viewInputs: Block.declared<ViewInputs>(),
+  initArgs: Block.declared<readonly [today: Calendar.CalendarDate]>(),
 })
 export type UiViewBuilder = Block.ViewBuilderFor<typeof UiComposition>

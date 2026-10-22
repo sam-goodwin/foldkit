@@ -1,5 +1,5 @@
 import { Tuple } from 'effect'
-import type { Block } from 'foldkit'
+import { Block } from 'foldkit'
 
 import { AsyncCounterDemoBlock } from './asyncCounterDemo'
 import { HomeDefinition } from './definition'
@@ -7,6 +7,7 @@ import * as DemoTab from './demoTab'
 import { OutMessage } from './message'
 import { NotePlayerDemoBlock } from './notePlayerDemo'
 import { PlaygroundMenuBlock } from './playgroundMenu'
+import type { ViewInputs } from './view'
 
 export const DemoTabsBinding = HomeDefinition.makeBinding(
   DemoTab.DemoTabsBlock,
@@ -67,5 +68,6 @@ export const HomeComposition = HomeDefinition.makeComposition({
     NotePlayerDemoBinding,
     PlaygroundMenuBinding,
   ],
+  viewInputs: Block.declared<ViewInputs>(),
 })
 export type HomeViewBuilder = Block.ViewBuilderFor<typeof HomeComposition>
