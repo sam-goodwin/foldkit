@@ -3,7 +3,6 @@ import {
   Effect,
   Effectable,
   Layer,
-  Option,
   Predicate,
   Schema,
   type Scope,
@@ -23,7 +22,6 @@ import {
   type OnTarget,
   type RuntimeBlock,
   type RuntimeConstructor,
-  type RuntimeHandlers,
   type RuntimeInstance,
   SendTypeId,
   blockMessage,
@@ -255,18 +253,6 @@ export type AllOutMessageHandlers<
       }
     : never
 
-/** Command handlers supplied by a Layer outside the Block. A Block whose
- *  constructor returns no `commands` requires this service; its `handlers`
- *  method provides it. */
-export interface Handlers<Self> {
-  readonly [HandlersTypeId]: Self
-}
-
-/** @internal Brands the {@link Handlers} service type. */
-export const HandlersTypeId: unique symbol = Symbol.for(
-  'foldkit/Block/Handlers',
-)
-
 // IMPLEMENTATION
 
 type ModelSlot<Model> = [Model] extends [undefined]
@@ -282,12 +268,6 @@ type HandlersSlot<Key extends string, Definitions> = [Definitions] extends [
 ]
   ? { readonly [K in Key]?: undefined }
   : { readonly [K in Key]: HandlerRecord<Definitions> }
-
-type OptionalHandlersSlot<Key extends string, Definitions> = [
-  Definitions,
-] extends [never]
-  ? { readonly [K in Key]?: undefined }
-  : { readonly [K in Key]?: HandlerRecord<Definitions> }
 
 /** A Stream that runs while its dependencies stay the same. The runtime
  *  recomputes the dependencies from the instance's Model after every update
@@ -332,8 +312,7 @@ type ViewFunction<Model, Message, ViewInput, MountRequirements> = [
  *  when the instance enters the Model (`start`), the update handlers, the
  *  view, Command and Mount handlers, a Stream of Messages that runs while the
  *  instance exists, Subscriptions that depend on its Model, and a value the
- *  instance exposes to its parent's Commands. A constructor that omits
- *  `commands` leaves its Command handlers to the Block's `handlers` Layer. */
+ *  instance exposes to its parent's Commands. */
 export type Implementation<
   C extends Contract,
   ViewInput = void,
@@ -345,7 +324,7 @@ export type Implementation<
     OutMessageOf<C>,
     CommandOf<DefinitionsOf<C, 'Command'>, MessageOf<C>>
   > &
-  OptionalHandlersSlot<'commands', DefinitionsOf<C, 'Command'>> &
+  HandlersSlot<'commands', DefinitionsOf<C, 'Command'>> &
   HandlersSlot<'mounts', DefinitionsOf<C, 'Mount'>> &
   ExposeSlot<Exposed> &
   Readonly<{
@@ -475,14 +454,6 @@ export interface Factory<
   ): OnEntry<ParentModel>
 }
 
-type HostHandlersRequirement<Self, C extends Contract, I> = [
-  DefinitionsOf<C, 'Command'>,
-] extends [never]
-  ? never
-  : I extends Readonly<{ commands: object }>
-    ? never
-    : Handlers<Self>
-
 type ConstructorArgs<Args> = [Args] extends [void] ? [] : [args: Args]
 
 /** A Block class. Declare one with
@@ -515,30 +486,17 @@ export type BlockClass<
     Mount: C['Mount']
     /** Implements the Block. The constructor runs once per instance and
      *  receives the instance id and args. Returns a Layer that provides the
-     *  Block to every parent that creates it. When the constructor returns
-     *  no `commands`, the Layer requires the Block's `handlers` Layer. */
-    make: <I extends Implementation<C, ViewInput, Exposed>, E, R>(
-      constructor: (id: string, args: Args) => Effect.Effect<I, E, R>,
+     *  Block to every parent that creates it. */
+    make: <E, R>(
+      constructor: (
+        id: string,
+        args: Args,
+      ) => Effect.Effect<Implementation<C, ViewInput, Exposed>, E, R>,
     ) => Layer.Layer<
       Self,
       E,
-      | Exclude<R, BlockParent | InstancePath | Scope.Scope>
-      | HostHandlersRequirement<Self, C, I>
+      Exclude<R, BlockParent | InstancePath | Scope.Scope>
     >
-    /** Implements the Block's Command handlers outside its constructor. The
-     *  constructor runs once when the Layer is built: it yields the services
-     *  the handlers use and returns one handler per Command, so the handlers
-     *  close over those services and require nothing themselves. A Block
-     *  whose constructor returns no `commands` uses these handlers. Stories
-     *  and scenes never run Command handlers, so they need no `handlers`
-     *  Layer. */
-    handlers: <E, R>(
-      constructor: () => Effect.Effect<
-        HandlerRecord<DefinitionsOf<C, 'Command'>>,
-        E,
-        R
-      >,
-    ) => Layer.Layer<Handlers<Self>, E, Exclude<R, Scope.Scope>>
     /** Creates a factory for a keyed collection of instances stored in the
      *  parent Model. */
     each: {
@@ -659,9 +617,6 @@ export const Block =
     const service = Context.Service<unknown, RuntimeConstructor>(
       `foldkit/Block/${id}#${blockCount}`,
     )
-    const handlersService = Context.Service<unknown, RuntimeHandlers>(
-      `foldkit/Block/${id}#${blockCount}/Handlers`,
-    )
 
     const runtimeBlock: RuntimeBlock = {
       id,
@@ -669,7 +624,6 @@ export const Block =
       Command: asDefinitions(contract?.Command),
       Mount: asDefinitions(contract?.Mount),
       service,
-      handlers: handlersService,
     }
 
     class Instance extends Effectable.Class<unknown, never, unknown> {
@@ -774,28 +728,13 @@ export const Block =
           service,
           Effect.map(
             Effect.context<never>(),
-            (captured): RuntimeConstructor => {
-              const maybeHostHandlers = Context.getOption(
-                captured,
-                handlersService,
-              )
-              return (instanceId, args) =>
+            (captured): RuntimeConstructor =>
+              (instanceId, args) =>
                 Effect.updateContext(constructor(instanceId, args), context =>
                   Context.merge(captured, context),
-                ).pipe(
-                  Effect.map(impl =>
-                    impl.commands === undefined &&
-                    Option.isSome(maybeHostHandlers)
-                      ? { ...impl, commands: maybeHostHandlers.value }
-                      : impl,
-                  ),
-                )
-            },
+                ),
           ),
         ),
-      handlers: (
-        constructor: () => Effect.Effect<RuntimeHandlers, unknown, unknown>,
-      ) => Layer.effect(handlersService, Effect.suspend(constructor)),
       each: (collection: string, args?: unknown) =>
         Effect.gen(function* () {
           const parent = yield* BlockParent

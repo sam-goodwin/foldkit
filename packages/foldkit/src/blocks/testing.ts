@@ -19,7 +19,7 @@ import {
   given as givenStory,
   story as runStory,
 } from '../test/story.js'
-import { type Handlers, blockRegistry } from './block.js'
+import { blockRegistry } from './block.js'
 import {
   type BlockMessage,
   type RuntimeBlock,
@@ -75,8 +75,6 @@ type ArgsOfInstance<Self> =
     ? Args
     : never
 
-type AnyHandlers = Handlers<any>
-
 type MissingBlocks<R> = Extract<R, AnyInstance>
 
 /** What a story or scene returns when its Layer still requires a child
@@ -87,7 +85,7 @@ export interface MissingBlockLayer<Block> {
 }
 
 type SimulationResult<E, R> = [MissingBlocks<R>] extends [never]
-  ? Effect.Effect<void, E, Exclude<R, AnyHandlers>>
+  ? Effect.Effect<void, E, R>
   : MissingBlockLayer<MissingBlocks<R>>
 
 type StorySteps<Self> = ReadonlyArray<

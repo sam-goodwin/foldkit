@@ -7,7 +7,6 @@ export type {
   BlockMessage,
   Contract,
   Factory,
-  Handlers,
   Implementation,
   InstanceMembers as Instance,
   MessageOf,

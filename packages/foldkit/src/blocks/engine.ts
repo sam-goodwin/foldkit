@@ -133,13 +133,7 @@ export type RuntimeBlock = Readonly<{
   Command: ReadonlyArray<AnyHandlerDefinition>
   Mount: ReadonlyArray<AnyHandlerDefinition>
   service: Context.Key<unknown, RuntimeConstructor>
-  handlers: Context.Key<unknown, RuntimeHandlers>
 }>
-
-/** @internal Command handlers keyed by Command name. */
-export type RuntimeHandlers = Readonly<
-  Record<string, (input: unknown) => unknown>
->
 
 /** @internal Shared state for one running graph: a program or a test. */
 export type Graph = {
@@ -637,37 +631,30 @@ export const hydrate = (data: unknown, template: unknown): unknown => {
 
 // CONSTRUCTION
 
-// NOTE: a simulation never runs Command handlers, so a story or scene builds
-// a Block whose Command handlers come from a host Layer it does not provide.
 const handlerLayers = (
-  graph: Graph,
   block: RuntimeBlock,
   kind: 'Command' | 'Mount',
   definitions: ReadonlyArray<AnyHandlerDefinition>,
-  handlers: RuntimeHandlers | undefined,
+  handlers: Readonly<Record<string, (input: unknown) => unknown>> | undefined,
 ): ReadonlyArray<Layer.Layer<never>> =>
-  Array.flatMap(definitions, definition => {
+  Array.map(definitions, definition => {
     const handler = handlers?.[definition.name]
-    if (handler !== undefined) {
-      return [definition.toLayer(Effect.succeed(handler))]
-    } else if (graph.isSimulation && kind === 'Command') {
-      return []
-    } else {
+    if (handler === undefined) {
       throw new Error(
-        `[foldkit] Block "${block.id}" declares ${kind} "${definition.name}" but has no handler for it. Return it under \`${kind === 'Command' ? 'commands' : 'mounts'}\` from the constructor${kind === 'Command' ? ", or provide the Block's `handlers` Layer" : ''}.`,
+        `[foldkit] Block "${block.id}" declares ${kind} "${definition.name}" but its constructor returned no handler for it under \`${kind === 'Command' ? 'commands' : 'mounts'}\`.`,
       )
     }
+    return definition.toLayer(Effect.succeed(handler))
   })
 
 const buildHandlerContext = (
-  graph: Graph,
   block: RuntimeBlock,
   impl: RuntimeImplementation,
   scope: Scope.Scope,
 ): Effect.Effect<Context.Context<never>> => {
   const layers = [
-    ...handlerLayers(graph, block, 'Command', block.Command, impl.commands),
-    ...handlerLayers(graph, block, 'Mount', block.Mount, impl.mounts),
+    ...handlerLayers(block, 'Command', block.Command, impl.commands),
+    ...handlerLayers(block, 'Mount', block.Mount, impl.mounts),
   ]
 
   if (Array.isReadonlyArrayEmpty(layers)) {
@@ -718,9 +705,7 @@ const construct = (
     )
 
     const handlerContext = Context.add(
-      yield* buildHandlerContext(graph, block, impl, scope).pipe(
-        closeScopeOnError,
-      ),
+      yield* buildHandlerContext(block, impl, scope).pipe(closeScopeOnError),
       CurrentInterruptRegistry,
       makeInterruptRegistry(),
     )

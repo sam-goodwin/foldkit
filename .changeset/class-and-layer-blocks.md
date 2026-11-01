@@ -18,7 +18,7 @@ Implement it with `XLive = X.make(Effect.fn(function* (id, args) { ... }))`. The
 - `model` is the instance's starting Model.
 - `start` lists Commands the Runtime performs when the instance appears. Load data here, never with asynchronous work in the constructor.
 - `update` has one handler per Message: `(model, message) => ({ model, commands?, outMessage?, messages? })`. A handler that changes nothing returns `{ model }`.
-- `commands` and `mounts` implement every Command and Mount listed on the class. A listed Mount without a handler is a type error. A constructor that returns no `commands` leaves every Command handler to the Block's `handlers` Layer, and its Layer requires `Handlers<X>` until one is provided.
+- `commands` and `mounts` implement every Command and Mount listed on the class. A listed Command or Mount without a handler is a type error. To swap what a Command does, for example in a test, provide a different Layer for a service its handler uses.
 - `stream` is a Stream of Messages that runs for as long as the instance exists.
 - `subscriptions` is a record of `{ dependencies, stream, keepAliveEquivalence? }` entries. Foldkit recomputes `dependencies` from the instance's Model after each update and restarts that entry's Stream when they change.
 - `expose` is a value the parent's Commands read with `instance.use`.
@@ -285,31 +285,8 @@ it.effect('choosing a theme saves it', () =>
 )
 ```
 
-In tests the Model is the resolved tree: each instance appears as its own Model, as in `model.settings.theme`, and `Resolved<Model>` from `foldkit/block` names that type. `given` can set child state but cannot add or remove instances. A story never runs Command handlers, so it needs no `handlers` Layer and none of the services that Layer yields. When the Layer still requires a child Block, `story` and `scene` return `MissingBlockLayer<Child>` instead of an Effect, so the type error at `it.effect` names the Block whose Layer to provide. The root instance's `start` Commands are not part of a story. A child's `start` Commands are, as Commands of the update that put the child in the Model.
+In tests the Model is the resolved tree: each instance appears as its own Model, as in `model.settings.theme`, and `Resolved<Model>` from `foldkit/block` names that type. `given` can set child state but cannot add or remove instances. A story never runs Command handlers, but it builds the Block from its Layer, so it provides every service the constructors yield. When the Layer still requires a child Block, `story` and `scene` return `MissingBlockLayer<Child>` instead of an Effect, so the type error at `it.effect` names the Block whose Layer to provide. The root instance's `start` Commands are not part of a story. A child's `start` Commands are, as Commands of the update that put the child in the Model.
 
 To test a parent's reaction to a child, address the child's Message with `Block.deliver(Child, 'id', message)`, or `Block.deliver(Child, ['rows', 'row-3'], message)` for an instance created by `each`, and pass it to `message` or `Scene.deliver`. `Scene.deliver(message)` dispatches a Message whose cause is not a rendered interaction, such as a Stream, a Subscription, or a host event, and replaces `Scene.Subscription.emit`. A child's Command result is routed back to the child automatically. When sibling instances have identical pending Commands, `Command.at('left', SaveCount)` restricts a matcher to the instance at that path.
-
-A Block's Command handlers can live outside its constructor. `X.handlers` takes an `Effect.fn` constructor that yields the services the handlers use and returns one handler per Command, so the handlers close over those services and require nothing themselves. The returned Layer provides `Handlers<X>`. Provide it in the program Layer, and leave it out of stories:
-
-```ts
-export const ApprovalPanelLive = ApprovalPanel.make(
-  Effect.fn(function* () {
-    return { model, update, view }
-  }),
-)
-
-export const ApprovalHandlersLive = ApprovalPanel.handlers(
-  Effect.fn(function* () {
-    const api = yield* WorkOrderApi
-
-    return {
-      SubmitApproval: ({ workOrderId }) =>
-        api
-          .approve(workOrderId)
-          .pipe(Effect.as(ApprovalPanel.Message.SucceededSubmitApproval())),
-    }
-  }),
-)
-```
 
 A constructor yields `Block.Path` to read its instance's path from the root, such as `['tickers', 'wo-42']` for a keyed instance. The root's path is empty. Use it to derive identifiers that must be unique across the program.
