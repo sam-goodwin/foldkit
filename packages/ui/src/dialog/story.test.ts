@@ -147,12 +147,13 @@ class DialogParent extends Block<DialogParent>()('DialogParent', {
   Command: [LoadParentData],
 }) {}
 
-const DialogParentLive = DialogParent.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog('dialog', { id: 'initial-dialog' })
-
+const DialogParentLive = DialogParent.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog, dialogEvents: [] },
+      init: () => ({
+        dialog: new Dialog('dialog', { id: 'initial-dialog' }),
+        dialogEvents: [],
+      }),
       update: {
         ClickedOpenDialog: model => ({
           model,
@@ -160,7 +161,7 @@ const DialogParentLive = DialogParent.make(
           messages: [model.dialog.send(Dialog.Message.RequestedOpen())],
         }),
         CompletedLoadParentData: model => ({ model }),
-        ...dialog.on({
+        ...Dialog.on({
           Opened: model => ({
             model: modifyFields(model, {
               dialogEvents: Array.append(DialogEvent.make('Opened')),
@@ -189,29 +190,35 @@ type DialogSceneArgs = Readonly<{
   onRender: (render: RenderInfo) => void
 }>
 
-class DialogScene extends Block<DialogScene, DialogSceneArgs>()('DialogScene', {
+class DialogScene extends Block<DialogScene>()('DialogScene', {
   Model: Schema.Struct({ dialog: Dialog, isDialogRendered: Schema.Boolean }),
 }) {}
 
-const DialogSceneLive = DialogScene.make(
-  Effect.fn(function* (_id, { dialog: config, hasDescription, onRender }) {
-    const dialog = yield* new Dialog('dialog', config)
-
-    return {
-      model: { dialog, isDialogRendered: false },
-      view: (model, h) =>
-        model.isDialogRendered
-          ? model.dialog.view({
-              hasDescription,
-              toView: render => {
-                onRender(render)
-                return h.dialog([...render.dialog])
-              },
-            })
-          : h.div([]),
-    }
-  }),
-).pipe(Layer.provide(DialogLive))
+const makeDialogSceneLive = ({
+  dialog: config,
+  hasDescription,
+  onRender,
+}: DialogSceneArgs) =>
+  DialogScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({
+          dialog: new Dialog('dialog', config),
+          isDialogRendered: false,
+        }),
+        view: (model, h) =>
+          model.isDialogRendered
+            ? model.dialog.view({
+                hasDescription,
+                toView: render => {
+                  onRender(render)
+                  return h.dialog([...render.dialog])
+                },
+              })
+            : h.div([]),
+      }
+    }),
+  ).pipe(Layer.provide(DialogLive))
 
 const renderDialog = (model: DialogModel) =>
   Scene.given({ dialog: model, isDialogRendered: true })
@@ -238,13 +245,12 @@ const dialogHasOnUnmount = (model: DialogModel) =>
 
     if (isDialogVisible(model)) {
       yield* Scene.scene(
-        DialogSceneLive,
-        args,
+        makeDialogSceneLive(args),
         renderDialog(model),
         acknowledgeAcquireResources,
       )
     } else {
-      yield* Scene.scene(DialogSceneLive, args, renderDialog(model))
+      yield* Scene.scene(makeDialogSceneLive(args), renderDialog(model))
     }
 
     return hasOnUnmount
@@ -270,8 +276,7 @@ const renderGroup = <RequiredMountRequirements>(
     if (isDialogVisible(model)) {
       if (model.animation.transitionState === 'LeaveStart') {
         yield* Scene.scene(
-          DialogSceneLive,
-          args,
+          makeDialogSceneLive(args),
           renderDialog(model),
           acknowledgeAcquireResources,
           Scene.Command.resolve(
@@ -290,14 +295,13 @@ const renderGroup = <RequiredMountRequirements>(
         )
       } else {
         yield* Scene.scene(
-          DialogSceneLive,
-          args,
+          makeDialogSceneLive(args),
           renderDialog(model),
           acknowledgeAcquireResources,
         )
       }
     } else {
-      yield* Scene.scene(DialogSceneLive, args, renderDialog(model))
+      yield* Scene.scene(makeDialogSceneLive(args), renderDialog(model))
     }
 
     return captured
@@ -1381,8 +1385,7 @@ describe('Dialog', () => {
 
     it.effect('marks a visible dialog as modal to assistive technology', () =>
       Scene.scene(
-        DialogSceneLive,
-        sceneArgs(openModel(test), ignoreRender),
+        makeDialogSceneLive(sceneArgs(openModel(test), ignoreRender)),
         renderDialog(openModel(test)),
         acknowledgeAcquireResources,
         Scene.expect(Scene.selector('dialog')).toHaveAttr('aria-modal', 'true'),
@@ -1391,8 +1394,7 @@ describe('Dialog', () => {
 
     it.effect('omits modal semantics while closed', () =>
       Scene.scene(
-        DialogSceneLive,
-        sceneArgs(closedModel(test), ignoreRender),
+        makeDialogSceneLive(sceneArgs(closedModel(test), ignoreRender)),
         renderDialog(closedModel(test)),
         Scene.expect(Scene.selector('dialog')).not.toHaveAttr('aria-modal'),
       ),

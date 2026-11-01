@@ -4,7 +4,7 @@
 
 A file drop zone that accepts files via both drag-and-drop and a hidden `<input type="file">`. FileDrop is headless. The component owns drag state and file-arrival events; your `toView` callback owns the visual.
 
-Create a `FileDrop.FileDrop` instance in the parent's constructor, hold it in the parent Model, render it with `model.uploader.view({ ... })`, and provide `FileDrop.FileDropLive` to the parent's Layer. FileDrop reports two OutMessages, which the parent handles with `...uploader.on({ ... })`. `ReceivedFiles` fires when files arrive with a guaranteed non-empty list. `RejectedNonFiles` fires when a drop or change event produced no files, for example when someone drags non-file data.
+Create an instance with `new FileDrop.FileDrop('uploader', { id })` in the parent's `init`, hold it in the parent Model, render it with `model.uploader.view({ ... })`, and provide `FileDrop.FileDropLive` to the parent's Layer. FileDrop reports two OutMessages, which the parent handles with `...FileDrop.FileDrop.on({ ... })`. `ReceivedFiles` fires when files arrive with a guaranteed non-empty list. `RejectedNonFiles` fires when a drop or change event produced no files, for example when someone drags non-file data.
 
 :::Info{label="See it in an app"}
 Check out how FileDrop is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/fileDropPage.ts).
@@ -63,9 +63,9 @@ Attribute groups provided to the `toView` callback.
 
 ### OutMessage {#out-message}
 
-Facts FileDrop reports to its parent. Handle them by spreading `...uploader.on({ ... })` into the parent's update record to process arriving files; variants without a handler are ignored.
+Facts FileDrop reports to its parent. Handle them by spreading `...FileDrop.FileDrop.on({ ... })` into the parent's update record to process arriving files; variants without a handler are ignored.
 
-| Name               | Type                                     | Default | Description                                                                                                                                                                                                              |
-| ------------------ | ---------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ReceivedFiles`    | `{ files: NonEmptyReadonlyArray<File> }` | —       | Emitted when the user drops files on the zone or selects them via the hidden input. The files list is guaranteed non-empty. Handle it with the instance's `.on` to process the files (validate, upload, store in Model). |
-| `RejectedNonFiles` | `{}`                                     | —       | Emitted when a drop or input-change event fires without any files, typically a drag of non-file data (text, URLs, images from another page). Consumers can ignore this or surface a hint to the user.                    |
+| Name               | Type                                     | Default | Description                                                                                                                                                                                                           |
+| ------------------ | ---------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ReceivedFiles`    | `{ files: NonEmptyReadonlyArray<File> }` | —       | Emitted when the user drops files on the zone or selects them via the hidden input. The files list is guaranteed non-empty. Handle it with the class's `.on` to process the files (validate, upload, store in Model). |
+| `RejectedNonFiles` | `{}`                                     | —       | Emitted when a drop or input-change event fires without any files, typically a drag of non-file data (text, URLs, images from another page). Consumers can ignore this or surface a hint to the user.                 |

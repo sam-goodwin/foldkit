@@ -10,8 +10,8 @@ const Message = defineMessageUnion({
 
 export class Canvas extends Block<Canvas>()('Canvas', { Message }) {}
 
-export const CanvasLive = Canvas.make(
-  Effect.fn(function* () {
+export const CanvasLive = Canvas.layer(
+  Effect.gen(function* () {
     return {
       update: {
         NoOp: model => ({ model }),

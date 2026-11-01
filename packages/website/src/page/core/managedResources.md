@@ -2,72 +2,76 @@
 
 ## Overview
 
-Services in the program's Layer live for the whole run. Some stateful handles should exist only while the application is in a particular state: a `WebSocket` while the user is on a chat page, a camera stream during a video call, or a Web Worker pool during a computation.
+Services in the program's Layer live for the whole run. Some stateful handles should exist only while part of the Model exists: a `WebSocket` while a chat room is open, an `EventSource` while a match page is showing, or a Web Worker pool during a computation.
 
-A resource like that is a child Block. The child acquires the handle in its constructor and releases it when the instance leaves the Model. The parent decides when the handle exists by holding the instance in an `Option` field: `Option.some(socket)` opens the connection, and `Option.none()` closes it.
+In Foldkit, the Model decides when such a handle exists. A Block instance that needs the handle opens it from a [Subscription](/core/subscriptions). Foldkit starts the instance's Subscriptions when the instance appears in a Model and stops them when it leaves, so the handle lives exactly as long as the instance does. Nothing about the handle is stored in the Model; the Model holds only the data that identifies it, such as a room id.
 
-A resource Block uses three parts of the Block API:
+Choose between two forms by asking who uses the handle:
 
-- `Effect.acquireRelease` in the constructor ties cleanup to the instance's scope. The Runtime closes that scope when the instance leaves the Model.
-- `stream` turns the handle's events into the Block's Messages, which it reports to the parent as OutMessages.
-- `expose` hands the parent's Commands a value to call, read with `instance.use`.
+- Only the Subscription's Stream reads from it. Acquire the handle inside the Stream with `Effect.acquireRelease`. The Stream holds it until the Subscription stops.
+- Commands also use it, for example to send on a socket. Put the handles in an Effect `RcMap`, a map of reference-counted resources, which the Block's Layer creates once. The Subscription holds the entry for the instance's key while the instance is in the Model, and Command handlers borrow the same handle by key.
 
-Choose a resource Block when Commands need the handle. Listeners and scoped work that no Command calls belong in a [Subscription](/core/subscriptions), which can install and remove a listener without exposing anything. Check [lifecycle ownership](/core/subscriptions#lifecycle-ownership) before writing one.
+A Block's Layer constructor runs once per Block, not once per instance, so it never holds one instance's handle. Per-instance data lives in the Model and reaches Command handlers through Command args.
 
 :::Info{label="The restaurant analogy"}
-Services are the kitchen equipment available all night. A resource Block is a specialty station set up only while the menu needs it. Taking the special off the menu breaks the station down. A Command that asks for a station that isn't set up receives `NotConnected`.
+Services are the kitchen equipment available all night. A keyed resource is a specialty station: the Subscription sets it up when an order for that table arrives and breaks it down when the table leaves. Commands for that table use the station by table number.
 :::
 
-## Define a Resource Block
+## Hold a Resource in a Subscription
 
-This Socket Block opens a `WebSocket` in its constructor, reports every received message to its parent, and exposes `send`:
+This LiveScore Block opens an `EventSource` for its match and records each score it receives:
 
-::Snippet{name="resourceSocket" label="A Socket resource Block"}
+::Snippet{name="resourceScoreFeed" label="A LiveScore Block that holds an EventSource"}
 
-The fourth type parameter, `SocketHandle`, is the type of `expose`. The compiler requires `expose` to match it.
+`init` stores the `matchId` from the instance's args in its Model. The `scoreEvents` entry returns that id from `dependencies`, so each LiveScore instance gets its own `EventSource`, and the id stays the same for the instance's lifetime.
 
-`Effect.acquireRelease` registers the cleanup as part of acquisition. Construct the resource inside the acquire Effect, never before it, so the release is registered even if construction is interrupted.
-
-The constructor runs synchronously, and `new WebSocket(url)` returns immediately. The socket opens in the background and its events arrive through `stream`.
-
-## Hold the Resource in the Parent {#accessing-managed-resources}
-
-Chat declares one Socket instance and holds it in `maybeSocket`. Its `SendChat` handler reads the exposed `send` through `socket.use`:
-
-::Snippet{name="resourceChat" label="A Chat that connects and disconnects a Socket"}
+`Effect.acquireRelease` registers the cleanup as part of acquisition. Construct the resource inside the acquire Effect, never before it, so the release is registered even if construction is interrupted. `Stream.unwrap` runs the acquisition in the Stream's scope, so the `EventSource` closes when the Stream stops.
 
 The lifecycle follows the Model:
 
-| Model change                             | What the Runtime does                                                            |
-| ---------------------------------------- | -------------------------------------------------------------------------------- |
-| `Option.none()` to `Option.some(socket)` | Runs the Socket constructor, which opens the connection, and starts its `stream` |
-| `Option.some(socket)` to `Option.none()` | Closes the instance's scope: the `stream` stops and the socket closes            |
-| `Option.some(socket)` back again later   | Constructs a fresh Socket with a new connection                                  |
+| Model change                               | What Foldkit does                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| A LiveScore instance appears               | Starts `scoreEvents`, which opens the `EventSource`                |
+| The instance leaves the Model              | Stops `scoreEvents`; its scope closes and the `EventSource` closes |
+| A new instance with a new id appears later | Starts a fresh Stream with a fresh `EventSource`                   |
 
-### Operations Using a Handle
+Acquisition can take time. A Stream may wait for a Promise, such as `getUserMedia`, before it emits anything, and report readiness or failure as Messages.
 
-`socket.use` is an Effect that succeeds with the exposed value while the instance is in the Model. It fails with `NotConnected` while it is not. The `SendChat` handler catches `NotConnected` and returns `FailedSendChat`, so a click on **Say hello** while disconnected becomes a Message instead of a crash.
+## Share a Resource with Commands {#accessing-managed-resources}
 
-Call `use` when the Command runs, as `SendChat` does. A value read once in the constructor would outlive the connection it came from.
+When Commands need the handle too, the Stream cannot keep it to itself. This Socket Block keeps one `WebSocket` per room in an `RcMap`:
 
-## Resources That Take Time to Acquire
+::Snippet{name="resourceSocket" label="A Socket Block that keys its connections by room"}
 
-Some handles arrive asynchronously, such as a camera stream from `getUserMedia`. The constructor cannot wait for them. Acquire them inside `stream` instead, and report readiness as a Message:
+The Layer constructor creates the `RcMap` once. `lookup` describes how to open the connection for a key and how to close it. Nothing opens until something asks for a key.
 
-::Snippet{name="resourceCamera" label="A Camera that acquires its stream asynchronously"}
+Two parts of the Block use the map:
 
-`Stream.scoped` keeps the acquired stream alive until the instance's scope closes, then stops its tracks. `Stream.never` holds the Stream open after the first Message. The constructor creates a `Ref` synchronously and the acquisition fills it, so `maybeMediaStream` returns `None` until the camera is ready. The parent learns readiness through `BecameReady` or `FailedToStart` and can record it in its own Model.
+- The `receivedData` Subscription calls `RcMap.get(connections, roomId)` inside `Stream.unwrap`. The Stream holds a reference to the room's socket for as long as it runs, which is as long as the instance is in the Model. When the Stream stops, the reference is released and the `RcMap` closes the socket.
+- The `SendData` handler gets the same socket with `RcMap.get` and releases its reference with `Effect.scoped` when the send completes. Update returns `SendData({ roomId: model.roomId, data })`, so the handler finds the room through its Command args.
+
+Two instances for the same room share one connection. A socket that closes before a send fails the send, and `FailedSendData` reports the reason to the parent as `FailedToSend`.
+
+### Hold the Resource Block in the Parent
+
+Chat decides when the connection exists by holding a Socket instance in `maybeSocket`:
+
+::Snippet{name="resourceChat" label="A Chat that connects and disconnects a Socket"}
+
+`ClickedConnect` puts `new Socket('socket', { roomId: 'general' })` in the Model, which starts its Subscription and opens the socket. `ClickedDisconnect` sets the field to `Option.none()`: the Subscription stops, any `SendData` still running is interrupted, and the socket closes.
+
+To send, Chat sends the Socket instance a `RequestedSend` Message. The Socket's update returns the `SendData` Command, so the Command belongs to the instance and stops with it. While disconnected, `maybeSocket` is `None` and **Say hello** sends nothing.
 
 ## Test a Resource Block's Parent
 
-Stories and scenes never run Streams or Command handlers, but they do construct instances. To test the parent without opening a real connection, provide a stub for the resource class:
+Stories and scenes never run Subscriptions or Command handlers, so the real `SocketLive` opens nothing in a test: the `RcMap` is created, but no key is ever requested. Deliver the Messages the Subscription would produce with `Block.deliver`, and assert on the Commands update returns:
 
-::Snippet{name="resourceChatStory" label="Testing Chat against a stub Socket"}
+::Snippet{name="resourceChatStory" label="Testing Chat with its Socket"}
 
-The stub has no constructor work and exposes a `send` that does nothing. Deliver the Messages the real `stream` would produce with `Block.deliver`.
+`Command.at('socket', ...)` selects the `SendData` returned by the instance whose id is `socket`.
 
 ## Several Resources and Nested Resources
 
-Each instance owns its own handle. A parent that needs one socket per room uses `Socket.each('sockets', ...)` and keeps the instances in an array or Record. Removing one room's instance closes only that room's socket.
+Each instance holds its own reference. A parent that needs one socket per room holds one Socket instance per room, each created with the room's id as its instance id and args, in an array or Record. Removing one room's instance releases only that room's socket.
 
-A resource Block can hold child resource Blocks of its own. Removing the outer instance closes its scope and the scopes of every instance inside it.
+A Block that holds a resource can hold child Blocks of its own. Removing the outer instance stops the Subscriptions and interrupts the Commands of every instance inside it.

@@ -61,14 +61,14 @@ export class Navigation extends Block<Navigation, void, NavigationViewInput>()(
   { Model, Message },
 ) {}
 
-export const NavigationLive = Navigation.make(
-  Effect.fn(function* () {
-    const mobileMenuDialog = yield* new Dialog.Dialog('mobileMenuDialog', {
-      id: 'mobile-menu',
-    })
-
+export const NavigationLive = Navigation.layer(
+  Effect.gen(function* () {
     return {
-      model: { mobileMenuDialog },
+      init: () => ({
+        mobileMenuDialog: new Dialog.Dialog('mobileMenuDialog', {
+          id: 'mobile-menu',
+        }),
+      }),
 
       update: {
         ClickedOpenMobileMenu: model => ({

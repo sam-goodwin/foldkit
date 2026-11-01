@@ -13,16 +13,15 @@ export class Scoreboard extends Block<
   Model: Schema.Struct({ scores: Schema.Array(Counter) }),
 }) {}
 
-export const ScoreboardLive = Scoreboard.make(
-  Effect.fn(function* (_id, { players }) {
-    const score = yield* Counter.each('scores', { max: 21 })
-
+export const ScoreboardLive = Scoreboard.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        scores: Array.map(players, player =>
-          score(player.id, { max: player.maxScore }),
+      init: ({ players }) => ({
+        scores: Array.map(
+          players,
+          player => new Counter(player.id, { max: player.maxScore }),
         ),
-      },
+      }),
 
       view: (model, h) =>
         h.ul(

@@ -80,12 +80,12 @@ const view = (model: Model, h: SearchViewBuilder): Html =>
     ],
   )
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 
     return {
-      model: { query: '', results: [], maybeError: Option.none() },
+      init: () => ({ query: '', results: [], maybeError: Option.none() }),
       update: {
         UpdatedQuery: (model, { value }) => ({
           model: modifyFields(model, { query: () => value }),

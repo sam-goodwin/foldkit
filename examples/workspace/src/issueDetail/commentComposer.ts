@@ -65,12 +65,16 @@ export class CommentComposer extends Block<
   Command: [AddComment],
 }) {}
 
-export const CommentComposerLive = CommentComposer.make(
-  Effect.fn(function* (_id, { issueId }) {
+export const CommentComposerLive = CommentComposer.layer(
+  Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 
     return {
-      model: { issueId, body: '', postState: PostState.Idle() },
+      init: ({ issueId }) => ({
+        issueId,
+        body: '',
+        postState: PostState.Idle(),
+      }),
 
       update: {
         UpdatedBody: (model, { value }) => {

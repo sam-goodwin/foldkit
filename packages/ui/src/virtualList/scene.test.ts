@@ -46,19 +46,19 @@ type HostArgs = Readonly<{
   toViewInputs: (h: HtmlBuilder<never>) => ViewInputs<DemoItem>
 }>
 
-class Host extends Block<Host, HostArgs>()('Host', {
+class Host extends Block<Host>()('Host', {
   Model: Schema.Struct({ list: DemoList }),
 }) {}
 
-const HostLive = Host.make(
-  Effect.fn(function* (_id, { config, toViewInputs }) {
-    const list = yield* new DemoList('list', config)
-    return {
-      model: { list },
-      view: (model, h) => model.list.view(toViewInputs(h)),
-    }
-  }),
-).pipe(Layer.provide(DemoList.Live))
+const makeHostLive = ({ config, toViewInputs }: HostArgs) =>
+  Host.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ list: new DemoList('list', config) }),
+        view: (model, h) => model.list.view(toViewInputs(h)),
+      }
+    }),
+  ).pipe(Layer.provide(DemoList.Live))
 
 const demoItems: ReadonlyArray<DemoItem> = [
   { id: 0, label: 'Item 0' },
@@ -150,8 +150,7 @@ describe('VirtualList', () => {
       'renders as a ul with id and explicit role=list for Safari + VoiceOver compatibility',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: unmeasuredModel }),
           Scene.expect(container).toExist(),
           Scene.expect(container).toHaveAttr('id', 'test'),
@@ -163,8 +162,7 @@ describe('VirtualList', () => {
 
     it.effect('sets overflow: auto inline so the container scrolls', () => {
       return Scene.scene(
-        HostLive,
-        hostArgs(),
+        makeHostLive(hostArgs()),
         Scene.given({ list: unmeasuredModel }),
         Scene.expect(container).toHaveStyle('overflow', 'auto'),
         acknowledgeObserver,
@@ -173,8 +171,9 @@ describe('VirtualList', () => {
 
     it.effect('applies the consumer className when provided', () => {
       return Scene.scene(
-        HostLive,
-        hostArgs(sceneView({ containerClassName: 'h-96 bg-white' })),
+        makeHostLive(
+          hostArgs(sceneView({ containerClassName: 'h-96 bg-white' })),
+        ),
         Scene.given({ list: unmeasuredModel }),
         Scene.expect(container).toHaveClass('h-96'),
         Scene.expect(container).toHaveClass('bg-white'),
@@ -186,8 +185,7 @@ describe('VirtualList', () => {
   describe('unmeasured state', () => {
     it.effect('renders no rows before the container is measured', () => {
       return Scene.scene(
-        HostLive,
-        hostArgs(),
+        makeHostLive(hostArgs()),
         Scene.given({ list: unmeasuredModel }),
         Scene.expectAll(rows).toHaveCount(0),
         acknowledgeObserver,
@@ -218,8 +216,7 @@ describe('VirtualList', () => {
         })
 
         return Scene.scene(
-          HostLive,
-          hostArgs(dynamicViewInputs),
+          makeHostLive(hostArgs(dynamicViewInputs)),
           Scene.given({ list: measuredModel }),
           Scene.tap(() => {
             estimateCount = 0
@@ -242,8 +239,7 @@ describe('VirtualList', () => {
       'renders the visible slice of rows once the container is measured',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: measuredModel }),
           Scene.expectAll(rows).toHaveCount(3),
           acknowledgeObserver,
@@ -255,8 +251,7 @@ describe('VirtualList', () => {
       'keys rendered rows by data-virtual-list-item-index in slice order',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: measuredModel }),
           Scene.expect(
             Scene.selector('[data-virtual-list-item-index="0"]'),
@@ -276,8 +271,7 @@ describe('VirtualList', () => {
       'sets each row wrapper to the configured rowHeightPx via inline style',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: measuredModel }),
           Scene.expect(
             Scene.selector('[data-virtual-list-item-index="0"]'),
@@ -291,8 +285,7 @@ describe('VirtualList', () => {
       'sets aria-setsize on each row to the full item count so screen readers announce the logical list size, not the mounted-row count',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: measuredModel }),
           Scene.expect(
             Scene.selector('li[data-virtual-list-item-index="0"]'),
@@ -306,8 +299,7 @@ describe('VirtualList', () => {
       'sets aria-posinset on each row to its 1-based logical position so screen readers announce "row N of total"',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: measuredModel }),
           Scene.expect(
             Scene.selector('li[data-virtual-list-item-index="0"]'),
@@ -324,8 +316,9 @@ describe('VirtualList', () => {
       'reports an unknown collection size while older rows can load',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(sceneView({ accessibleSet: AccessibleSet.Unknown() })),
+          makeHostLive(
+            hostArgs(sceneView({ accessibleSet: AccessibleSet.Unknown() })),
+          ),
           Scene.given({ list: measuredModel }),
           Scene.expect(
             Scene.selector('li[data-virtual-list-item-index="0"]'),
@@ -342,14 +335,15 @@ describe('VirtualList', () => {
       'reports global positions when the full collection size is known',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(
-            sceneView({
-              accessibleSet: AccessibleSet.Known({
-                size: 100,
-                firstPosition: 91,
+          makeHostLive(
+            hostArgs(
+              sceneView({
+                accessibleSet: AccessibleSet.Known({
+                  size: 100,
+                  firstPosition: 91,
+                }),
               }),
-            }),
+            ),
           ),
           Scene.given({ list: measuredModel }),
           Scene.expect(
@@ -376,8 +370,7 @@ describe('VirtualList', () => {
           }),
         )
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: scrolledUpdate.model }),
           Scene.expect(
             Scene.selector('li[data-virtual-list-item-index="3"]'),
@@ -391,8 +384,7 @@ describe('VirtualList', () => {
       'uses display: grid on row wrappers so consumer content fills the height',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: measuredModel }),
           Scene.expect(
             Scene.selector('[data-virtual-list-item-index="0"]'),
@@ -406,8 +398,7 @@ describe('VirtualList', () => {
       'marks the spacer li elements with role=presentation so they do not break the list semantics',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: measuredModel }),
           Scene.expect(topSpacer).toHaveAttr('role', 'presentation'),
           acknowledgeObserver,
@@ -432,8 +423,7 @@ describe('VirtualList', () => {
       'renders each row at the height returned by itemToRowHeightPx',
       () => {
         return Scene.scene(
-          HostLive,
-          hostArgs(sceneView({ itemToRowHeightPx })),
+          makeHostLive(hostArgs(sceneView({ itemToRowHeightPx }))),
           Scene.given({ list: variableMeasuredModel }),
           Scene.expect(
             Scene.selector('[data-virtual-list-item-index="0"]'),
@@ -448,8 +438,7 @@ describe('VirtualList', () => {
 
     it.effect('still picks the visible slice from cumulative heights', () => {
       return Scene.scene(
-        HostLive,
-        hostArgs(sceneView({ itemToRowHeightPx })),
+        makeHostLive(hostArgs(sceneView({ itemToRowHeightPx }))),
         Scene.given({ list: variableMeasuredModel }),
         Scene.expectAll(rows).toHaveCount(3),
         acknowledgeObserver,
@@ -474,8 +463,7 @@ describe('VirtualList', () => {
         )
 
         return Scene.scene(
-          HostLive,
-          hostArgs(),
+          makeHostLive(hostArgs()),
           Scene.given({ list: endMeasurement.model }),
           Scene.expect(
             Scene.selector('[data-virtual-list-item-index="7"]'),
@@ -503,8 +491,7 @@ describe('VirtualList', () => {
         })
 
         return Scene.scene(
-          HostLive,
-          hostArgs(shortViewInputs),
+          makeHostLive(hostArgs(shortViewInputs)),
           Scene.given({ list: measuredModel }),
           Scene.expect(topSpacer).toHaveStyle('height', '30px'),
           acknowledgeObserver,
@@ -514,8 +501,7 @@ describe('VirtualList', () => {
 
     it.effect('marks dynamic rows for rendered-height observation', () => {
       return Scene.scene(
-        HostLive,
-        hostArgs(sceneView({ dynamicRowHeights: true })),
+        makeHostLive(hostArgs(sceneView({ dynamicRowHeights: true }))),
         Scene.given({ list: measuredModel }),
         Scene.expect(
           Scene.selector('[data-virtual-list-item-index="0"]'),

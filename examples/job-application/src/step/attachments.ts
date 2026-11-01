@@ -26,23 +26,19 @@ export class Attachments extends Block<Attachments>()('Attachments', {
   Message,
 }) {}
 
-export const AttachmentsLive = Attachments.make(
-  Effect.fn(function* () {
-    const resumeDrop = yield* new FileDrop.FileDrop('resumeDrop', {
-      id: 'attachments-resume',
-    })
-    const additionalFilesDrop = yield* new FileDrop.FileDrop(
-      'additionalFilesDrop',
-      { id: 'attachments-additional' },
-    )
-
+export const AttachmentsLive = Attachments.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        resumeDrop,
+      init: () => ({
+        resumeDrop: new FileDrop.FileDrop('resumeDrop', {
+          id: 'attachments-resume',
+        }),
         maybeResume: Option.none(),
-        additionalFilesDrop,
+        additionalFilesDrop: new FileDrop.FileDrop('additionalFilesDrop', {
+          id: 'attachments-additional',
+        }),
         additionalFiles: [],
-      },
+      }),
 
       update: {
         RemovedResume: model => ({
@@ -55,21 +51,17 @@ export const AttachmentsLive = Attachments.make(
           }),
         }),
 
-        ...resumeDrop.on({
-          ReceivedFiles: (model, { files }) => ({
-            model: modifyFields(model, {
-              maybeResume: maybeResume =>
-                Option.orElse(Array.head(files), () => maybeResume),
-            }),
-          }),
-          RejectedNonFiles: model => ({ model }),
-        }),
-
-        ...additionalFilesDrop.on({
-          ReceivedFiles: (model, { files }) => ({
-            model: modifyFields(model, {
-              additionalFiles: Array.appendAll(files),
-            }),
+        ...FileDrop.FileDrop.on({
+          ReceivedFiles: (model, { files }, { id }) => ({
+            model:
+              id === 'resumeDrop'
+                ? modifyFields(model, {
+                    maybeResume: maybeResume =>
+                      Option.orElse(Array.head(files), () => maybeResume),
+                  })
+                : modifyFields(model, {
+                    additionalFiles: Array.appendAll(files),
+                  }),
           }),
           RejectedNonFiles: model => ({ model }),
         }),

@@ -36,10 +36,10 @@ export class Articles extends Block<Articles>()('Articles', {
   Message,
 }) {}
 
-export const ArticlesLive = Articles.make(
-  Effect.fn(function* () {
+export const ArticlesLive = Articles.layer(
+  Effect.gen(function* () {
     return {
-      model: { articles: [] },
+      init: () => ({ articles: [] }),
 
       update: {
         ClickedArticle: model => ({ model }),

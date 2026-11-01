@@ -108,18 +108,18 @@ export class Application extends Block<
   Command: [GenerateTodo, SaveTodos],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const clock = yield* Clock.Clock
     const store = yield* KeyValueStore.KeyValueStore
 
     return {
-      model: {
+      init: ({ flags }) => ({
         todos: Option.getOrElse(flags.todos, () => []),
         newTodoText: '',
         filter: 'All',
         editing: EditingState.NotEditing(),
-      },
+      }),
 
       update: {
         UpdatedNewTodo: (model, { text }) => ({

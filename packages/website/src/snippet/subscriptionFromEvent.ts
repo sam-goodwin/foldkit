@@ -17,10 +17,10 @@ export class Shortcuts extends Block<Shortcuts>()('Shortcuts', {
   Message,
 }) {}
 
-export const ShortcutsLive = Shortcuts.make(
-  Effect.fn(function* () {
+export const ShortcutsLive = Shortcuts.layer(
+  Effect.gen(function* () {
     return {
-      model: { isListening: true },
+      init: () => ({ isListening: true }),
 
       update: {
         PressedKey: model => ({ model }),

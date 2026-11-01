@@ -20,7 +20,7 @@ import * as AsyncData from '../../asyncData/public.js'
 import { Block } from '../../blocks/block.js'
 import type * as BlockTypes from '../../blocks/public.js'
 import * as Command from '../../command/index.js'
-import { __makeRegistry } from '../../command/interruptible/interruptible.js'
+import { __CurrentRegistry } from '../../command/interruptible/interruptible.js'
 import { defineMessageUnion } from '../../message/index.js'
 import { modifyFields } from '../../struct/index.js'
 import {
@@ -30,6 +30,7 @@ import {
   makeFetcher,
   makeFetcherLayer,
   runWhileHoldingKey,
+  withoutChildBlocks,
 } from './internal.js'
 import { cancelData, isFresh, resolveStaleTime } from './policy.js'
 
@@ -615,29 +616,29 @@ export const makeKeyedQueryPolicy = <
       },
     )
   const makeFetchHandlers = (execute: (args: Args) => Effect.Effect<A, E>) => {
-    const registry = __makeRegistry()
-
     return {
       fetch: ({
         args,
         generation,
         requestKey,
       }: Readonly<{ args: Args; generation: number; requestKey: string }>) =>
-        runWhileHoldingKey(
-          registry,
-          fetchKey(requestKey, generation),
-          pipe(
-            execute(args),
-            Effect.result,
-            Effect.flatMap(result =>
-              Effect.map(Clock.currentTimeMillis, completedAtMillis =>
-                Message.CompletedFetch({
-                  args,
-                  generation,
-                  requestKey,
-                  result,
-                  completedAtMillis,
-                }),
+        Effect.flatMap(__CurrentRegistry, registry =>
+          runWhileHoldingKey(
+            registry,
+            fetchKey(requestKey, generation),
+            pipe(
+              execute(args),
+              Effect.result,
+              Effect.flatMap(result =>
+                Effect.map(Clock.currentTimeMillis, completedAtMillis =>
+                  Message.CompletedFetch({
+                    args,
+                    generation,
+                    requestKey,
+                    result,
+                    completedAtMillis,
+                  }),
+                ),
               ),
             ),
           ),
@@ -646,9 +647,11 @@ export const makeKeyedQueryPolicy = <
         requestKey,
         generation,
       }: Readonly<{ requestKey: string; generation: number }>) =>
-        Effect.as(
-          registry.interrupt(fetchKey(requestKey, generation)),
-          Message.CompletedCancelFetch(),
+        Effect.flatMap(__CurrentRegistry, registry =>
+          Effect.as(
+            registry.interrupt(fetchKey(requestKey, generation)),
+            Message.CompletedCancelFetch(),
+          ),
         ),
     }
   }
@@ -810,7 +813,6 @@ export interface KeyedQuery<
   Fields extends SyncFields,
   Notify extends boolean = false,
 > extends BlockTypes.Instance<
-  KeyedQuery<Name, A, AI, E, EI, Fields, Notify>,
   KeyedQueryContract<Name, A, AI, E, EI, Fields, Notify>,
   KeyedQueryArgs<Fields>
 > {}
@@ -874,7 +876,7 @@ export type KeyedQueryStatics<
 
 /**
  * A KeyedQuery class. Put it in a parent Model Schema, create instances with
- * `yield* new PostQuery('postDetails', {})`, and provide its Layer.
+ * `new PostQuery('postDetails', {})` in a parent's Model, and provide its Layer.
  *
  * @experimental Ships from `foldkit/experimental/query`; expect breaking changes while the API settles.
  */
@@ -891,7 +893,6 @@ export type KeyedQueryClass<
   Name,
   KeyedQueryArgs<Fields>,
   void,
-  never,
   KeyedQueryContract<Name, A, AI, E, EI, Fields, Notify>
 > &
   KeyedQueryStatics<Name, A, AI, E, EI, Fields, Notify>
@@ -918,30 +919,36 @@ export type KeyedQueryWithLive<
     >
   }>
 
-const makeConstructor =
-  <Name extends string, A, AI, E, EI, Fields extends SyncFields, Update>(
-    policy: KeyedQueryPolicy<Name, A, AI, E, EI, Fields>,
-    update: Update,
-  ) =>
-  (_id: string, args: KeyedQueryArgs<Fields>) =>
-    Effect.gen(function* () {
-      const execute = yield* policy.Fetcher
-      const { model, start } = policy.startModel(args)
-      const { fetch, cancelFetch } = policy.makeFetchHandlers(execute)
+const makeImplementation = <
+  Name extends string,
+  A,
+  AI,
+  E,
+  EI,
+  Fields extends SyncFields,
+  Update,
+>(
+  policy: KeyedQueryPolicy<Name, A, AI, E, EI, Fields>,
+  update: Update,
+) =>
+  Effect.gen(function* () {
+    const execute = yield* policy.Fetcher
+    const { fetch, cancelFetch } = policy.makeFetchHandlers(execute)
 
-      return {
-        model,
-        start,
-        update,
-        // NOTE: the engine's handler record is keyed by Command name, which
-        // TypeScript cannot resolve for a generic Query name.
-        /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-        commands: {
-          [policy.Fetch.name]: fetch,
-          [policy.CancelFetch.name]: cancelFetch,
-        } as never,
-      }
-    })
+    return {
+      init: (args: KeyedQueryArgs<Fields>) => policy.startModel(args).model,
+      start: (_model: unknown, args: KeyedQueryArgs<Fields>) =>
+        policy.startModel(args).start,
+      update,
+      // NOTE: the engine's handler record is keyed by Command name, which
+      // TypeScript cannot resolve for a generic Query name.
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      commands: {
+        [policy.Fetch.name]: fetch,
+        [policy.CancelFetch.name]: cancelFetch,
+      } as never,
+    }
+  })
 
 const makePlainKeyedQuery = <
   Name extends string,
@@ -965,7 +972,10 @@ const makePlainKeyedQuery = <
   const toLayer = <R, BuildE = never, BuildR = never>(
     build: KeyedFetchBuild<A, E, Fields, R, BuildE, BuildR>,
   ) =>
-    QueryBlock.make(makeConstructor(policy, policy.updateHandlers)).pipe(
+    withoutChildBlocks<
+      KeyedQuery<Name, A, AI, E, EI, Fields, false>,
+      QueryFetcher<Name>
+    >(QueryBlock.layer(makeImplementation(policy, policy.updateHandlers))).pipe(
       Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)),
     )
 
@@ -1003,8 +1013,13 @@ const makeNotifyingKeyedQuery = <
   const toLayer = <R, BuildE = never, BuildR = never>(
     build: KeyedFetchBuild<A, E, Fields, R, BuildE, BuildR>,
   ) =>
-    QueryBlock.make(
-      makeConstructor(policy, policy.notifyingUpdateHandlers),
+    withoutChildBlocks<
+      KeyedQuery<Name, A, AI, E, EI, Fields, true>,
+      QueryFetcher<Name>
+    >(
+      QueryBlock.layer(
+        makeImplementation(policy, policy.notifyingUpdateHandlers),
+      ),
     ).pipe(Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)))
 
   return Object.assign(QueryBlock, {

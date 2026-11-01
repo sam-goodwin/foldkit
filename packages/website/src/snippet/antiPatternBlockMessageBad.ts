@@ -11,14 +11,12 @@ export class Account extends Block<Account>()('Account', {
   Message: defineMessageUnion({ ClickedResetSettings: {} }),
 }) {}
 
-export const AccountLive = Account.make(
-  Effect.fn(function* () {
-    const settings = yield* new Settings('settings', {
-      initialTheme: 'System',
-    })
-
+export const AccountLive = Account.layer(
+  Effect.gen(function* () {
     return {
-      model: { settings },
+      init: () => ({
+        settings: new Settings('settings', { initialTheme: 'System' }),
+      }),
 
       update: {
         ClickedResetSettings: model => ({

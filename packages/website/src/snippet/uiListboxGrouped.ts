@@ -36,15 +36,16 @@ export class CharacterPicker extends Block<CharacterPicker>()(
   },
 ) {}
 
-export const CharacterPickerLive = CharacterPicker.make(
-  Effect.fn(function* () {
-    const listbox = yield* new CharacterListbox('listbox', { id: 'character' })
-
+export const CharacterPickerLive = CharacterPicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { listbox, maybeCharacter: Option.none() },
+      init: () => ({
+        listbox: new CharacterListbox('listbox', { id: 'character' }),
+        maybeCharacter: Option.none(),
+      }),
 
       update: {
-        ...listbox.on({
+        ...CharacterListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeCharacter: () => Option.some(value),

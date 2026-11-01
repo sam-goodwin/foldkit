@@ -11,21 +11,20 @@ export class AccountMenu extends Block<AccountMenu>()('AccountMenu', {
   }),
 }) {}
 
-export const AccountMenuLive = AccountMenu.make(
-  Effect.fn(function* () {
-    // contentFocus lets focus move into the nested trigger instead of
-    // staying on the parent panel
-    const accountPopover = yield* new Popover.Popover('accountPopover', {
-      id: 'account-popover',
-      contentFocus: true,
-    })
-    const accountDetailsPopover = yield* new Popover.Popover(
-      'accountDetailsPopover',
-      { id: 'account-details-popover' },
-    )
-
+export const AccountMenuLive = AccountMenu.layer(
+  Effect.gen(function* () {
     return {
-      model: { accountPopover, accountDetailsPopover },
+      init: () => ({
+        // contentFocus lets focus move into the nested trigger instead of
+        // staying on the parent panel
+        accountPopover: new Popover.Popover('accountPopover', {
+          id: 'account-popover',
+          contentFocus: true,
+        }),
+        accountDetailsPopover: new Popover.Popover('accountDetailsPopover', {
+          id: 'account-details-popover',
+        }),
+      }),
 
       // Render the child Popover inside the parent panel. `focusSelector`
       // points at the child trigger, which Popover derives from the child id

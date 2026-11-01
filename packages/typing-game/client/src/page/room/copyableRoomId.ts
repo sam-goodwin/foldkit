@@ -7,6 +7,7 @@ import { modifyFields } from 'foldkit/struct'
 const COPIED_INDICATOR_DURATION = '2 seconds'
 
 const Model = Schema.Struct({
+  roomId: Schema.String,
   isCopiedIndicatorVisible: Schema.Boolean,
 })
 
@@ -38,15 +39,15 @@ export class CopyableRoomId extends Block<CopyableRoomId, CopyableRoomIdArgs>()(
   },
 ) {}
 
-export const CopyableRoomIdLive = CopyableRoomId.make(
-  Effect.fn(function* (_id, { roomId }) {
+export const CopyableRoomIdLive = CopyableRoomId.layer(
+  Effect.gen(function* () {
     return {
-      model: { isCopiedIndicatorVisible: false },
+      init: ({ roomId }) => ({ roomId, isCopiedIndicatorVisible: false }),
 
       update: {
         ClickedCopyRoomId: model => ({
           model,
-          commands: [CopyRoomId({ roomId })],
+          commands: [CopyRoomId({ roomId: model.roomId })],
         }),
         SucceededCopyRoomId: model => {
           if (model.isCopiedIndicatorVisible) {
@@ -84,7 +85,7 @@ export const CopyableRoomIdLive = CopyableRoomId.make(
         h.div(
           [h.Class('mb-12 flex items-center gap-2')],
           [
-            h.span([], [roomId]),
+            h.span([], [model.roomId]),
             h.button(
               [
                 h.Class(

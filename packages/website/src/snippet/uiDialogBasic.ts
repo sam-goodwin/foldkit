@@ -14,13 +14,11 @@ export class Settings extends Block<Settings>()('Settings', {
   Message,
 }) {}
 
-export const SettingsLive = Settings.make(
-  Effect.fn(function* () {
-    // Declare the Dialog instance and hold it in the Model
-    const dialog = yield* new Dialog.Dialog('dialog', { id: 'confirm' })
-
+export const SettingsLive = Settings.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog },
+      // Create the Dialog instance in the starting Model
+      init: () => ({ dialog: new Dialog.Dialog('dialog', { id: 'confirm' }) }),
 
       update: {
         // Open the Dialog by sending it a Message

@@ -7,14 +7,12 @@ export class Header extends Block<Header>()('Header', {
   Model: Schema.Struct({ settings: Settings }),
 }) {}
 
-export const HeaderLive = Header.make(
-  Effect.fn(function* () {
-    const settings = yield* new Settings('settings', {
-      initialTheme: 'System',
-    })
-
+export const HeaderLive = Header.layer(
+  Effect.gen(function* () {
     return {
-      model: { settings },
+      init: () => ({
+        settings: new Settings('settings', { initialTheme: 'System' }),
+      }),
 
       view: (model, h) =>
         h.header(

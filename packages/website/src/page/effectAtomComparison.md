@@ -86,11 +86,11 @@ Effects remain colocated with the atoms that perform them. Dependencies between 
 
 ### Foldkit: Commands and Subscriptions {#foldkit-effect}
 
-Foldkit selects a lifecycle primitive based on what causes the work. A [Command](/core/commands) runs after a Message. A [Subscription](/core/subscriptions) runs while a Model condition holds. A [Mount](/core/mount) follows an element’s lifetime. A stateful handle that Commands use, such as a connection, is a child Block that acquires it in its constructor and lives while the parent's Model holds it.
+Foldkit selects a lifecycle primitive based on what causes the work. A [Command](/core/commands) runs after a Message. A [Subscription](/core/subscriptions) runs while a Model condition holds. A [Mount](/core/mount) follows an element’s lifetime. A stateful handle that Commands use, such as a connection, is held by a Subscription or a keyed service, and lives while the Model holds the Block instance that needs it.
 
 ::Snippet{name="atomCompareFoldkitEffect" label="Foldkit effects"}
 
-The difference is locational. Effect Atom colocates effects with atoms, and any atom may run one. Foldkit assigns effects to a small set of lifecycle primitives based on what causes them. The `mouseRelease` Subscription starts and stops as `isDrawing` changes, then emits Messages so the resulting change still passes through update. The `CreateTodo` handler closes over the `Api` service that the Block's constructor yields.
+The difference is locational. Effect Atom colocates effects with atoms, and any atom may run one. Foldkit assigns effects to a small set of lifecycle primitives based on what causes them. The `mouseRelease` Subscription starts and stops as `isDrawing` changes, then emits Messages so the resulting change still passes through update. The `CreateTodo` handler closes over the `Api` service that the Block's Layer yields once.
 
 ## The View Layer Is Still React {#the-view-layer}
 
@@ -154,7 +154,7 @@ An Effect Atom application grows a graph of atoms. Adding an independent atom is
 
 ### Foldkit State Machine
 
-A Foldkit application grows its Model, Message union, and update logic. The typed update record keeps the transition catalog complete, but a large update eventually needs to be divided into [Blocks](/core/block). Block composition adds explicit parent-child wiring: the parent holds child instances in its Model, sends them Messages, and handles their OutMessages.
+A Foldkit application grows its Model, Message union, and update logic. The typed update record keeps the transition catalog complete, but a large update eventually needs to be divided into [Blocks](/core/block). Block composition adds explicit parent-child wiring: the parent creates child instances with `new` and holds them in its Model, sends them Messages, and handles their OutMessages.
 
 The trade-off is locality versus a central index. Effect Atom favors independently composable reactive cells. Foldkit favors an explicit state machine whose transitions share one runtime path.
 

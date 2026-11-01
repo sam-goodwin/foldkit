@@ -20,10 +20,10 @@ export class Transcript extends Block<Transcript>()('Transcript', {
   Mount: [ScrollPanel],
 }) {}
 
-export const TranscriptLive = Transcript.make(
-  Effect.fn(function* () {
+export const TranscriptLive = Transcript.layer(
+  Effect.gen(function* () {
     return {
-      model: { lines: [], savedScroll: 0 },
+      init: () => ({ lines: [], savedScroll: 0 }),
 
       update: {
         CompletedScrollPanel: model => ({ model }),

@@ -11,16 +11,14 @@ export class Application extends Block<
   Model: Schema.Struct({ settings: Settings }),
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
-    const settings = yield* new Settings('settings', {
-      initialTheme: flags.savedTheme,
-    })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { settings },
+      init: ({ flags }) => ({
+        settings: new Settings('settings', { initialTheme: flags.savedTheme }),
+      }),
 
-      view: (model, h) => ({
+      view: model => ({
         title: 'Settings',
         body: model.settings.view(),
       }),

@@ -50,7 +50,7 @@ describe('skills', () => {
       message(
         Block.deliver(
           SkillsEntry,
-          ['entries', 'skills-entry-1'],
+          'skills-entry-1',
           SkillsEntry.Message.ClickedRemoveSelf(),
         ),
       ),
@@ -67,7 +67,7 @@ describe('skills', () => {
       message(
         Block.deliver(
           SkillsEntry,
-          ['entries', 'skills-entry-1'],
+          'skills-entry-1',
           SkillsEntry.Message.UpdatedName({ value: 'TypeScript' }),
         ),
       ),

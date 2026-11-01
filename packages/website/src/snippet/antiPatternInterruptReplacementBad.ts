@@ -12,17 +12,17 @@ import {
   fetchSuggestions,
 } from './antiPatternSearchContract'
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     const suggestionApi = yield* SuggestionApi
 
     return {
-      model: {
+      init: () => ({
         query: '',
         searchGeneration: 0,
         searchState: SearchState.Running(),
         suggestions: [],
-      },
+      }),
 
       update: {
         UpdatedQuery: (model, { query }) => {

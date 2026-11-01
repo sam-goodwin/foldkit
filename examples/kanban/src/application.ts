@@ -245,27 +245,23 @@ export class Application extends Block<
 
 // LIVE
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
     const store = yield* KeyValueStore.KeyValueStore
-    const dragAndDrop = yield* new DragAndDrop.DragAndDrop('dragAndDrop', {
-      id: 'kanban',
-    })
-    const newCardForm = yield* new NewCardForm('newCardForm')
-
-    const columns = Option.match(flags.maybeSavedBoard, {
-      onNone: () => DEFAULT_COLUMNS,
-      onSome: savedBoard => savedBoard.columns,
-    })
 
     return {
-      model: {
-        columns,
-        dragAndDrop,
-        newCardForm,
+      init: ({ flags }) => ({
+        columns: Option.match(flags.maybeSavedBoard, {
+          onNone: () => DEFAULT_COLUMNS,
+          onSome: savedBoard => savedBoard.columns,
+        }),
+        dragAndDrop: new DragAndDrop.DragAndDrop('dragAndDrop', {
+          id: 'kanban',
+        }),
+        newCardForm: new NewCardForm('newCardForm'),
         announcement: '',
-      },
+      }),
 
       update: {
         ClickedAddCard: (model, { columnId }) => ({
@@ -302,14 +298,14 @@ export const ApplicationLive = Application.make(
 
         CompletedSaveBoard: model => ({ model }),
 
-        ...newCardForm.on({
+        ...NewCardForm.on({
           SubmittedCard: (model, { columnId, title }) => ({
             model,
             commands: [GenerateCardId({ columnId, title })],
           }),
         }),
 
-        ...dragAndDrop.on({
+        ...DragAndDrop.DragAndDrop.on({
           StartedKeyboardDrag: (model, { itemId }) => ({
             model: modifyFields(model, {
               announcement: () =>

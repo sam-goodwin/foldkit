@@ -17,10 +17,10 @@ class Counter extends Block<Counter, { readonly start: number }>()('Counter', {
   Message: CounterMessage,
 }) {}
 
-const CounterLive = Counter.make(
-  Effect.fn(function* (_id, { start }) {
+const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: start },
+      init: ({ start }) => ({ count: start }),
       update: {
         ClickedIncrement: model => ({ model: { count: model.count + 1 } }),
       },
@@ -39,6 +39,7 @@ type Flags = typeof Flags.Type
 const PageMessage = defineMessageUnion({ CompletedGreet: {} })
 
 const Greet = Command.define('Greet', {
+  args: { owner: Schema.String },
   messages: [PageMessage.CompletedGreet],
 })
 
@@ -54,19 +55,22 @@ class Page extends Block<Page, { readonly flags: Flags }>()('Page', {
 
 const greetings: Array<string> = []
 
-const PageLive = Page.make(
-  Effect.fn(function* (_id, { flags }) {
-    const counter = yield* new Counter('counter', { start: flags.start })
+const PageLive = Page.layer(
+  Effect.gen(function* () {
     return {
-      model: { owner: flags.owner, isGreeted: false, counter },
-      start: [Greet()],
+      init: ({ flags }) => ({
+        owner: flags.owner,
+        isGreeted: false,
+        counter: new Counter('counter', { start: flags.start }),
+      }),
+      start: model => [Greet({ owner: model.owner })],
       update: {
         CompletedGreet: model => ({ model: { ...model, isGreeted: true } }),
       },
       commands: {
-        Greet: () =>
+        Greet: ({ owner }) =>
           Effect.sync(() => {
-            greetings.push(flags.owner)
+            greetings.push(owner)
             return Page.Message.CompletedGreet()
           }),
       },

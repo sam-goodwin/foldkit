@@ -21,10 +21,10 @@ const ticks = Stream.tick(Duration.seconds(1)).pipe(
   Stream.as(Message.Ticked()),
 )
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0, isAutoCounting: false },
+      init: () => ({ count: 0, isAutoCounting: false }),
 
       update: {
         ClickedToggleAutoCount: model => ({

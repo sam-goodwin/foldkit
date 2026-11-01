@@ -101,25 +101,23 @@ export class Application extends Block<Application>()('Application', {
 
 // LIVE
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const github = yield* GitHubApi
     const npm = yield* NpmApi
     const clock = yield* Clock.Clock
     const charts = yield* ChartRegistry
 
-    const sidebar = yield* new Sidebar('sidebar')
-
     return {
-      model: {
+      init: () => ({
         telemetry: TelemetryAsyncData.Loading(),
-        sidebar,
+        sidebar: new Sidebar('sidebar'),
         maybeChartHostId: Option.none(),
         maybeChartError: Option.none(),
         maybeSelectedDatumId: Option.none(),
-      },
+      }),
 
-      start: [FetchTelemetry()],
+      start: () => [FetchTelemetry()],
 
       update: {
         ClickedRefresh: refetchTelemetry,
@@ -173,7 +171,7 @@ export const ApplicationLive = Application.make(
           }),
         }),
 
-        ...sidebar.on({
+        ...Sidebar.on({
           UpdatedChartControls: clearSelectedDatumStep,
         }),
       },

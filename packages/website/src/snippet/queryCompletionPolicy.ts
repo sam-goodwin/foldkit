@@ -17,12 +17,13 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const postDetails = yield* new PostQuery('postDetails', {})
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { postDetails, maybeNotice: Option.none() },
+      init: () => ({
+        postDetails: new PostQuery('postDetails', {}),
+        maybeNotice: Option.none(),
+      }),
       update: {
         ClickedPost: (model, { postId }) => ({
           model,
@@ -33,7 +34,7 @@ export const ApplicationLive = Application.make(
           ],
         }),
         // Runs only for completions the KeyedQuery accepted.
-        ...postDetails.on({
+        ...PostQuery.on({
           CompletedFetch: (model, { args, result }) => {
             if (Result.isFailure(result)) {
               return {

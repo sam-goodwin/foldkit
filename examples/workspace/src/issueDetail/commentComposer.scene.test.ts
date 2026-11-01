@@ -35,16 +35,16 @@ class CommentComposerScene extends Block<CommentComposerScene>()(
   },
 ) {}
 
-const CommentComposerSceneLive = CommentComposerScene.make(
-  Effect.fn(function* () {
-    const commentComposer = yield* new CommentComposer('commentComposer', {
-      issueId: issue.id,
-    })
-
+const CommentComposerSceneLive = CommentComposerScene.layer(
+  Effect.gen(function* () {
     return {
-      model: { commentComposer },
+      init: () => ({
+        commentComposer: new CommentComposer('commentComposer', {
+          issueId: issue.id,
+        }),
+      }),
       update: {
-        ...commentComposer.on({
+        ...CommentComposer.on({
           AddedComment: (model, outMessage) => ({ model, outMessage }),
         }),
       },

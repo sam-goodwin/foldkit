@@ -3,12 +3,15 @@ import { modifyFields } from 'foldkit/struct'
 
 import { SaveTheme, Settings, SettingsStore } from './blockSettingsContract'
 
-export const SettingsLive = Settings.make(
-  Effect.fn(function* (_id, { initialTheme }) {
+export const SettingsLive = Settings.layer(
+  Effect.gen(function* () {
     const settingsStore = yield* SettingsStore
 
     return {
-      model: { theme: initialTheme, maybeSaveError: Option.none() },
+      init: ({ initialTheme }) => ({
+        theme: initialTheme,
+        maybeSaveError: Option.none(),
+      }),
 
       update: {
         ClickedTheme: (model, { theme }) => ({

@@ -30,16 +30,17 @@ export class FrameworkPicker extends Block<FrameworkPicker>()(
   },
 ) {}
 
-export const FrameworkPickerLive = FrameworkPicker.make(
-  Effect.fn(function* () {
-    const tabs = yield* new FrameworkTabs('tabs', { id: 'framework-tabs' })
-
+export const FrameworkPickerLive = FrameworkPicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { tabs, activeFramework: 'Foldkit' },
+      init: () => ({
+        tabs: new FrameworkTabs('tabs', { id: 'framework-tabs' }),
+        activeFramework: 'Foldkit',
+      }),
 
       update: {
         // Store the selected value so it flows back in as `selectedValue`
-        ...tabs.on({
+        ...FrameworkTabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeFramework: () => value }),
           }),

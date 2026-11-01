@@ -40,7 +40,7 @@ import { initialSidebarGroups } from './sidebarStorage'
 import { SnippetCopy, SnippetCopyLive } from './snippetCopy'
 import { SnippetDisclosure, SnippetDisclosureLive } from './snippetDisclosure'
 import { LocalStorage, SessionStorage } from './storage'
-import { subscriptions, viewportWidthChanges } from './subscription'
+import { subscriptions } from './subscription'
 import {
   ApplyTheme,
   SaveThemePreference,
@@ -49,13 +49,13 @@ import {
   saveThemePreference,
 } from './theme'
 import {
+  HOME_ID,
+  UI_PAGES_ID,
   handleChangedUrl,
   handleCompletedLoadBrowserEnvironment,
 } from './update'
 import { ThemeMenu } from './view/themeMenu'
 import { view } from './view/view'
-
-const UI_PAGES_KEY = 'ui'
 
 const browserStartupCommands = (deployment: Deployment) => [
   Command.LoadBrowserEnvironment(),
@@ -114,86 +114,70 @@ export class Application extends Block<Application, ApplicationArgs>()(
   },
 ) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags, url }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const localStorage = yield* LocalStorage
     const sessionStorage = yield* SessionStorage
 
-    const route = urlToApplicationRoute(url)
-
-    const home = yield* new Home('maybeHome')
-    const playground = yield* Playground.each('playground', {
-      maybeIsSupported: Option.none(),
-    })
-    const uiPage = yield* Ui.each('uiPages', { today: flags.today })
-    const snippetCopy = yield* new SnippetCopy('snippetCopy')
-    const snippetDisclosure = yield* new SnippetDisclosure('snippetDisclosure')
-    const mobileMenuDialog = yield* new Dialog.Dialog('mobileMenuDialog', {
-      id: 'mobile-menu',
-    })
-    const themeMenu = yield* new ThemeMenu('themeMenu', { id: 'theme-menu' })
-    const coreBlockPage = yield* new BlockPage('coreBlockPage')
-    const comingFromReact = yield* new ComingFromReact('comingFromReact')
-    const apiReference = yield* new ApiReference('apiReference', {
-      maybeApiData: flags.maybeApiData,
-    })
-    const exampleDetail = yield* new ExampleDetail('exampleDetail', {
-      maybeInitialSlug: maybeExampleSlugForRoute(route),
-      maybeExampleSources: flags.maybeExampleSources,
-    })
-    const search = yield* new Search('search')
-
-    const playgroundFor = (
-      slug: string,
-      maybeIsSupported: Option.Option<boolean>,
-    ) => playground(slug, { maybeIsSupported })
-
-    const maybeThemePreference = Option.none<ThemePreference>()
-    const systemTheme: ResolvedTheme = 'Light'
-
     return {
-      model: {
-        route,
-        url,
-        deployment: flags.deployment,
-        snippetCopy,
-        snippetDisclosure,
-        maybeGitHubStarCount: Option.fromNullishOr(githubStarCount),
-        currentYear: flags.currentYear,
-        newsletterEmail: '',
-        mobileMenuDialog,
-        isMobileTableOfContentsOpen: false,
-        activeSection: Option.none(),
-        isNarrowViewport: false,
-        maybeIsPlaygroundSupported: Option.none(),
-        playground: ApplicationRoute.matchOrElse(
+      init: ({ flags, url }) => {
+        const route = urlToApplicationRoute(url)
+        const systemTheme: ResolvedTheme = 'Light'
+
+        return {
           route,
-          {
-            Playground: ({ exampleSlug }) =>
-              Option.some(playgroundFor(exampleSlug, Option.none())),
-          },
-          () => Option.none(),
-        ),
-        sidebarGroups: initialSidebarGroups(
-          Option.none(),
-          findActiveSectionKeyForRoute(route),
-        ),
-        coreBlockPage,
-        maybeHome: ApplicationRoute.guards.Home(route)
-          ? Option.some(home)
-          : Option.none(),
-        themeMenu,
-        maybeThemePreference,
-        systemTheme,
-        resolvedTheme: systemTheme,
-        uiPages: uiPage(UI_PAGES_KEY),
-        comingFromReact,
-        apiReference,
-        exampleDetail,
-        search,
+          url,
+          deployment: flags.deployment,
+          snippetCopy: new SnippetCopy('snippetCopy'),
+          snippetDisclosure: new SnippetDisclosure('snippetDisclosure'),
+          maybeGitHubStarCount: Option.fromNullishOr(githubStarCount),
+          currentYear: flags.currentYear,
+          newsletterEmail: '',
+          mobileMenuDialog: new Dialog.Dialog('mobileMenuDialog', {
+            id: 'mobile-menu',
+          }),
+          isMobileTableOfContentsOpen: false,
+          activeSection: Option.none(),
+          isNarrowViewport: false,
+          maybeIsPlaygroundSupported: Option.none(),
+          playground: ApplicationRoute.matchOrElse(
+            route,
+            {
+              Playground: ({ exampleSlug }) =>
+                Option.some(
+                  new Playground(exampleSlug, {
+                    maybeIsSupported: Option.none(),
+                  }),
+                ),
+            },
+            () => Option.none(),
+          ),
+          sidebarGroups: initialSidebarGroups(
+            Option.none(),
+            findActiveSectionKeyForRoute(route),
+          ),
+          coreBlockPage: new BlockPage('coreBlockPage'),
+          maybeHome: ApplicationRoute.guards.Home(route)
+            ? Option.some(new Home(HOME_ID))
+            : Option.none(),
+          themeMenu: new ThemeMenu('themeMenu', { id: 'theme-menu' }),
+          maybeThemePreference: Option.none(),
+          systemTheme,
+          resolvedTheme: systemTheme,
+          uiPages: new Ui(UI_PAGES_ID, { today: flags.today }),
+          comingFromReact: new ComingFromReact('comingFromReact'),
+          apiReference: new ApiReference('apiReference', {
+            maybeApiData: flags.maybeApiData,
+          }),
+          exampleDetail: new ExampleDetail('exampleDetail', {
+            maybeInitialSlug: maybeExampleSlugForRoute(route),
+            maybeExampleSources: flags.maybeExampleSources,
+          }),
+          search: new Search('search'),
+        }
       },
 
-      start: [
+      start: (_model, { flags, url }) => [
         ...browserStartupCommands(flags.deployment),
         ...initialScrollCommands(url),
       ],
@@ -218,7 +202,7 @@ export const ApplicationLive = Application.make(
           ],
         }),
 
-        ChangedUrl: handleChangedUrl({ home, playgroundFor }),
+        ChangedUrl: handleChangedUrl,
 
         ClickedCopyLink: (model, { hash }) => ({
           model,
@@ -276,9 +260,7 @@ export const ApplicationLive = Application.make(
           model: modifyFields(model, { isNarrowViewport: () => isNarrow }),
         }),
 
-        CompletedLoadBrowserEnvironment: handleCompletedLoadBrowserEnvironment(
-          today => uiPage(UI_PAGES_KEY, { today }),
-        ),
+        CompletedLoadBrowserEnvironment: handleCompletedLoadBrowserEnvironment,
 
         ChangedSystemTheme: (model, { theme }) => {
           const resolvedTheme = resolveTheme(
@@ -325,7 +307,7 @@ export const ApplicationLive = Application.make(
         SucceededCopyLink: model => ({ model }),
         FailedCopyLink: model => ({ model }),
 
-        ...home.on({
+        ...Home.on({
           SelectedPlaygroundExample: (model, { exampleSlug }) => ({
             model,
             commands: [Command.LoadPlayground({ exampleSlug })],
@@ -335,7 +317,7 @@ export const ApplicationLive = Application.make(
           }),
         }),
 
-        ...themeMenu.on({
+        ...ThemeMenu.on({
           Selected: (model, { value }) => applyThemePreference(model, value),
         }),
       },
@@ -348,8 +330,6 @@ export const ApplicationLive = Application.make(
         SaveThemePreference: ({ preference }) =>
           saveThemePreference(localStorage, preference),
       },
-
-      stream: viewportWidthChanges,
 
       subscriptions,
 

@@ -4,7 +4,7 @@
 
 A non-interactive floating label anchored to a trigger. Tooltips appear on hover after a short delay, or immediately on keyboard focus. They hide on pointer-leave, blur, or Escape. Use tooltips for short hints about a control. Because they rely on hover and keyboard focus, don’t use them for content that must be reachable on touch; for that, or for rich or interactive content, use `Popover` instead.
 
-Create a `Tooltip.Tooltip` instance in the parent's constructor, hold it in the parent Model, render it with `model.tooltip.view({ ... })`, and provide `Tooltip.TooltipLive` to the parent's Layer. The positioning engine is shared with `Popover` and `Menu`. Pass `anchor` to control placement and spacing.
+Create an instance with `new Tooltip.Tooltip('tooltip', { id })` in the parent's `init`, hold it in the parent Model, render it with `model.tooltip.view({ ... })`, and provide `Tooltip.TooltipLive` to the parent's Layer. The positioning engine is shared with `Popover` and `Menu`. Pass `anchor` to control placement and spacing.
 
 :::Info{label="See it in an app"}
 Check out how Tooltip is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/tooltipPage.ts).
@@ -89,9 +89,9 @@ When parent-owned configuration changes the Tooltip's delay, send the instance a
 
 ### OutMessage {#out-message}
 
-Facts the Tooltip reports to its parent. Handle them by spreading `...tooltip.on({ ... })` into the parent's update record; variants without a handler are ignored. They fire only on visibility transitions, so consumers don’t see spurious events for Messages that only update internal hover/focus/delay state.
+Facts the Tooltip reports to its parent. Handle them by spreading `...Tooltip.Tooltip.on({ ... })` into the parent's update record; variants without a handler are ignored. They fire only on visibility transitions, so consumers don’t see spurious events for Messages that only update internal hover/focus/delay state.
 
-| Name     | Type | Default | Description                                                                                                                                                                                 |
-| -------- | ---- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Shown`  | `{}` | —       | Emitted once the tooltip transitions to visible (isOpen becomes true). Handle it with the instance's `.on`. Useful for analytics, instrumentation, or coordinating with other transient UI. |
-| `Hidden` | `{}` | —       | Emitted once the tooltip transitions to hidden (isOpen becomes false).                                                                                                                      |
+| Name     | Type | Default | Description                                                                                                                                                                              |
+| -------- | ---- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Shown`  | `{}` | —       | Emitted once the tooltip transitions to visible (isOpen becomes true). Handle it with the class's `.on`. Useful for analytics, instrumentation, or coordinating with other transient UI. |
+| `Hidden` | `{}` | —       | Emitted once the tooltip transitions to hidden (isOpen becomes false).                                                                                                                   |

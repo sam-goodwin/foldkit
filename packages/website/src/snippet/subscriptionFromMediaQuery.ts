@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Effect, Function, Schema } from 'effect'
 import { Block, Dom } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -15,16 +15,22 @@ export class MotionPreferences extends Block<MotionPreferences>()(
   },
 ) {}
 
-export const MotionPreferencesLive = MotionPreferences.make(
-  Effect.fn(function* () {
+export const MotionPreferencesLive = MotionPreferences.layer(
+  Effect.gen(function* () {
     return {
-      model: { isReducedMotion: false },
+      init: () => ({ isReducedMotion: false }),
 
-      stream: Dom.streamFromMediaQuery({
-        query: '(prefers-reduced-motion: reduce)',
-        mapMatches: isMatching =>
-          Message.ChangedReducedMotion({ isReducedMotion: isMatching }),
-      }),
+      subscriptions: {
+        reducedMotionChanges: {
+          dependencies: Function.constVoid,
+          stream: () =>
+            Dom.streamFromMediaQuery({
+              query: '(prefers-reduced-motion: reduce)',
+              mapMatches: isMatching =>
+                Message.ChangedReducedMotion({ isReducedMotion: isMatching }),
+            }),
+        },
+      },
 
       update: {
         ChangedReducedMotion: (model, { isReducedMotion }) => ({

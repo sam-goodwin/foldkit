@@ -8,44 +8,45 @@ import { Slider, SliderLive, type ViewInputs } from './slider.js'
 
 type Overrides = Partial<Omit<ViewInputs, 'toView'>>
 
-class SliderScene extends Block<SliderScene, Overrides>()('SliderScene', {
+class SliderScene extends Block<SliderScene>()('SliderScene', {
   Model: Schema.Struct({ slider: Slider }),
 }) {}
 
-const SliderSceneLive = SliderScene.make(
-  Effect.fn(function* (_id, overrides) {
-    const slider = yield* new Slider('slider', {
-      id: 'test',
-      min: 0,
-      max: 10,
-      step: 1,
-    })
-
-    return {
-      model: { slider },
-      view: (model, h) =>
-        model.slider.view({
-          value: 5,
-          ...overrides,
-          toView: attributes =>
-            h.div(
-              [...attributes.root],
-              [
-                h.label([...attributes.label], ['Test']),
-                h.div(
-                  [...attributes.track],
-                  [h.div([...attributes.filledTrack])],
-                ),
-                h.div([...attributes.thumb]),
-                ...(Array.isReadonlyArrayNonEmpty(attributes.hiddenInput)
-                  ? [h.input(attributes.hiddenInput)]
-                  : []),
-              ],
-            ),
+const makeSliderSceneLive = (overrides: Overrides) =>
+  SliderScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({
+          slider: new Slider('slider', {
+            id: 'test',
+            min: 0,
+            max: 10,
+            step: 1,
+          }),
         }),
-    }
-  }),
-).pipe(Layer.provide(SliderLive))
+        view: (model, h) =>
+          model.slider.view({
+            value: 5,
+            ...overrides,
+            toView: attributes =>
+              h.div(
+                [...attributes.root],
+                [
+                  h.label([...attributes.label], ['Test']),
+                  h.div(
+                    [...attributes.track],
+                    [h.div([...attributes.filledTrack])],
+                  ),
+                  h.div([...attributes.thumb]),
+                  ...(Array.isReadonlyArrayNonEmpty(attributes.hiddenInput)
+                    ? [h.input(attributes.hiddenInput)]
+                    : []),
+                ],
+              ),
+          }),
+      }
+    }),
+  ).pipe(Layer.provide(SliderLive))
 
 const root = Scene.selector('[data-slider-id="test"]')
 const track = Scene.selector('[data-slider-track-id="test"]')
@@ -57,8 +58,7 @@ describe('Slider', () => {
   describe('rendering', () => {
     it.effect('renders the root with data-slider-id and data-orientation', () =>
       Scene.scene(
-        SliderSceneLive,
-        {},
+        makeSliderSceneLive({}),
         Scene.expect(root).toExist(),
         Scene.expect(root).toHaveAttr('data-orientation', 'horizontal'),
       ),
@@ -66,15 +66,14 @@ describe('Slider', () => {
 
     it.effect(
       'renders the track with the data-slider-track-id selector the pointer subscription relies on',
-      () => Scene.scene(SliderSceneLive, {}, Scene.expect(track).toExist()),
+      () => Scene.scene(makeSliderSceneLive({}), Scene.expect(track).toExist()),
     )
 
     it.effect(
       'renders the thumb with role=slider and aria value / orientation attributes',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          {},
+          makeSliderSceneLive({}),
           Scene.expect(thumb).toExist(),
           Scene.expect(thumb).toHaveAttr('aria-valuemin', '0'),
           Scene.expect(thumb).toHaveAttr('aria-valuemax', '10'),
@@ -87,16 +86,14 @@ describe('Slider', () => {
   describe('thumb labeling', () => {
     it.effect('falls back to aria-labelledby pointing at the label id', () =>
       Scene.scene(
-        SliderSceneLive,
-        {},
+        makeSliderSceneLive({}),
         Scene.expect(thumb).toHaveAttr('aria-labelledby', 'test-label'),
       ),
     )
 
     it.effect('uses explicit ariaLabel when provided', () =>
       Scene.scene(
-        SliderSceneLive,
-        { ariaLabel: 'Volume' },
+        makeSliderSceneLive({ ariaLabel: 'Volume' }),
         Scene.expect(thumb).toHaveAttr('aria-label', 'Volume'),
         Scene.expect(thumb).not.toHaveAttr('aria-labelledby'),
       ),
@@ -106,8 +103,7 @@ describe('Slider', () => {
       'uses explicit ariaLabelledBy when provided, overriding the default',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          { ariaLabelledBy: 'external-label' },
+          makeSliderSceneLive({ ariaLabelledBy: 'external-label' }),
           Scene.expect(thumb).toHaveAttr('aria-labelledby', 'external-label'),
         ),
     )
@@ -116,8 +112,7 @@ describe('Slider', () => {
   describe('aria-valuetext', () => {
     it.effect('is absent by default', () =>
       Scene.scene(
-        SliderSceneLive,
-        {},
+        makeSliderSceneLive({}),
         Scene.expect(thumb).not.toHaveAttr('aria-valuetext'),
       ),
     )
@@ -126,8 +121,7 @@ describe('Slider', () => {
       'announces the formatted string when formatValue is provided',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          { formatValue: value => `${value} of 10` },
+          makeSliderSceneLive({ formatValue: value => `${value} of 10` }),
           Scene.expect(thumb).toHaveAttr('aria-valuetext', '5 of 10'),
         ),
     )
@@ -138,8 +132,7 @@ describe('Slider', () => {
       'marks the root, track, and thumb with data-dragging while Dragging',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          {},
+          makeSliderSceneLive({}),
           Scene.given({
             slider: {
               id: 'test',
@@ -157,8 +150,7 @@ describe('Slider', () => {
 
     it.effect('marks disabled with aria-disabled and data-disabled', () =>
       Scene.scene(
-        SliderSceneLive,
-        { isDisabled: true },
+        makeSliderSceneLive({ isDisabled: true }),
         Scene.expect(root).toHaveAttr('data-disabled', ''),
         Scene.expect(thumb).toHaveAttr('aria-disabled', 'true'),
         Scene.expect(thumb).toHaveAttr('data-disabled', ''),
@@ -171,8 +163,7 @@ describe('Slider', () => {
       'marks the root, track, and thumb with data-readonly and the thumb with aria-readonly',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          { isReadOnly: true },
+          makeSliderSceneLive({ isReadOnly: true }),
           Scene.expect(root).toHaveAttr('data-readonly', ''),
           Scene.expect(track).toHaveAttr('data-readonly', ''),
           Scene.expect(thumb).toHaveAttr('data-readonly', ''),
@@ -186,8 +177,7 @@ describe('Slider', () => {
       'emits both attribute sets when disabled and read-only are combined',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          { isDisabled: true, isReadOnly: true },
+          makeSliderSceneLive({ isDisabled: true, isReadOnly: true }),
           Scene.expect(thumb).toHaveAttr('aria-disabled', 'true'),
           Scene.expect(thumb).toHaveAttr('data-disabled', ''),
           Scene.expect(thumb).toHaveAttr('aria-readonly', 'true'),
@@ -197,8 +187,7 @@ describe('Slider', () => {
 
     it.effect('drops the track and thumb pointer handlers when read-only', () =>
       Scene.scene(
-        SliderSceneLive,
-        { isReadOnly: true },
+        makeSliderSceneLive({ isReadOnly: true }),
         Scene.expect(track).not.toHaveHandler('pointerdown'),
         Scene.expect(thumb).not.toHaveHandler('pointerdown'),
       ),
@@ -206,16 +195,14 @@ describe('Slider', () => {
 
     it.effect('drops the keyboard handler when read-only', () =>
       Scene.scene(
-        SliderSceneLive,
-        { isReadOnly: true },
+        makeSliderSceneLive({ isReadOnly: true }),
         Scene.expect(thumb).not.toHaveHandler('keydown'),
       ),
     )
 
     it.effect('keeps the thumb focusable when read-only', () =>
       Scene.scene(
-        SliderSceneLive,
-        { isReadOnly: true },
+        makeSliderSceneLive({ isReadOnly: true }),
         Scene.expect(thumb).toHaveAttr('tabIndex', '0'),
       ),
     )
@@ -228,8 +215,7 @@ describe('Slider', () => {
       { value: 10, bottom: '100%' },
     ])('positions the centered thumb at value $value', ({ value, bottom }) =>
       Scene.scene(
-        SliderSceneLive,
-        { orientation: 'Vertical', value },
+        makeSliderSceneLive({ orientation: 'Vertical', value }),
         Scene.expect(thumb).toHaveStyle('bottom', bottom),
         Scene.expect(thumb).toHaveStyle('left', '50%'),
         Scene.expect(thumb).toHaveStyle(
@@ -247,12 +233,11 @@ describe('Slider', () => {
       'positions the edge-aligned thumb at value $value',
       ({ value, bottom }) =>
         Scene.scene(
-          SliderSceneLive,
-          {
+          makeSliderSceneLive({
             orientation: 'Vertical',
             thumbAlignment: 'Edge',
             value,
-          },
+          }),
           Scene.expect(thumb).toHaveStyle('bottom', bottom),
           Scene.expect(thumb).toHaveStyle('transform', 'translateX(-50%)'),
         ),
@@ -260,25 +245,23 @@ describe('Slider', () => {
 
     it.effect('uses thumbSize to position the edge-aligned thumb', () =>
       Scene.scene(
-        SliderSceneLive,
-        {
+        makeSliderSceneLive({
           orientation: 'Vertical',
           thumbAlignment: 'Edge',
           thumbSize: '1rem',
           value: 5,
-        },
+        }),
         Scene.expect(thumb).toHaveStyle('bottom', 'calc((100% - 1rem) * 0.5)'),
       ),
     )
 
     it.effect('sizes the edge-aligned fill to the thumb center', () =>
       Scene.scene(
-        SliderSceneLive,
-        {
+        makeSliderSceneLive({
           orientation: 'Vertical',
           thumbAlignment: 'Edge',
           value: 5,
-        },
+        }),
         Scene.expect(filledTrack).toHaveStyle(
           'height',
           'calc((100% - 0.75rem) * 0.5 + 0.75rem / 2)',
@@ -292,8 +275,7 @@ describe('Slider', () => {
       'marks the track with data-thumb-alignment="center" by default',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          {},
+          makeSliderSceneLive({}),
           Scene.expect(track).toHaveAttr('data-thumb-alignment', 'center'),
         ),
     )
@@ -302,8 +284,7 @@ describe('Slider', () => {
       'marks the track with data-thumb-alignment="edge" for pointer mapping',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          { thumbAlignment: 'Edge' },
+          makeSliderSceneLive({ thumbAlignment: 'Edge' }),
           Scene.expect(track).toHaveAttr('data-thumb-alignment', 'edge'),
         ),
     )
@@ -311,15 +292,17 @@ describe('Slider', () => {
 
   describe('hidden input', () => {
     it.effect('is absent when no name is provided', () =>
-      Scene.scene(SliderSceneLive, {}, Scene.expect(hiddenInput).toBeAbsent()),
+      Scene.scene(
+        makeSliderSceneLive({}),
+        Scene.expect(hiddenInput).toBeAbsent(),
+      ),
     )
 
     it.effect(
       'renders with the name and current value when name is provided',
       () =>
         Scene.scene(
-          SliderSceneLive,
-          { name: 'volume' },
+          makeSliderSceneLive({ name: 'volume' }),
           Scene.expect(hiddenInput).toExist(),
           Scene.expect(hiddenInput).toHaveAttr('name', 'volume'),
           Scene.expect(hiddenInput).toHaveAttr('value', '5'),

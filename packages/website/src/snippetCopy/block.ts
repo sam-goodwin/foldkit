@@ -18,10 +18,10 @@ export class SnippetCopy extends Block<SnippetCopy, void, ViewInputs>()(
   },
 ) {}
 
-export const SnippetCopyLive = SnippetCopy.make(
-  Effect.fn(function* () {
+export const SnippetCopyLive = SnippetCopy.layer(
+  Effect.gen(function* () {
     return {
-      model: { copiedSnippetIds: HashSet.empty() },
+      init: () => ({ copiedSnippetIds: HashSet.empty() }),
 
       update: {
         ClickedCopySnippet: (model, { snippetId, text }) => ({

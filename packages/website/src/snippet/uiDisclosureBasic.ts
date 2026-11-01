@@ -20,10 +20,10 @@ export class FrequentlyAskedQuestions extends Block<FrequentlyAskedQuestions>()(
   },
 ) {}
 
-export const FrequentlyAskedQuestionsLive = FrequentlyAskedQuestions.make(
-  Effect.fn(function* () {
+export const FrequentlyAskedQuestionsLive = FrequentlyAskedQuestions.layer(
+  Effect.gen(function* () {
     return {
-      model: { isFaqOpen: false },
+      init: () => ({ isFaqOpen: false }),
 
       update: {
         // Store the value. Return Commands to persist the open state, load

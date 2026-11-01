@@ -2566,7 +2566,6 @@ type VirtualListContract = typeof contract
 
 /** A VirtualList instance whose view renders rows of one item type. */
 export interface Instance<Item> extends BlockInstance<
-  Instance<Item>,
   VirtualListContract,
   InitConfig,
   ViewInputs<Item>
@@ -2579,7 +2578,6 @@ export type Completed<Item> = BlockClass<
   'VirtualList',
   InitConfig,
   ViewInputs<Item>,
-  never,
   VirtualListContract
 > &
   Readonly<{ Live: Layer.Layer<Instance<Item>> }>
@@ -2596,10 +2594,10 @@ export const makeBlock = <Item>(): Completed<Item> => {
     'VirtualList',
     contract,
   )
-  const VirtualListLive = VirtualList.make(
-    Effect.fn(function* (_id, config) {
+  const VirtualListLive = VirtualList.layer(
+    Effect.gen(function* () {
       return {
-        model: initialModel(config),
+        init: initialModel,
         update,
         commands: { ApplyScroll: handleApplyScroll },
         mounts: { ObserveVirtualList: handleObserveVirtualList },

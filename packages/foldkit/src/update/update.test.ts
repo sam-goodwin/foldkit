@@ -49,7 +49,7 @@ const loadFolders = makeLoad('LoadFolders')
 
 const sendTo = (id: string): Send => ({
   [SendTypeId]: true,
-  target: [id],
+  childId: id,
   message: Message.BumpedValue(),
 })
 

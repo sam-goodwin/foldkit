@@ -16,36 +16,31 @@ export class Home extends Block<Home, void, ViewInputs>()('Home', {
   OutMessage,
 }) {}
 
-export const HomeLive = Home.make(
-  Effect.fn(function* () {
-    const demoTabs = yield* new DemoTabs('demoTabs', { id: 'demo-tabs' })
-    const playgroundMenu = yield* new PlaygroundMenu('playgroundMenu', {
-      id: 'playground-menu',
-      isAnimated: true,
-    })
-    const asyncCounterDemo = yield* new AsyncCounterDemo('asyncCounterDemo')
-    const notePlayerDemo = yield* new NotePlayerDemo('notePlayerDemo')
-
+export const HomeLive = Home.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        demoTabs,
+      init: () => ({
+        demoTabs: new DemoTabs('demoTabs', { id: 'demo-tabs' }),
         activeDemoTab: 'AsyncCounter',
-        playgroundMenu,
-        asyncCounterDemo,
-        notePlayerDemo,
-      },
+        playgroundMenu: new PlaygroundMenu('playgroundMenu', {
+          id: 'playground-menu',
+          isAnimated: true,
+        }),
+        asyncCounterDemo: new AsyncCounterDemo('asyncCounterDemo'),
+        notePlayerDemo: new NotePlayerDemo('notePlayerDemo'),
+      }),
 
       update: {
         UpdatedNewsletterEmail: (model, { value }) => ({
           model,
           outMessage: OutMessage.UpdatedNewsletterEmail({ value }),
         }),
-        ...demoTabs.on({
+        ...DemoTabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeDemoTab: () => value }),
           }),
         }),
-        ...playgroundMenu.on({
+        ...PlaygroundMenu.on({
           Selected: (model, { value }) => ({
             model,
             outMessage: OutMessage.SelectedPlaygroundExample({

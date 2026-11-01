@@ -23,10 +23,10 @@ const escapePresses = (isOpen: boolean) =>
       )
     : Stream.empty
 
-export const ThemeMenuLive = ThemeMenu.make(
-  Effect.fn(function* () {
+export const ThemeMenuLive = ThemeMenu.layer(
+  Effect.gen(function* () {
     return {
-      model: { isOpen: false },
+      init: () => ({ isOpen: false }),
 
       update: {
         ClickedToggle: model => ({

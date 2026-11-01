@@ -24,14 +24,13 @@ export class GridSizeConfirmDialog extends Block<GridSizeConfirmDialog>()(
   { Model, Message, OutMessage },
 ) {}
 
-export const GridSizeConfirmDialogLive = GridSizeConfirmDialog.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', {
-      id: 'grid-size-confirm-dialog',
-    })
-
+export const GridSizeConfirmDialogLive = GridSizeConfirmDialog.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog, maybePendingGridSize: Option.none() },
+      init: () => ({
+        dialog: new Dialog.Dialog('dialog', { id: 'grid-size-confirm-dialog' }),
+        maybePendingGridSize: Option.none(),
+      }),
 
       update: {
         RequestedConfirmation: (model, { size }) => ({
@@ -53,7 +52,7 @@ export const GridSizeConfirmDialogLive = GridSizeConfirmDialog.make(
             }),
           }),
 
-        ...dialog.on({
+        ...Dialog.Dialog.on({
           Closed: model => ({
             model: modifyFields(model, {
               maybePendingGridSize: () => Option.none(),

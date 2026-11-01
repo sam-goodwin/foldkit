@@ -10,7 +10,7 @@ Pin the exact version you deploy and test upgrades against your own SSR or SSG h
 The lowest-risk use today is statically generated public content, which is how this site uses it. Please try it and report what breaks.
 :::
 
-Foldkit renders on the server from the same root Block and Layer the browser program uses. `renderToString` constructs the root instance and its children, runs their pure views, and returns HTML. `Runtime.hydrate` then adopts matching HTML in place and rebuilds mismatches. The same constructors, views, update handlers, and Model work whether the HTML was rendered during a build (SSG) or while handling a request (SSR).
+Foldkit renders on the server from the same root Block and Layer the browser program uses. `renderToString` builds the Layer, calls `init` for the root instance and its children, runs their pure views, and returns HTML. `Runtime.hydrate` then adopts matching HTML in place and rebuilds mismatches. The same `init` functions, views, update handlers, and Model work whether the HTML was rendered during a build (SSG) or while handling a request (SSR).
 
 ### SSG and SSR
 
@@ -34,13 +34,13 @@ request or build input                 live Foldkit app
        Flags                           adopts matching DOM
          |                                     ^
          v                                     |
-   constructors                             same view
+       init                                 same view
          |                                     ^
          v                                     |
        Model                          equivalent Model
          |                                     ^
          v                                     |
-        view                           same constructors
+        view                               same init
          |                                     ^
          v                                     |
 HTML + serialized Flags --------> Runtime.hydrate reads Flags
@@ -90,13 +90,13 @@ A delivery host runs the built `fetch` handler. It does not import the applicati
 
 `renderToString` takes three arguments: the root class, a server configuration, and render options. The server configuration contains the root's `layer`, plus `Flags` when the root takes `{ flags }`. Render options contain request startup inputs such as `flags` and `url`. The browser entry gives the same class and Layer to `Program.make` with its DOM container and browser options.
 
-The server renderer has no container. It builds the Layer, constructs the root instance with the request's Flags and URL, and runs the views once over the resulting Model. It does not run update, Commands, `start` Commands, Streams, Subscriptions, or Mount handlers. Every instance is released once the render completes.
+The server renderer has no container. It builds the Layer, calls the root's `init` with the request's Flags and URL, and runs the views once over the resulting Model. It does not run update, Commands, `start` Commands, Subscriptions, or Mount handlers. The Layer is released once the render completes.
 
-Constructors do run on the server, including anything they acquire with `Effect.acquireRelease`. A [resource Block](/core/managed-resources) that opens a `WebSocket` in its constructor would open it on the server too, so keep resource instances out of the starting Model and add them in response to a Message.
+Each Block's Layer constructor does run on the server, including anything it acquires with `Effect.acquireRelease`. Keep per-instance handles out of the constructor: a [resource](/core/managed-resources) acquired by a Subscription or through an `RcMap` key opens only in the browser, because the server never starts Subscriptions or Commands.
 
 #### Request URL
 
-For a routing application, pass the request URL so the root constructor receives the same `{ url }` it receives from `window.location` in the browser:
+For a routing application, pass the request URL so the root's `init` receives the same `{ url }` it receives from `window.location` in the browser:
 
 ::Snippet{name="serverRenderingRenderToStringUrl" label="Using renderToString with a URL"}
 
@@ -239,9 +239,9 @@ Use `run` from a separate client entry when the page must also support a fresh S
 
 #### DOM adoption and mismatches
 
-`Runtime.hydrate` accepts no client Flags producer. It reads the serialized Flags, constructs the root with them, and adopts matching server DOM nodes. It then runs the `start` Commands the server skipped. Element identity, focus, scroll position, and media state survive while listeners and Mounts attach.
+`Runtime.hydrate` accepts no client Flags producer. It reads the serialized Flags, calls the root's `init` with them, and adopts matching server DOM nodes. It then runs the `start` Commands and starts the Subscriptions the server skipped. Element identity, focus, scroll position, and media state survive while listeners and Mounts attach.
 
-A mismatched subtree is rebuilt from its nearest parent. Rebuilding discards the DOM identity and browser state that adoption preserves. Development logs a warning that points to nondeterministic Flags, constructor, or view output. Production rebuilds silently, so test hydration before shipping.
+A mismatched subtree is rebuilt from its nearest parent. Rebuilding discards the DOM identity and browser state that adoption preserves. Development logs a warning that points to nondeterministic Flags, `init`, or view output. Production rebuilds silently, so test hydration before shipping.
 
 #### Invalid handoffs
 
@@ -253,7 +253,7 @@ Calling `hydrate` declares that a complete server handoff exists. If the handoff
 
 ### Flags and what only the browser knows
 
-Hydration requires the server and browser to build the same first Model. Embedded Flags let the browser construct the root with the values the server used.
+Hydration requires the server and browser to build the same first Model. Embedded Flags let the browser call the root's `init` with the values the server used.
 
 #### Request-time and build-time Flags
 
@@ -507,7 +507,7 @@ Two things happen. Startup stops, and the page is put out of reach.
 
 #### Startup work
 
-Every refusal stops before the root is constructed. No Command, Stream, or Subscription from this boot starts.
+Every refusal stops before the root's `init` runs. No Command or Subscription from this boot starts.
 
 For a build-id mismatch, Foldkit compares ids before accessing the Flags payload text, parsing its JSON, or Schema-decoding it. Stale Flags belong to the old deployment. Decoding them first would pass those values to current code before Foldkit noticed the mismatch. Flags-related refusals inspect the payload only far enough to identify the reported error.
 

@@ -6,10 +6,10 @@ export class Profile extends Block<Profile>()('Profile', {
   Model: Schema.Struct({ title: Schema.String }),
 }) {}
 
-export const ProfileLive = Profile.make(
-  Effect.fn(function* () {
+export const ProfileLive = Profile.layer(
+  Effect.gen(function* () {
     return {
-      model: { title: 'Profile' },
+      init: () => ({ title: 'Profile' }),
 
       view: (model, h) => {
         fetch('/api/user').then(response => response.json())

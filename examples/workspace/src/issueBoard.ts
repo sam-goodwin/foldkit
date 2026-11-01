@@ -75,14 +75,15 @@ export class IssueBoard extends Block<IssueBoard, void, ViewInput>()(
   { Model, Message, OutMessage },
 ) {}
 
-export const IssueBoardLive = IssueBoard.make(
-  Effect.fn(function* () {
-    const dragAndDrop = yield* new DragAndDrop.DragAndDrop('dragAndDrop', {
-      id: 'workspace-issue-board',
-    })
-
+export const IssueBoardLive = IssueBoard.layer(
+  Effect.gen(function* () {
     return {
-      model: { dragAndDrop, announcement: '' },
+      init: () => ({
+        dragAndDrop: new DragAndDrop.DragAndDrop('dragAndDrop', {
+          id: 'workspace-issue-board',
+        }),
+        announcement: '',
+      }),
       update: {
         InformedOfIssueMove: (model, { status, insertionIndex }) => ({
           model: modifyFields(model, {
@@ -100,7 +101,7 @@ export const IssueBoardLive = IssueBoard.make(
           model,
           outMessage: OutMessage.RequestedCreation({ status }),
         }),
-        ...dragAndDrop.on({
+        ...DragAndDrop.DragAndDrop.on({
           StartedKeyboardDrag: model => ({
             model: modifyFields(model, {
               announcement: () =>

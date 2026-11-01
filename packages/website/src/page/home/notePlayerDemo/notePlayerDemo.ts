@@ -559,12 +559,8 @@ export class NotePlayerDemo extends Block<NotePlayerDemo>()('NotePlayerDemo', {
   Command: [DelayAdvanceNotePlayerPhase, PlayNote, AcquireAudioContext],
 }) {}
 
-export const NotePlayerDemoLive = NotePlayerDemo.make(
-  Effect.fn(function* () {
-    const noteDurationRadioGroup = yield* new NoteDurationRadioGroup(
-      'noteDurationRadioGroup',
-      { id: 'note-duration' },
-    )
+export const NotePlayerDemoLive = NotePlayerDemo.layer(
+  Effect.gen(function* () {
     const audioContextRef = yield* Ref.make(Option.none<AudioContext>())
 
     yield* Effect.addFinalizer(() =>
@@ -580,18 +576,21 @@ export const NotePlayerDemoLive = NotePlayerDemo.make(
     )
 
     return {
-      model: {
+      init: () => ({
         noteInput: validateNoteInput(INITIAL_NOTE_SEQUENCE),
-        noteDurationRadioGroup,
+        noteDurationRadioGroup: new NoteDurationRadioGroup(
+          'noteDurationRadioGroup',
+          { id: 'note-duration' },
+        ),
         noteDuration: 'Medium',
         playbackState: PlaybackState.Idle(),
         highlightPhase: 'Idle',
         generation: 0,
         messageLog: [],
         audio: AudioState.Acquiring(),
-      },
+      }),
 
-      start: [AcquireAudioContext()],
+      start: () => [AcquireAudioContext()],
 
       update: {
         ChangedNoteInput: (model, { value }) => {
@@ -812,7 +811,7 @@ export const NotePlayerDemoLive = NotePlayerDemo.make(
         FailedAcquireAudioContext: model => ({
           model: modifyFields(model, { audio: () => AudioState.Unavailable() }),
         }),
-        ...noteDurationRadioGroup.on({
+        ...NoteDurationRadioGroup.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               noteDuration: () => value,
@@ -830,13 +829,23 @@ export const NotePlayerDemoLive = NotePlayerDemo.make(
             ),
           ),
         AcquireAudioContext: () =>
-          Effect.try({
-            try: () => new AudioContext(),
-            catch: () =>
-              new Error('The Web Audio API is unavailable in this browser.'),
-          }).pipe(
-            Effect.flatMap(audioContext =>
-              Ref.set(audioContextRef, Option.some(audioContext)),
+          Ref.get(audioContextRef).pipe(
+            Effect.flatMap(
+              Option.match({
+                onSome: () => Effect.void,
+                onNone: () =>
+                  Effect.try({
+                    try: () => new AudioContext(),
+                    catch: () =>
+                      new Error(
+                        'The Web Audio API is unavailable in this browser.',
+                      ),
+                  }).pipe(
+                    Effect.flatMap(audioContext =>
+                      Ref.set(audioContextRef, Option.some(audioContext)),
+                    ),
+                  ),
+              }),
             ),
             Effect.as(Message.SucceededAcquireAudioContext()),
             Effect.catch(() =>

@@ -54,11 +54,8 @@ export class Application extends Block<Application, ApplicationArgs>()(
   },
 ) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
-    const home = yield* new Home('home')
-    const room = yield* Room.each('room', { isRestoring: true })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const roomForRoute = (
       route: ApplicationRoute,
       maybeRoom: Option.Option<Room>,
@@ -69,7 +66,7 @@ export const ApplicationLive = Application.make(
           Room: ({ roomId }) =>
             Option.orElse(
               Option.filter(maybeRoom, ({ id }) => id === roomId),
-              () => Option.some(room(roomId)),
+              () => Option.some(new Room(roomId, { isRestoring: true })),
             ),
         },
         () => Option.none(),
@@ -81,7 +78,7 @@ export const ApplicationLive = Application.make(
       player: Shared.Player,
     ) => {
       if (ApplicationRoute.guards.Home(model.route)) {
-        const joinedRoom = room(roomId, { isRestoring: false })
+        const joinedRoom = new Room(roomId, { isRestoring: false })
 
         return {
           model: modifyFields(model, {
@@ -95,13 +92,15 @@ export const ApplicationLive = Application.make(
       }
     }
 
-    const route = urlToApplicationRoute(url)
-
     return {
-      model: {
-        route,
-        home,
-        maybeRoom: roomForRoute(route, Option.none()),
+      init: ({ url }) => {
+        const route = urlToApplicationRoute(url)
+
+        return {
+          route,
+          home: new Home('home'),
+          maybeRoom: roomForRoute(route, Option.none()),
+        }
       },
 
       update: {
@@ -133,7 +132,7 @@ export const ApplicationLive = Application.make(
         CompletedNavigateInternal: model => ({ model }),
         CompletedLoadExternal: model => ({ model }),
         CompletedNavigateToRoom: model => ({ model }),
-        ...home.on({
+        ...Home.on({
           CreatedRoom: (model, { roomId, player }) =>
             enterJoinedRoom(model, roomId, player),
           JoinedRoom: (model, { roomId, player }) =>

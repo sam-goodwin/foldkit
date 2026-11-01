@@ -170,18 +170,12 @@ export class Application extends Block<
   Command: [SaveCanvas, ExportPng],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const store = yield* KeyValueStore.KeyValueStore
 
-    const toolbar = yield* new Toolbar('toolbar')
-    const errorDialog = yield* new ErrorDialog('errorDialog')
-    const gridSizeConfirmDialog = yield* new GridSizeConfirmDialog(
-      'gridSizeConfirmDialog',
-    )
-
     return {
-      model: {
+      init: ({ flags }) => ({
         grid: Option.match(flags.maybeSavedCanvas, {
           onNone: () => createEmptyGrid(DEFAULT_GRID_SIZE),
           onSome: savedCanvas => savedCanvas.grid,
@@ -204,14 +198,14 @@ export const ApplicationLive = Application.make(
           onNone: () => DEFAULT_PALETTE_THEME_INDEX,
           onSome: savedCanvas => savedCanvas.paletteThemeIndex,
         }),
-        toolbar,
-        errorDialog,
-        gridSizeConfirmDialog,
-      },
+        toolbar: new Toolbar('toolbar'),
+        errorDialog: new ErrorDialog('errorDialog'),
+        gridSizeConfirmDialog: new GridSizeConfirmDialog(
+          'gridSizeConfirmDialog',
+        ),
+      }),
 
-      stream: keyPresses,
-
-      subscriptions: { mouseReleases },
+      subscriptions: { keyPresses, mouseReleases },
 
       update: {
         ...canvasUpdate,
@@ -236,7 +230,7 @@ export const ApplicationLive = Application.make(
 
         ClickedExport: exportStep,
 
-        ...toolbar.on({
+        ...Toolbar.on({
           SelectedTool: (model, { tool }) => selectToolStep(model, tool),
           SelectedGridSize: (model, { size }) =>
             requestGridSizeChangeStep(model, size),
@@ -249,7 +243,7 @@ export const ApplicationLive = Application.make(
           ClickedClear: clearCanvasStep,
         }),
 
-        ...gridSizeConfirmDialog.on({
+        ...GridSizeConfirmDialog.on({
           ConfirmedGridSizeChange: (model, { size }) => {
             const nextModel = applyGridSizeChange(model, size)
 
@@ -655,18 +649,22 @@ const toToolMessage = (event: KeyboardEvent): Option.Option<SelectedTool> => {
   )
 }
 
-const keyPresses = Stream.merge(
-  Dom.streamFromEventFilterMapPreventDefault({
-    target: document,
-    type: 'keydown',
-    filterMapEvent: toUndoRedoMessage,
-  }),
-  Dom.streamFromEventFilterMap({
-    target: document,
-    type: 'keydown',
-    filterMapEvent: toToolMessage,
-  }),
-)
+const keyPresses = {
+  dependencies: () => null,
+  stream: () =>
+    Stream.merge(
+      Dom.streamFromEventFilterMapPreventDefault({
+        target: document,
+        type: 'keydown',
+        filterMapEvent: toUndoRedoMessage,
+      }),
+      Dom.streamFromEventFilterMap({
+        target: document,
+        type: 'keydown',
+        filterMapEvent: toToolMessage,
+      }),
+    ),
+}
 
 const mouseReleases = {
   dependencies: (model: Model) => model.isDrawing,

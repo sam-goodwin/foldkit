@@ -28,12 +28,12 @@ export class Editor extends Block<Editor>()('Editor', {
   Command: [SaveDocument],
 }) {}
 
-export const EditorLive = Editor.make(
-  Effect.fn(function* () {
+export const EditorLive = Editor.layer(
+  Effect.gen(function* () {
     const documentStore = yield* DocumentStore
 
     return {
-      model: { contents: '', isSaved: true },
+      init: () => ({ contents: '', isSaved: true }),
 
       update: {
         UpdatedContents: (model, { contents }) => ({

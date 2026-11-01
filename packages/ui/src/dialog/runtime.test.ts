@@ -28,19 +28,20 @@ class Application extends Block<Application>()('Application', {
   Command: [RequestOpenDialog],
 }) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog('dialog', { id: dialogId })
-
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog, dialogEvents: [] },
-      start: [RequestOpenDialog()],
+      init: () => ({
+        dialog: new Dialog('dialog', { id: dialogId }),
+        dialogEvents: [],
+      }),
+      start: () => [RequestOpenDialog()],
       update: {
         CompletedRequestOpenDialog: model => ({
           model,
           messages: [model.dialog.send(Dialog.Message.RequestedOpen())],
         }),
-        ...dialog.on({
+        ...Dialog.on({
           Opened: model => ({
             model: modifyFields(model, {
               dialogEvents: Array.append(DialogEvent.make('Opened')),

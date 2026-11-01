@@ -50,16 +50,16 @@ export class Application extends Block<Application>()('Application', {
   Command: [DetermineStartTime, DetermineTickTime],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const clock = yield* Clock.Clock
 
     return {
-      model: {
+      init: () => ({
         elapsedMs: 0,
         isRunning: false,
         startTime: 0,
-      },
+      }),
 
       update: {
         ClickedStart: model => ({

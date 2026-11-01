@@ -4,7 +4,7 @@
 
 An anchored floating panel with natural Tab navigation. Unlike Dialog (which is modal and traps focus) or Menu (which uses aria-activedescendant for item navigation), Popover holds arbitrary content and uses the disclosure ARIA pattern. Focus flows naturally through the panel content.
 
-Create a `Popover.Popover` instance in the parent's constructor, hold it in the parent Model, and render it with `model.popover.view({ ... })`. To open or close it from a parent update handler, send `Popover.Popover.Message.RequestedOpen()` or `RequestedClose()` to the instance. Provide `Popover.PopoverLive` to the parent's Layer.
+Create an instance with `new Popover.Popover('popover', { id })` in the parent's `init`, hold it in the parent Model, and render it with `model.popover.view({ ... })`. To open or close it from a parent update handler, send `Popover.Popover.Message.RequestedOpen()` or `RequestedClose()` to the instance. Provide `Popover.PopoverLive` to the parent's Layer.
 
 :::Info{label="See it in an app"}
 Check out how Popover is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/popoverPage.ts).
@@ -156,7 +156,7 @@ Payload delivered to the `toView` callback each render.
 
 ### OutMessage {#out-message}
 
-Facts the component reports to its parent. Handle them by spreading the instance's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
+Facts the component reports to its parent. Handle them by spreading `...Popover.Popover.on({ ... })` into the parent's update record. Variants without a handler are ignored.
 
 | Name     | Type | Default | Description                                                                                                                                        |
 | -------- | ---- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |

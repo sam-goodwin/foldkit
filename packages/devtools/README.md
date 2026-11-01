@@ -35,9 +35,9 @@ const program = Program.make(Application, {
 Runtime.run(program)
 ```
 
-The application root is an ordinary Block class, `class Application extends Block<Application>()('Application', { Model, Message }) {}`, implemented with `Application.make(...)`. Pass the class and its Layer to `Program.make` in the entry point.
+The application root is an ordinary Block class, `class Application extends Block<Application>()('Application', { Model, Message }) {}`, implemented with `Application.layer(...)`. Pass the class and its Layer to `Program.make` in the entry point.
 
-The overlay shows the Model as one resolved tree: each child Block instance appears as its own Model. A Message sent to a child instance is listed with its instance path, such as `rows › row-3 › ClickedIncrement`, and the Block filter narrows the list to one instance or collection and everything below it.
+The overlay shows the Model as one resolved tree: each child Block instance appears as its own Model. A Message sent to a child instance is listed with its instance path, such as `board › row-3 › ClickedIncrement`, and the Block filter narrows the list to one instance and everything below it.
 
 The `devTools` configuration is optional. Development inspection is enabled by default, while external Message dispatch is disabled. Set `dispatch: true` when the [DevTools MCP server](https://foldkit.dev/ai/mcp) should discover and dispatch the root Block's Messages.
 

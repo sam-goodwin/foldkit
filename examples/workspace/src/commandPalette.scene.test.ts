@@ -38,18 +38,16 @@ class CommandPaletteScene extends Block<CommandPaletteScene>()(
   },
 ) {}
 
-const CommandPaletteSceneLive = CommandPaletteScene.make(
-  Effect.fn(function* () {
-    const commandPalette = yield* new CommandPalette('commandPalette')
-
+const CommandPaletteSceneLive = CommandPaletteScene.layer(
+  Effect.gen(function* () {
     return {
-      model: { commandPalette },
+      init: () => ({ commandPalette: new CommandPalette('commandPalette') }),
       update: {
         PressedShortcut: model => ({
           model,
           messages: [model.commandPalette.send(Message.PressedOpenShortcut())],
         }),
-        ...commandPalette.on({
+        ...CommandPalette.on({
           SelectedIssue: (model, outMessage) => ({ model, outMessage }),
           SelectedProject: (model, outMessage) => ({ model, outMessage }),
         }),

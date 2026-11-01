@@ -28,7 +28,7 @@ const unsubscribe = handle.ports.countChanged.subscribe(count => {
 })
 
 // On host unmount: dispose interrupts the runtime and runs all cleanup.
-// Streams, Mounts, and in-flight Commands stop, every Block instance is
+// Subscriptions, Mounts, and in-flight Commands stop, every Block Layer is
 // released, the rendered DOM is removed, and the container element is
 // restored empty, ready for a fresh embed. dispose is idempotent.
 unsubscribe()

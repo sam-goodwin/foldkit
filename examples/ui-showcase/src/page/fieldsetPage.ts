@@ -25,14 +25,14 @@ export class FieldsetPage extends Block<FieldsetPage>()('FieldsetPage', {
   Message,
 }) {}
 
-export const FieldsetPageLive = FieldsetPage.make(
-  Effect.fn(function* () {
+export const FieldsetPageLive = FieldsetPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         fieldsetInputValue: '',
         fieldsetTextareaValue: '',
         isFieldsetCheckboxDemoChecked: false,
-      },
+      }),
 
       update: {
         UpdatedFieldsetInputValue: (model, { value }) => ({

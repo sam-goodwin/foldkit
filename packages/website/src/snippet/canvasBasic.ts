@@ -22,10 +22,10 @@ const frameTicks = (isPlaying: boolean) =>
       )
     : Stream.empty
 
-export const CanvasAppLive = CanvasApp.make(
-  Effect.fn(function* () {
+export const CanvasAppLive = CanvasApp.layer(
+  Effect.gen(function* () {
     return {
-      model: { isPlaying: true, angle: 0 },
+      init: () => ({ isPlaying: true, angle: 0 }),
 
       update: {
         TickedFrame: (model, { deltaTime }) => ({

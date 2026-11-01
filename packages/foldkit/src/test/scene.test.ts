@@ -5108,10 +5108,10 @@ describe('scene mounts', () => {
       Mount: [Focus],
     }) {}
 
-    const FieldLive = Field.make(
-      Effect.fn(function* () {
+    const FieldLive = Field.layer(
+      Effect.gen(function* () {
         return {
-          model: { isFocused: false },
+          init: () => ({ isFocused: false }),
           update: {
             CompletedFocus: () => ({ model: { isFocused: true } }),
           },
@@ -5131,12 +5131,10 @@ describe('scene mounts', () => {
       Model: Schema.Struct({ field: Field }),
     }) {}
 
-    const FormLive = Form.make(
-      Effect.fn(function* () {
-        const field = yield* new Field('field')
+    const FormLive = Form.layer(
+      Effect.gen(function* () {
         return {
-          model: { field },
-          update: {},
+          init: () => ({ field: new Field('field') }),
           view: (model, h) => h.div([], [model.field.view()]),
         }
       }),

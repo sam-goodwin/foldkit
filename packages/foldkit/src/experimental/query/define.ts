@@ -47,7 +47,7 @@ const isKeyedConfig = (
  * function. `toLayer` can also build an alternative to an attached handler.
  *
  * Put the class in the parent Model Schema, create the instance with
- * `yield* new PostsQuery('posts', {})`, provide its Layer to the parent's
+ * `new PostsQuery('posts', {})` in the parent's Model, provide its Layer to the parent's
  * Layer, and send its `Requested*` Messages from parent update handlers.
  *
  * @experimental Ships from `foldkit/experimental/query`; expect breaking changes while the API settles.

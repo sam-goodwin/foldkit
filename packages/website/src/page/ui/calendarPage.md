@@ -20,9 +20,9 @@ Calendar owns navigation state, including the visible month, active grid, and ke
 
 ## Wire Calendar into a Parent
 
-Create a `Calendar.Calendar` instance in the parent's constructor with `yield* new Calendar.Calendar('calendar', { id, today })` and hold it in the parent Model. Render it with `model.calendar.view({ ... })` and provide `Calendar.CalendarLive` to the parent's Layer.
+Create an instance with `new Calendar.Calendar('calendar', { id, today })` in the parent's `init` and hold it in the parent Model. Render it with `model.calendar.view({ ... })` and provide `Calendar.CalendarLive` to the parent's Layer.
 
-Pass the parent-owned selection to the view as `maybeSelectedDate` on every render. When Calendar reports `SelectedDate`, store the date in the parent's selected-date field with `...calendar.on({ SelectedDate })`. Handle `ChangedViewMonth` in the same `.on` when your application needs month-scoped data.
+Pass the parent-owned selection to the view as `maybeSelectedDate` on every render. When Calendar reports `SelectedDate`, store the date in the parent's selected-date field with `...Calendar.Calendar.on({ SelectedDate })`. Handle `ChangedViewMonth` in the same `.on` when your application needs month-scoped data.
 
 :::Info{label="See it in an app"}
 See the complete Calendar integration in the [UI Showcase](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/calendarPage.ts).
@@ -197,7 +197,7 @@ Month cells expose `isSelected`, `isFocused`, `isCurrentMonth`, and `isDisabled`
 
 ### OutMessage {#out-message}
 
-Facts Calendar reports to its parent. Handle them by spreading `...calendar.on({ ... })` into the parent's update record; variants without a handler are ignored.
+Facts Calendar reports to its parent. Handle them by spreading `...Calendar.Calendar.on({ ... })` into the parent's update record; variants without a handler are ignored.
 
 | Name               | Payload                           | Emitted when                                                                                                                                                                       |
 | ------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

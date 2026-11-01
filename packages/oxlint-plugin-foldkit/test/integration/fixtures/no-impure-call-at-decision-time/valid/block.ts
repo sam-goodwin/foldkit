@@ -24,10 +24,10 @@ export class Editor extends Block<Editor>()('Editor', {
   Mount: [Measure],
 }) {}
 
-export const EditorLive = Editor.make(
-  Effect.fn(function* () {
+export const EditorLive = Editor.layer(
+  Effect.gen(function* () {
     return {
-      model: { isRunning: true, lastSavedAt: 0 },
+      init: () => ({ isRunning: true, lastSavedAt: 0 }),
       update: {
         ClickedSave: model => ({ model, commands: [Save()] }),
         CompletedSave: (model, { savedAt }) => ({

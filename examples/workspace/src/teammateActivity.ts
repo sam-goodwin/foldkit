@@ -69,12 +69,12 @@ export class TeammateActivity extends Block<TeammateActivity>()(
   },
 ) {}
 
-export const TeammateActivityLive = TeammateActivity.make(
-  Effect.fn(function* () {
+export const TeammateActivityLive = TeammateActivity.layer(
+  Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 
     return {
-      model: { activityTick: 0, maybeActivityError: Option.none() },
+      init: () => ({ activityTick: 0, maybeActivityError: Option.none() }),
 
       update: {
         RequestedActivity: simulateActivity,

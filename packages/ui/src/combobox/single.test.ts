@@ -72,27 +72,26 @@ type SceneInput = Readonly<{
   toViewInputs: (combobox: ComboboxModel) => ViewInputs<string>
 }>
 
-class ComboboxScene extends Block<ComboboxScene, SceneInput>()(
-  'ComboboxScene',
-  { Model: Schema.Struct({ combobox: TestCombobox }), OutMessage },
-) {}
+class ComboboxScene extends Block<ComboboxScene>()('ComboboxScene', {
+  Model: Schema.Struct({ combobox: TestCombobox }),
+  OutMessage,
+}) {}
 
-const ComboboxSceneLive = ComboboxScene.make(
-  Effect.fn(function* (_id, { toViewInputs }) {
-    const combobox = yield* new TestCombobox('combobox', testConfig)
-
-    return {
-      model: { combobox },
-      update: {
-        ...combobox.on({
-          Selected: (model, outMessage) => ({ model, outMessage }),
-          ClearedSelection: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-      view: model => model.combobox.view(toViewInputs(model.combobox.model)),
-    }
-  }),
-).pipe(Layer.provide(TestCombobox.Live))
+const makeComboboxSceneLive = ({ toViewInputs }: SceneInput) =>
+  ComboboxScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ combobox: new TestCombobox('combobox', testConfig) }),
+        update: {
+          ...TestCombobox.on({
+            Selected: (model, outMessage) => ({ model, outMessage }),
+            ClearedSelection: (model, outMessage) => ({ model, outMessage }),
+          }),
+        },
+        view: model => model.combobox.view(toViewInputs(model.combobox.model)),
+      }
+    }),
+  ).pipe(Layer.provide(TestCombobox.Live))
 
 const Fruit = Schema.Literals(['Apple', 'Pear'])
 type Fruit = typeof Fruit.Type
@@ -112,12 +111,13 @@ class FruitComboboxTest extends Block<FruitComboboxTest>()(
   },
 ) {}
 
-const FruitComboboxTestLive = FruitComboboxTest.make(
-  Effect.fn(function* () {
-    const combobox = yield* new FruitCombobox('combobox', { id: 'fruit' })
-
+const FruitComboboxTestLive = FruitComboboxTest.layer(
+  Effect.gen(function* () {
     return {
-      model: { combobox, maybeSelectedFruit: Option.none() },
+      init: () => ({
+        combobox: new FruitCombobox('combobox', { id: 'fruit' }),
+        maybeSelectedFruit: Option.none(),
+      }),
       update: {
         RequestedSelectFruitAndClose: (model, { item }) => ({
           model,
@@ -136,7 +136,7 @@ const FruitComboboxTestLive = FruitComboboxTest.make(
             ),
           ],
         }),
-        ...combobox.on({
+        ...FruitCombobox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeSelectedFruit: () => Option.some(value),
@@ -1736,8 +1736,7 @@ describe('Combobox', () => {
 
     it.effect('renders input with role="combobox" when closed', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: closedModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, 'input')).toHaveAttr('role', 'combobox')
@@ -1747,8 +1746,7 @@ describe('Combobox', () => {
 
     it.effect('renders items container with role="listbox" when open', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: openModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, '[key="test-items-container"]')).toHaveAttr(
@@ -1763,8 +1761,7 @@ describe('Combobox', () => {
 
     it.effect('shows items when open', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: openModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, '[key="test-items-container"]')).toExist()
@@ -1777,8 +1774,7 @@ describe('Combobox', () => {
 
     it.effect('hides items when closed', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: closedModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, '[key="test-items-container"]')).toBeAbsent()
@@ -1788,8 +1784,9 @@ describe('Combobox', () => {
 
     it.effect('marks selected item with data-selected', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView({ maybeSelectedValue: Option.some('Banana') }),
+        makeComboboxSceneLive(
+          sceneView({ maybeSelectedValue: Option.some('Banana') }),
+        ),
         Scene.given({ combobox: openModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, '[key="test-item-0"]')).not.toHaveAttr(
@@ -1807,8 +1804,7 @@ describe('Combobox', () => {
 
     it.effect('marks active item with data-active', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({
           combobox: modifyFields(openModel(), {
             maybeActiveItemIndex: () => Option.some(1),
@@ -1830,11 +1826,12 @@ describe('Combobox', () => {
 
     it.effect('renders hidden inputs when formName set', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView({
-          formName: 'fruit',
-          maybeSelectedValue: Option.some('Apple'),
-        }),
+        makeComboboxSceneLive(
+          sceneView({
+            formName: 'fruit',
+            maybeSelectedValue: Option.some('Apple'),
+          }),
+        ),
         Scene.given({ combobox: closedModel() }),
         Scene.tap(({ html }) => {
           const hiddenInput = Scene.find(html, 'input[type="hidden"]')
@@ -1849,8 +1846,7 @@ describe('Combobox', () => {
       'renders empty hidden input when no selection and formName set',
       () =>
         scene(
-          ComboboxSceneLive,
-          sceneView({ formName: 'fruit' }),
+          makeComboboxSceneLive(sceneView({ formName: 'fruit' })),
           Scene.given({ combobox: closedModel() }),
           Scene.tap(({ html }) => {
             const hiddenInput = Scene.find(html, 'input[type="hidden"]')
@@ -1863,8 +1859,7 @@ describe('Combobox', () => {
 
     it.effect('items have role="option"', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: openModel() }),
         Scene.tap(({ html }) => {
           Scene.findAll(html, '[key^="test-item-"]').forEach(item => {
@@ -1878,8 +1873,9 @@ describe('Combobox', () => {
 
     it.effect('selected item has aria-selected="true"', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView({ maybeSelectedValue: Option.some('Apple') }),
+        makeComboboxSceneLive(
+          sceneView({ maybeSelectedValue: Option.some('Apple') }),
+        ),
         Scene.given({ combobox: openModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, '[key="test-item-0"]')).toHaveAttr(
@@ -1894,8 +1890,9 @@ describe('Combobox', () => {
 
     it.effect('non-selected items have aria-selected="false"', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView({ maybeSelectedValue: Option.some('Apple') }),
+        makeComboboxSceneLive(
+          sceneView({ maybeSelectedValue: Option.some('Apple') }),
+        ),
         Scene.given({ combobox: openModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, '[key="test-item-1"]')).toHaveAttr(
@@ -1910,8 +1907,7 @@ describe('Combobox', () => {
 
     it.effect('items container has no aria-multiselectable', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: openModel() }),
         Scene.tap(({ html }) => {
           expect(
@@ -1925,8 +1921,7 @@ describe('Combobox', () => {
 
     it.effect('input has aria-expanded when open', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: openModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, 'input')).toHaveAttr('aria-expanded', 'true')
@@ -1942,8 +1937,7 @@ describe('Combobox', () => {
 
     it.effect('input has aria-expanded false when closed', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: closedModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, 'input')).toHaveAttr('aria-expanded', 'false')
@@ -1969,8 +1963,7 @@ describe('Combobox', () => {
         }
 
         return scene(
-          ComboboxSceneLive,
-          filteredItemsView,
+          makeComboboxSceneLive(filteredItemsView),
           Scene.given({
             combobox: initialModel({ id: 'test', isModal: true }),
           }),
@@ -2009,8 +2002,7 @@ describe('Combobox', () => {
         const backdrop = Scene.selector('[key="test-backdrop"]')
 
         return scene(
-          ComboboxSceneLive,
-          emptyItemsView(),
+          makeComboboxSceneLive(emptyItemsView()),
           Scene.given({
             combobox: initialModel({ id: 'test', isModal: true }),
           }),
@@ -2040,8 +2032,7 @@ describe('Combobox', () => {
         const backdrop = Scene.selector('[key="test-backdrop"]')
 
         return scene(
-          ComboboxSceneLive,
-          emptyItemsView({ openOnFocus: true }),
+          makeComboboxSceneLive(emptyItemsView({ openOnFocus: true })),
           Scene.given({
             combobox: initialModel({ id: 'test', isModal: true }),
           }),
@@ -2071,8 +2062,9 @@ describe('Combobox', () => {
         const backdrop = Scene.selector('[key="test-backdrop"]')
 
         return scene(
-          ComboboxSceneLive,
-          emptyItemsView({ buttonContent: toggleButtonContent }),
+          makeComboboxSceneLive(
+            emptyItemsView({ buttonContent: toggleButtonContent }),
+          ),
           Scene.given({
             combobox: initialModel({ id: 'test', isModal: true }),
           }),
@@ -2184,8 +2176,7 @@ describe('Combobox', () => {
 
     it.effect('wrapper has data-disabled when isDisabled is true', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView({ isDisabled: true }),
+        makeComboboxSceneLive(sceneView({ isDisabled: true })),
         Scene.given({ combobox: closedModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, 'div')).toHaveAttr('data-disabled', '')
@@ -2197,8 +2188,7 @@ describe('Combobox', () => {
       'wrapper does not have data-disabled when isDisabled is false',
       () =>
         scene(
-          ComboboxSceneLive,
-          sceneView(),
+          makeComboboxSceneLive(sceneView()),
           Scene.given({ combobox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, 'div')).not.toHaveAttr('data-disabled')
@@ -2208,8 +2198,7 @@ describe('Combobox', () => {
 
     it.effect('wrapper has data-invalid when isInvalid is true', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView({ isInvalid: true }),
+        makeComboboxSceneLive(sceneView({ isInvalid: true })),
         Scene.given({ combobox: closedModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, 'div')).toHaveAttr('data-invalid', '')
@@ -2221,8 +2210,7 @@ describe('Combobox', () => {
       'wrapper does not have data-invalid when isInvalid is false',
       () =>
         scene(
-          ComboboxSceneLive,
-          sceneView(),
+          makeComboboxSceneLive(sceneView()),
           Scene.given({ combobox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, 'div')).not.toHaveAttr('data-invalid')
@@ -2232,8 +2220,7 @@ describe('Combobox', () => {
 
     it.effect('no hidden input when formName is not provided', () =>
       scene(
-        ComboboxSceneLive,
-        sceneView(),
+        makeComboboxSceneLive(sceneView()),
         Scene.given({ combobox: closedModel() }),
         Scene.tap(({ html }) => {
           expect(Scene.find(html, 'input[type="hidden"]')).toBeAbsent()
@@ -2246,10 +2233,11 @@ describe('Combobox', () => {
         'adds absolute positioning, initial visibility hidden, and hooks when anchor is provided',
         () =>
           scene(
-            ComboboxSceneLive,
-            sceneView({
-              anchor: { placement: 'bottom-start' as const },
-            }),
+            makeComboboxSceneLive(
+              sceneView({
+                anchor: { placement: 'bottom-start' as const },
+              }),
+            ),
             Scene.given({ combobox: openModel() }),
             Scene.tap(({ html }) => {
               const itemsContainer = Scene.find(
@@ -2271,8 +2259,7 @@ describe('Combobox', () => {
         'applies anchor positioning by default when anchor is absent',
         () =>
           scene(
-            ComboboxSceneLive,
-            sceneView(),
+            makeComboboxSceneLive(sceneView()),
             Scene.given({ combobox: openModel() }),
             Scene.tap(({ html }) => {
               const itemsContainer = Scene.find(
@@ -2303,14 +2290,15 @@ describe('Combobox', () => {
             }>
           > = []
           return scene(
-            ComboboxSceneLive,
-            sceneView({
-              maybeSelectedValue: Option.some('Apple'),
-              itemToConfig: (_item, context) => {
-                contexts.push(context)
-                return { content: null }
-              },
-            }),
+            makeComboboxSceneLive(
+              sceneView({
+                maybeSelectedValue: Option.some('Apple'),
+                itemToConfig: (_item, context) => {
+                  contexts.push(context)
+                  return { content: null }
+                },
+              }),
+            ),
             Scene.given({ combobox: openModel() }),
             Scene.tap(() => {
               expect(contexts[0]?.isSelected).toBe(true)
@@ -2332,14 +2320,15 @@ describe('Combobox', () => {
             }>
           > = []
           return scene(
-            ComboboxSceneLive,
-            sceneView({
-              maybeSelectedValue: Option.some('Apple'),
-              itemToConfig: (_item, context) => {
-                contexts.push(context)
-                return { content: null }
-              },
-            }),
+            makeComboboxSceneLive(
+              sceneView({
+                maybeSelectedValue: Option.some('Apple'),
+                itemToConfig: (_item, context) => {
+                  contexts.push(context)
+                  return { content: null }
+                },
+              }),
+            ),
             Scene.given({ combobox: openModel() }),
             Scene.tap(() => {
               expect(contexts[1]?.isSelected).toBe(false)
@@ -2356,8 +2345,7 @@ describe('Combobox', () => {
         'no aria-label or aria-labelledby on the input by default',
         () =>
           scene(
-            ComboboxSceneLive,
-            sceneView(),
+            makeComboboxSceneLive(sceneView()),
             Scene.given({ combobox: closedModel() }),
             Scene.tap(({ html }) => {
               const input = Scene.find(html, 'input[role="combobox"]')
@@ -2371,8 +2359,7 @@ describe('Combobox', () => {
         'applies aria-label to the input when ariaLabel is provided',
         () =>
           scene(
-            ComboboxSceneLive,
-            sceneView({ ariaLabel: 'Fruit' }),
+            makeComboboxSceneLive(sceneView({ ariaLabel: 'Fruit' })),
             Scene.given({ combobox: closedModel() }),
             Scene.tap(({ html }) => {
               const input = Scene.find(html, 'input[role="combobox"]')
@@ -2386,8 +2373,7 @@ describe('Combobox', () => {
         'applies aria-labelledby to the input when ariaLabelledBy is provided',
         () =>
           scene(
-            ComboboxSceneLive,
-            sceneView({ ariaLabelledBy: 'fruit-label' }),
+            makeComboboxSceneLive(sceneView({ ariaLabelledBy: 'fruit-label' })),
             Scene.given({ combobox: closedModel() }),
             Scene.tap(({ html }) => {
               const input = Scene.find(html, 'input[role="combobox"]')
@@ -2401,11 +2387,12 @@ describe('Combobox', () => {
         'prefers aria-label over aria-labelledby when both are provided',
         () =>
           scene(
-            ComboboxSceneLive,
-            sceneView({
-              ariaLabel: 'Fruit',
-              ariaLabelledBy: 'fruit-label',
-            }),
+            makeComboboxSceneLive(
+              sceneView({
+                ariaLabel: 'Fruit',
+                ariaLabelledBy: 'fruit-label',
+              }),
+            ),
             Scene.given({ combobox: closedModel() }),
             Scene.tap(({ html }) => {
               const input = Scene.find(html, 'input[role="combobox"]')
@@ -2438,8 +2425,7 @@ describe('Combobox', () => {
         'emits readonly, aria-readonly, and data-readonly on the input',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView(),
+            makeComboboxSceneLive(readOnlyView()),
             Scene.given({ combobox: openModel() }),
             Scene.expect(input).toHaveAttr('readOnly', 'true'),
             Scene.expect(input).toHaveAttr('aria-readonly', 'true'),
@@ -2453,8 +2439,9 @@ describe('Combobox', () => {
         'emits aria-readonly and data-readonly on the items panel, and data-readonly on the button and every item',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView({ buttonContent: toggleButtonContent }),
+            makeComboboxSceneLive(
+              readOnlyView({ buttonContent: toggleButtonContent }),
+            ),
             Scene.given({ combobox: openModel() }),
             Scene.expect(itemsContainer).toHaveAttr('aria-readonly', 'true'),
             Scene.expect(itemsContainer).toHaveAttr('data-readonly', ''),
@@ -2469,8 +2456,7 @@ describe('Combobox', () => {
 
       it.effect('emits data-readonly on the wrapper', () =>
         scene(
-          ComboboxSceneLive,
-          readOnlyView({ className: 'test-wrapper' }),
+          makeComboboxSceneLive(readOnlyView({ className: 'test-wrapper' })),
           Scene.given({ combobox: openModel() }),
           Scene.expect(Scene.selector('.test-wrapper')).toHaveAttr(
             'data-readonly',
@@ -2483,12 +2469,13 @@ describe('Combobox', () => {
 
       it.effect('emits no read-only attributes by default', () =>
         scene(
-          ComboboxSceneLive,
-          sceneView({
-            buttonContent: toggleButtonContent,
-            maybeSelectedValue: Option.some('Apple'),
-            restingInputValue: 'Apple',
-          }),
+          makeComboboxSceneLive(
+            sceneView({
+              buttonContent: toggleButtonContent,
+              maybeSelectedValue: Option.some('Apple'),
+              restingInputValue: 'Apple',
+            }),
+          ),
           Scene.given({ combobox: openModel() }),
           Scene.expect(input).not.toHaveAttr('readOnly'),
           Scene.expect(input).not.toHaveAttr('aria-readonly'),
@@ -2505,13 +2492,14 @@ describe('Combobox', () => {
 
       it.effect('passes isReadOnly to itemToConfig', () =>
         scene(
-          ComboboxSceneLive,
-          readOnlyView({
-            itemToConfig: (_item, context) => ({
-              content: null,
-              className: context.isReadOnly ? 'is-read-only' : 'is-editable',
+          makeComboboxSceneLive(
+            readOnlyView({
+              itemToConfig: (_item, context) => ({
+                content: null,
+                className: context.isReadOnly ? 'is-read-only' : 'is-editable',
+              }),
             }),
-          }),
+          ),
           Scene.given({ combobox: openModel() }),
           Scene.expect(item(0)).toHaveClass('is-read-only'),
           acknowledgeAnchor,
@@ -2523,11 +2511,12 @@ describe('Combobox', () => {
         'emits both read-only and disabled attribute sets when set together',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView({
-              isDisabled: true,
-              buttonContent: toggleButtonContent,
-            }),
+            makeComboboxSceneLive(
+              readOnlyView({
+                isDisabled: true,
+                buttonContent: toggleButtonContent,
+              }),
+            ),
             Scene.given({ combobox: openModel() }),
             Scene.expect(input).toHaveAttr('aria-readonly', 'true'),
             Scene.expect(input).toHaveAttr('data-readonly', ''),
@@ -2548,8 +2537,7 @@ describe('Combobox', () => {
         'drops the input handler while keeping keydown, blur, and focus',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView({ openOnFocus: true }),
+            makeComboboxSceneLive(readOnlyView({ openOnFocus: true })),
             Scene.given({ combobox: openModel() }),
             Scene.expect(input).not.toHaveHandler('input'),
             Scene.expect(input).toHaveHandler('keydown'),
@@ -2562,11 +2550,12 @@ describe('Combobox', () => {
 
       it.effect('keeps the input handler when not read-only', () =>
         scene(
-          ComboboxSceneLive,
-          sceneView({
-            maybeSelectedValue: Option.some('Apple'),
-            restingInputValue: 'Apple',
-          }),
+          makeComboboxSceneLive(
+            sceneView({
+              maybeSelectedValue: Option.some('Apple'),
+              restingInputValue: 'Apple',
+            }),
+          ),
           Scene.given({ combobox: openModel() }),
           Scene.expect(input).toHaveHandler('input'),
           acknowledgeAnchor,
@@ -2576,11 +2565,12 @@ describe('Combobox', () => {
 
       it.effect('emits Selected on item click when not read-only', () =>
         scene(
-          ComboboxSceneLive,
-          sceneView({
-            maybeSelectedValue: Option.some('Apple'),
-            restingInputValue: 'Apple',
-          }),
+          makeComboboxSceneLive(
+            sceneView({
+              maybeSelectedValue: Option.some('Apple'),
+              restingInputValue: 'Apple',
+            }),
+          ),
           Scene.given({ combobox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -2595,8 +2585,7 @@ describe('Combobox', () => {
         'drops the item click handler while keeping the pointer handlers',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView(),
+            makeComboboxSceneLive(readOnlyView()),
             Scene.given({ combobox: openModel() }),
             Scene.expect(item(0)).not.toHaveHandler('click'),
             Scene.expect(item(1)).not.toHaveHandler('click'),
@@ -2611,8 +2600,7 @@ describe('Combobox', () => {
         'reports Enter on the active item as SuppressedItemCommit',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView(),
+            makeComboboxSceneLive(readOnlyView()),
             Scene.given({ combobox: openModel() }),
             acknowledgeAnchor,
             acknowledgeBackdrop,
@@ -2624,8 +2612,7 @@ describe('Combobox', () => {
 
       it.effect('does not commit while navigating an immediate combobox', () =>
         scene(
-          ComboboxSceneLive,
-          readOnlyView(),
+          makeComboboxSceneLive(readOnlyView()),
           Scene.given({
             combobox: modifyFields(openModel(), { immediate: () => true }),
           }),
@@ -2645,11 +2632,12 @@ describe('Combobox', () => {
         'commits while navigating an immediate combobox when not read-only',
         () =>
           scene(
-            ComboboxSceneLive,
-            sceneView({
-              maybeSelectedValue: Option.some('Apple'),
-              restingInputValue: 'Apple',
-            }),
+            makeComboboxSceneLive(
+              sceneView({
+                maybeSelectedValue: Option.some('Apple'),
+                restingInputValue: 'Apple',
+              }),
+            ),
             Scene.given({
               combobox: modifyFields(openModel(), { immediate: () => true }),
             }),
@@ -2668,8 +2656,7 @@ describe('Combobox', () => {
         'moves the active item off the selection without changing it',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView(),
+            makeComboboxSceneLive(readOnlyView()),
             Scene.given({ combobox: openModel() }),
             acknowledgeAnchor,
             acknowledgeBackdrop,
@@ -2694,8 +2681,7 @@ describe('Combobox', () => {
 
       it.effect('keeps Home and End navigation live', () =>
         scene(
-          ComboboxSceneLive,
-          readOnlyView(),
+          makeComboboxSceneLive(readOnlyView()),
           Scene.given({ combobox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -2718,8 +2704,7 @@ describe('Combobox', () => {
 
       it.effect('still opens with ArrowDown and closes on Escape', () =>
         scene(
-          ComboboxSceneLive,
-          readOnlyView(),
+          makeComboboxSceneLive(readOnlyView()),
           Scene.given({ combobox: closedModel() }),
           Scene.keydown(input, 'ArrowDown'),
           Scene.expect(itemsContainer).toExist(),
@@ -2736,8 +2721,7 @@ describe('Combobox', () => {
         'does not emit ClearedSelection while nullable with a selection present',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView(),
+            makeComboboxSceneLive(readOnlyView()),
             Scene.given({
               combobox: modifyFields(openModel(), {
                 nullable: () => true,
@@ -2757,8 +2741,7 @@ describe('Combobox', () => {
         'does not clear the selection when Escape closes over an unseeded input',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView(),
+            makeComboboxSceneLive(readOnlyView()),
             Scene.given({
               combobox: modifyFields(openModel(), {
                 nullable: () => true,
@@ -2778,8 +2761,7 @@ describe('Combobox', () => {
         'does not clear the selection when a blur closes over an unseeded input',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView(),
+            makeComboboxSceneLive(readOnlyView()),
             Scene.given({
               combobox: modifyFields(openModel(), {
                 nullable: () => true,
@@ -2798,11 +2780,12 @@ describe('Combobox', () => {
         'clears the selection over an unseeded input when not read-only',
         () =>
           scene(
-            ComboboxSceneLive,
-            sceneView({
-              maybeSelectedValue: Option.some('Apple'),
-              restingInputValue: 'Apple',
-            }),
+            makeComboboxSceneLive(
+              sceneView({
+                maybeSelectedValue: Option.some('Apple'),
+                restingInputValue: 'Apple',
+              }),
+            ),
             Scene.given({
               combobox: modifyFields(openModel(), {
                 nullable: () => true,
@@ -2822,8 +2805,7 @@ describe('Combobox', () => {
         'does not report SuppressedItemCommit when no item is active',
         () =>
           scene(
-            ComboboxSceneLive,
-            readOnlyView(),
+            makeComboboxSceneLive(readOnlyView()),
             Scene.given({
               combobox: modifyFields(openModel(), {
                 maybeActiveItemIndex: () => Option.none(),
@@ -2839,8 +2821,9 @@ describe('Combobox', () => {
 
       it.effect('still opens from the toggle button', () =>
         scene(
-          ComboboxSceneLive,
-          readOnlyView({ buttonContent: toggleButtonContent }),
+          makeComboboxSceneLive(
+            readOnlyView({ buttonContent: toggleButtonContent }),
+          ),
           Scene.given({ combobox: closedModel() }),
           acknowledgePreventBlur,
           Scene.click(button),
@@ -2853,11 +2836,12 @@ describe('Combobox', () => {
 
       it.effect('emits RequestedItemClick on Enter when not read-only', () =>
         scene(
-          ComboboxSceneLive,
-          sceneView({
-            maybeSelectedValue: Option.some('Apple'),
-            restingInputValue: 'Apple',
-          }),
+          makeComboboxSceneLive(
+            sceneView({
+              maybeSelectedValue: Option.some('Apple'),
+              restingInputValue: 'Apple',
+            }),
+          ),
           Scene.given({ combobox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,

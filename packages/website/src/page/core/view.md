@@ -12,7 +12,7 @@ Event attributes complete the loop. They produce Messages for the runtime to dis
 
 In the [restaurant analogy](/core/architecture#the-restaurant-analogy), view is the meal on the table. The Model records the current facts; view presents them.
 
-A Block's view is the `view` field its constructor returns. The Runtime calls it with the instance's Model and a builder, `h`, typed to the Block's Messages. This version of the Counter extracts its view into a function, which the constructor returns as `view`:
+A Block's view is the `view` field of the module its Layer returns. The Runtime calls it with the instance's Model and a builder, `h`, typed to the Block's Messages. This version of the Counter extracts its view into a function, which the Layer returns as `view`:
 
 ::Snippet{name="counterView" label="Using view"}
 
@@ -97,7 +97,7 @@ Element builders that accept children take attributes first and optional childre
 
 #### Builder Ownership
 
-Application code cannot construct a builder. A view receives `h` from the Runtime, and view helpers receive it as a parameter. Let the `h` parameter of the constructor's `view` field infer.
+Application code cannot construct a builder. A view receives `h` from the Runtime, and view helpers receive it as a parameter. Let the `h` parameter of the Block's `view` field infer.
 
 A helper for one Block takes `HtmlBuilder<Message>` with that Block's Message union. Name the alias for its owner, such as `type ArticlesViewBuilder = HtmlBuilder<Message>`, and give each helper only the parameters it uses: a heading helper can take only `h`, a card helper can take its domain value and `h`, and a list helper can take the Model and `h`. Let TypeScript infer whether a helper returns one `Html` value or an array.
 

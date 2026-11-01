@@ -48,10 +48,10 @@ class Application extends Block<Application, Readonly<{ url: Url.Url }>>()(
   { Model, Message, Command: [NavigateInternal, LoadExternal] },
 ) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { route: urlToApplicationRoute(url) },
+      init: ({ url }) => ({ route: urlToApplicationRoute(url) }),
 
       update: {
         CompletedNavigateInternal: model => ({ model }),

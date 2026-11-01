@@ -133,10 +133,10 @@ export class Application extends Block<Application>()('Application', {
   Command: [ValidateEmail, SubmitForm],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: initialModel,
+      init: () => initialModel,
 
       update: {
         UpdatedName: (model, { value }) => ({

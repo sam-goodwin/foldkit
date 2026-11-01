@@ -19,10 +19,10 @@ export class Search extends Block<Search>()('Search', {
   Command: [FocusSearchInput],
 }) {}
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialogState: 'Closed' },
+      init: () => ({ dialogState: 'Closed' }),
 
       update: {
         OpenedDialog: model => ({

@@ -5,10 +5,10 @@ class Application extends Block<Application>()('Application', {
   Model: Schema.Struct({ count: Schema.Number }),
 }) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: () => ({ count: 0 }),
       view: (model, h) => ({
         title: 'Counter',
         body: h.p([], [`${model.count}`]),

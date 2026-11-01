@@ -1,4 +1,4 @@
-import { Effect, Match, Number, Option, Schema } from 'effect'
+import { Effect, Match, Number, Option, RcMap, Schema } from 'effect'
 import { Block, Command } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -7,7 +7,7 @@ import { modifyFields } from 'foldkit/struct'
 
 import { Button } from '@foldkit/ui'
 
-import { Engine } from './engine'
+import { ComputeEngines, Engine } from './engine'
 
 export const EngineState = defineTaggedUnion({
   Off: {},
@@ -37,7 +37,7 @@ export type Message = typeof Message.Type
 type ApplicationViewBuilder = HtmlBuilder<Message>
 
 export const Compute = Command.define('Compute', {
-  args: { value: Schema.Number },
+  args: { engineKey: Schema.String, value: Schema.Number },
   messages: [Message.SucceededCompute, Message.FailedCompute],
 })
 
@@ -47,23 +47,25 @@ export class Application extends Block<Application>()('Application', {
   Command: [Compute],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const computeEngine = yield* new Engine('computeEngine')
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
+    const engines = yield* ComputeEngines
 
     return {
-      model: {
+      init: () => ({
         engine: EngineState.Off(),
         maybeComputeEngine: Option.none(),
         computeCount: 0,
         maybeSquareResult: Option.none(),
-      },
+      }),
 
       update: {
         ClickedStartEngine: model => ({
           model: modifyFields(model, {
             engine: () => EngineState.Booting(),
-            maybeComputeEngine: Option.orElseSome(() => computeEngine),
+            maybeComputeEngine: Option.orElseSome(
+              () => new Engine('computeEngine'),
+            ),
           }),
         }),
 
@@ -74,15 +76,24 @@ export const ApplicationLive = Application.make(
           }),
         }),
 
-        ClickedCompute: model => {
-          const nextComputeCount = Number.increment(model.computeCount)
-          return {
-            model: modifyFields(model, {
-              computeCount: () => nextComputeCount,
-            }),
-            commands: [Compute({ value: nextComputeCount })],
-          }
-        },
+        ClickedCompute: model =>
+          Option.match(model.maybeComputeEngine, {
+            onNone: () => ({ model }),
+            onSome: computeEngine => {
+              const nextComputeCount = Number.increment(model.computeCount)
+              return {
+                model: modifyFields(model, {
+                  computeCount: () => nextComputeCount,
+                }),
+                commands: [
+                  Compute({
+                    engineKey: computeEngine.model.engineKey,
+                    value: nextComputeCount,
+                  }),
+                ],
+              }
+            },
+          }),
 
         SucceededCompute: (model, { result }) => ({
           model: modifyFields(model, {
@@ -92,7 +103,7 @@ export const ApplicationLive = Application.make(
 
         FailedCompute: model => ({ model }),
 
-        ...computeEngine.on({
+        ...Engine.on({
           Started: (model, { engineId }) => ({
             model: modifyFields(model, {
               engine: () => EngineState.Ready({ engineId }),
@@ -108,12 +119,12 @@ export const ApplicationLive = Application.make(
       },
 
       commands: {
-        Compute: ({ value }) =>
-          computeEngine.use.pipe(
-            Effect.flatten,
+        Compute: ({ engineKey, value }) =>
+          RcMap.get(engines, engineKey).pipe(
             Effect.map(engine =>
               Message.SucceededCompute({ result: engine.square(value) }),
             ),
+            Effect.scoped,
             Effect.catchCause(() => Effect.succeed(Message.FailedCompute())),
           ),
       },

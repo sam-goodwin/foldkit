@@ -25,16 +25,17 @@ export class CityPicker extends Block<CityPicker>()('CityPicker', {
   }),
 }) {}
 
-export const CityPickerLive = CityPicker.make(
-  Effect.fn(function* () {
-    const combobox = yield* new CityCombobox('combobox', { id: 'city' })
-
+export const CityPickerLive = CityPicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { combobox, maybeCity: Option.none() },
+      init: () => ({
+        combobox: new CityCombobox('combobox', { id: 'city' }),
+        maybeCity: Option.none(),
+      }),
 
       update: {
         // The parent stores the committed selection the Combobox reports
-        ...combobox.on({
+        ...CityCombobox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { maybeCity: () => Option.some(value) }),
           }),

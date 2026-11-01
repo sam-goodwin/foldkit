@@ -14,12 +14,10 @@ class SnippetCopyHost extends Block<SnippetCopyHost>()('SnippetCopyHost', {
   Model: Schema.Struct({ snippetCopy: SnippetCopy }),
 }) {}
 
-const SnippetCopyHostLive = SnippetCopyHost.make(
-  Effect.fn(function* () {
-    const snippetCopy = yield* new SnippetCopy('snippetCopy')
-
+const SnippetCopyHostLive = SnippetCopyHost.layer(
+  Effect.gen(function* () {
     return {
-      model: { snippetCopy },
+      init: () => ({ snippetCopy: new SnippetCopy('snippetCopy') }),
       view: model =>
         model.snippetCopy.view({
           snippetId,

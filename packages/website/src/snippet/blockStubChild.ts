@@ -7,10 +7,13 @@ import { expect, it } from '@effect/vitest'
 import { ProfileLive } from './blockProfileParent'
 import { Settings } from './blockSettingsContract'
 
-const SettingsStub = Settings.make(
-  Effect.fn(function* (_id, { initialTheme }) {
+const SettingsStub = Settings.layer(
+  Effect.gen(function* () {
     return {
-      model: { theme: initialTheme, maybeSaveError: Option.none() },
+      init: ({ initialTheme }) => ({
+        theme: initialTheme,
+        maybeSaveError: Option.none(),
+      }),
       update: {
         ClickedTheme: (model, { theme }) => ({
           model,

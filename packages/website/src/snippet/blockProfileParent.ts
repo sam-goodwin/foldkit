@@ -12,17 +12,17 @@ export class Profile extends Block<Profile>()('Profile', {
   }),
 }) {}
 
-export const ProfileLive = Profile.make(
-  Effect.fn(function* () {
-    const settings = yield* new Settings('settings', {
-      initialTheme: 'System',
-    })
-
+export const ProfileLive = Profile.layer(
+  Effect.gen(function* () {
     return {
-      model: { displayName: 'Ada', previewTheme: 'System', settings },
+      init: () => ({
+        displayName: 'Ada',
+        previewTheme: 'System',
+        settings: new Settings('settings', { initialTheme: 'System' }),
+      }),
 
       update: {
-        ...settings.on({
+        ...Settings.on({
           ChangedTheme: (model, { theme }) => ({
             model: modifyFields(model, { previewTheme: () => theme }),
           }),

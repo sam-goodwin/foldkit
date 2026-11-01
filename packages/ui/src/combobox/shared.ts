@@ -59,12 +59,9 @@ export type BaseInitConfig = Readonly<{
  *  creates. */
 export const animationId = (id: string): string => `${id}-items`
 
-/** Creates the shared base fields for a combobox model from its constructor
- *  args and its Animation instance. */
-export const baseInit = (
-  config: BaseInitConfig,
-  animation: Animation.Animation,
-): BaseModel => ({
+/** Creates the shared base fields for a combobox model, including its
+ *  Animation instance, from its constructor args. */
+export const baseInit = (config: BaseInitConfig): BaseModel => ({
   id: config.id,
   isOpen: false,
   isAnimated: config.isAnimated ?? false,
@@ -72,7 +69,9 @@ export const baseInit = (
   nullable: config.nullable ?? false,
   immediate: config.immediate ?? false,
   selectInputOnFocus: config.selectInputOnFocus ?? false,
-  animation,
+  animation: new Animation.Animation('animation', {
+    id: animationId(config.id),
+  }),
   maybeActiveItemIndex: Option.none(),
   activationTrigger: 'Keyboard',
   inputValue: '',
@@ -418,7 +417,6 @@ type HandlerReturn<Model, EmittedOutMessage> = Readonly<{
 
 /** Creates the Combobox update record for one instance. Shared logic handles opening, closing, activation, and the Animation lifecycle; close, selection, and immediate activation vary by variant. */
 export const makeUpdate = <Item extends string>(
-  animation: Animation.Animation,
   selectionBehavior: 'CloseWithFocus' | 'KeepOpen',
   handlers: Readonly<{
     handleClose: (
@@ -771,7 +769,7 @@ export const makeUpdate = <Item extends string>(
 
   return {
     ...cases,
-    ...animation.on({
+    ...Animation.Animation.on({
       StartedLeaveAnimating: (model, { generation }) => ({
         model,
         commands: [DetectMovementOrAnimationEnd({ id: model.id, generation })],

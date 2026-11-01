@@ -28,10 +28,10 @@ class Toggle extends Block<Toggle, void, ToggleViewInput>()('Toggle', {
   Message: defineMessageUnion({ ClickedToggle: {} }),
 }) {}
 
-const ToggleLive = Toggle.make(
-  Effect.fn(function* () {
+const ToggleLive = Toggle.layer(
+  Effect.gen(function* () {
     return {
-      model: { isOn: false },
+      init: () => ({ isOn: false }),
       update: {
         ClickedToggle: model => ({ model: { isOn: !model.isOn } }),
       },
@@ -53,12 +53,10 @@ class Settings extends Block<Settings>()('Settings', {
   Message: defineMessageUnion({ ClickedReset: {} }),
 }) {}
 
-const SettingsLive = Settings.make(
-  Effect.fn(function* () {
-    const toggle = yield* new Toggle('toggle')
-
+const SettingsLive = Settings.layer(
+  Effect.gen(function* () {
     return {
-      model: { toggle, resetCount: 0 },
+      init: () => ({ toggle: new Toggle('toggle'), resetCount: 0 }),
       update: {
         ClickedReset: model => ({
           model: { ...model, resetCount: model.resetCount + 1 },
@@ -87,7 +85,7 @@ const SettingsLive = Settings.make(
   }),
 )
 
-// MOUNT, EXPOSE, ROUTING
+// MOUNT, COMMAND ARGS, ROUTING
 
 const MeasureMessage = defineMessageUnion({
   MeasuredWidth: { tag: Schema.String },
@@ -97,19 +95,16 @@ const Measure = Mount.define('Measure', {
   messages: [MeasureMessage.MeasuredWidth],
 })
 
-class Panel extends Block<Panel, void, void, Readonly<{ label: string }>>()(
-  'Panel',
-  {
-    Model: Schema.Struct({ maybeTag: Schema.String }),
-    Message: MeasureMessage,
-    Mount: [Measure],
-  },
-) {}
+class Panel extends Block<Panel>()('Panel', {
+  Model: Schema.Struct({ maybeTag: Schema.String, label: Schema.String }),
+  Message: MeasureMessage,
+  Mount: [Measure],
+}) {}
 
-const PanelLive = Panel.make(
-  Effect.fn(function* () {
+const PanelLive = Panel.layer(
+  Effect.gen(function* () {
     return {
-      model: { maybeTag: '' },
+      init: () => ({ maybeTag: '', label: 'panel' }),
       update: {
         MeasuredWidth: (model, { tag }) => ({
           model: { ...model, maybeTag: tag },
@@ -119,7 +114,6 @@ const PanelLive = Panel.make(
         Measure: ({ element }) =>
           Effect.succeed(Panel.Message.MeasuredWidth({ tag: element.tagName })),
       },
-      expose: { label: 'panel' },
       view: (model, h) =>
         h.section([h.Id('panel'), h.OnMount(Measure())], [model.maybeTag]),
     }
@@ -134,6 +128,7 @@ const ShellMessage = defineMessageUnion({
 })
 
 const ReadLabel = Command.define('ReadLabel', {
+  args: { label: Schema.String },
   messages: [ShellMessage.CompletedRead],
 })
 
@@ -147,26 +142,26 @@ class Shell extends Block<Shell, Readonly<{ url: Url }>>()('Shell', {
   Command: [ReadLabel],
 }) {}
 
-const ShellLive = Shell.make(
-  Effect.fn(function* (_id, { url }) {
-    const panel = yield* new Panel('panel')
-
+const ShellLive = Shell.layer(
+  Effect.gen(function* () {
     return {
-      model: { path: url.pathname, panel, label: '' },
+      init: ({ url }) => ({
+        path: url.pathname,
+        panel: new Panel('panel'),
+        label: '',
+      }),
       update: {
         ClickedLink: model => ({ model }),
         ChangedUrl: model => ({ model }),
-        ClickedRead: model => ({ model, commands: [ReadLabel()] }),
+        ClickedRead: model => ({
+          model,
+          commands: [ReadLabel({ label: model.panel.model.label })],
+        }),
         CompletedRead: (model, { label }) => ({ model: { ...model, label } }),
       },
       commands: {
-        ReadLabel: () =>
-          panel.use.pipe(
-            Effect.map(({ label }) => Shell.Message.CompletedRead({ label })),
-            Effect.catchTag('NotConnected', () =>
-              Effect.succeed(Shell.Message.CompletedRead({ label: 'none' })),
-            ),
-          ),
+        ReadLabel: ({ label }) =>
+          Effect.succeed(Shell.Message.CompletedRead({ label })),
       },
       view: (model, h) => ({
         title: model.path,
@@ -219,7 +214,7 @@ describe('Block composition', () => {
   )
 
   it.live(
-    'runs child Mounts, gives the root its URL, and exposes values to Commands',
+    'runs child Mounts, gives the root its URL, and passes child Model values to Commands',
     () =>
       Effect.gen(function* () {
         const container = document.createElement('div')

@@ -31,12 +31,12 @@ export class Suggestions extends Block<Suggestions>()('Suggestions', {
   Command: [Search],
 }) {}
 
-export const SuggestionsLive = Suggestions.make(
-  Effect.fn(function* () {
+export const SuggestionsLive = Suggestions.layer(
+  Effect.gen(function* () {
     const suggestionApi = yield* SuggestionApi
 
     return {
-      model: { query: '', searchGeneration: 0, suggestions: [] },
+      init: () => ({ query: '', searchGeneration: 0, suggestions: [] }),
 
       update: {
         UpdatedQuery: (model, { query }) => {

@@ -29,21 +29,21 @@ class MenuParent extends Block<MenuParent>()('MenuParent', {
   OutMessage: ParentOutMessage,
 }) {}
 
-const MenuParentLive = MenuParent.make(
-  Effect.fn(function* () {
-    const menu = yield* new RefinedMenu('menu', {
-      id: 'parent-menu',
-      isAnimated: true,
-    })
-
+const MenuParentLive = MenuParent.layer(
+  Effect.gen(function* () {
     return {
-      model: { menu },
+      init: () => ({
+        menu: new RefinedMenu('menu', {
+          id: 'parent-menu',
+          isAnimated: true,
+        }),
+      }),
       update: {
         ClickedOpenMenu: model => ({
           model,
           messages: [model.menu.send(RefinedMenu.Message.RequestedOpen())],
         }),
-        ...menu.on({
+        ...RefinedMenu.on({
           Selected: (model, { value }) => ({
             model,
             outMessage: ParentOutMessage.SelectedMenuItem({ value }),

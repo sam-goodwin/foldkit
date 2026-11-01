@@ -9,7 +9,7 @@ This separation keeps update pure. A click can return a request without sending 
 A Command has two halves that live in different places:
 
 - The declaration, made at module level with `Command.define`, names the work, its args, and the Messages it can produce. It contains no implementation, so a test can import it without the services the work needs.
-- The handler, returned under `commands` from the Block's constructor, performs the work. It closes over the services the constructor yields.
+- The handler, returned under `commands` from the Block's Layer, performs the work. It closes over the services the Layer yields.
 
 :::Info{label="A complete application"}
 The [weather example](/example-apps/weather) connects form input, Command args, HTTP response decoding, failure Messages, the HTTP client service, and application entry wiring.
@@ -25,7 +25,7 @@ Four pieces connect the work to update:
 
 - `Command.define('WaitBeforeReset', { messages })` declares the Command and the result Messages it can produce. It sits above the class because it names `Message.CompletedWaitBeforeReset`.
 - `Command: [WaitBeforeReset]` on the class lists the Commands this Block owns.
-- `commands: { WaitBeforeReset: () => ... }` in the constructor's result implements it. The handler returns an Effect that waits one second and produces `CompletedWaitBeforeReset`.
+- `commands: { WaitBeforeReset: () => ... }` in the module the Layer returns implements it. The handler returns an Effect that waits one second and produces `CompletedWaitBeforeReset`.
 - `WaitBeforeReset()` in update creates the Command value. Creating the value does not start the timer.
 
 The compiler connects the pieces. A listed Command without a handler is a type error, and so is a handler whose Effect produces a Message the declaration does not list.
@@ -42,7 +42,7 @@ When the user clicks **Reset after one second**, the loop is:
 4. The Runtime dispatches `CompletedWaitBeforeReset`.
 5. Update receives that Message and sets `count` to zero.
 
-The constructor runs once for the instance, so the `commands` record is built once. Each `WaitBeforeReset` Command runs the handler again and starts its own timer.
+The Layer's constructor runs once for the Block, so the `commands` record is built once and every instance shares it. Each `WaitBeforeReset` Command runs the handler again and starts its own timer.
 
 ### Command and Result Names
 
@@ -70,7 +70,7 @@ The view supplies the delay in `ClickedResetAfterDelay`. The `args` field is a r
 
 Args also appear beside the Command name in DevTools. Story and scene tests can match one dispatch by its args with `Command.expectExact(WaitBeforeReset({ delayMs: 500 }))`.
 
-Use args for per-dispatch data: a zip code, an element id, or a duration. Services come from the constructor. A module constant can stay in lexical scope. A handle that exists only while the Model needs it belongs to a [resource Block](/core/managed-resources).
+Use args for per-dispatch data, such as a zip code, an element id, or a duration, and for per-instance data the handler needs. The handler is shared by every instance of the Block, so it learns which instance's data to use only from its args: update passes a value from the Model, as in `SaveNote({ noteId: model.noteId, body })`. Services come from the Layer. A module constant can stay in lexical scope. A handle that exists only while the Model needs it belongs to a [Subscription or keyed service](/core/managed-resources).
 
 ## HTTP Requests
 
@@ -80,7 +80,7 @@ Network work follows the same loop. The view dispatches `ClickedFetchCount`, and
 
 ### Handling Request Results
 
-The constructor yields `HttpClient.HttpClient` once. The `FetchCount` handler passes that client to `fetchCount`, which builds the request, checks for a successful status, and decodes the JSON with Schema. It produces `SucceededFetchCount` with the decoded count, and update puts that value in the Model.
+The Layer yields `HttpClient.HttpClient` once. The `FetchCount` handler passes that client to `fetchCount`, which builds the request, checks for a successful status, and decodes the JSON with Schema. It produces `SucceededFetchCount` with the decoded count, and update puts that value in the Model.
 
 `Effect.catch` converts request, status, and decoding failures into `FailedFetchCount`. A failed request becomes a fact for update to handle. This small counter keeps its current count on failure; an application can store an error state and render a retry button in that branch.
 
@@ -98,10 +98,10 @@ A program whose Layer leaves `HttpClient` unprovided does not compile. The [Http
 
 ### Handler Lifetime {#implementing-the-handler}
 
-The constructor runs once per instance and the handler runs once per Command. Put each value where its lifetime belongs:
+The Layer's constructor runs once per Block and the handler runs once per Command. Put each value where its lifetime belongs:
 
-- Yield services in the constructor. The instance looks each one up once and every Command it runs shares it.
-- Keep per-dispatch values in args. The handler receives them each time it runs.
+- Yield services in the Layer's constructor. The Block looks each one up once, and every Command of every instance shares it.
+- Keep per-dispatch and per-instance values in args. The handler receives them each time it runs.
 - Read changing values, such as the current time, inside the handler's Effect.
 
 Application state and workflow decisions belong in the Model and update, not in variables the handler closes over. A handler that records which requests are pending in a closure hides that state from update, DevTools, and tests.
@@ -121,7 +121,7 @@ Choose the service boundary according to the code the test should cover. If an A
 Commands normally run to completion. Make a Command interruptible when a user needs to cancel it or new input supersedes the work.
 
 :::Info{label="Choosing a lifetime"}
-Use Command interruption for one-time work such as a pending request, file read, or upload. When the Model controls the lifetime of ongoing work, use a [Subscription](/core/subscriptions) or a [resource Block](/core/managed-resources). Work tied to a particular DOM element's lifetime belongs in [Mount](/core/mount).
+Use Command interruption for one-time work such as a pending request, file read, or upload. When the Model controls the lifetime of ongoing work, use a [Subscription](/core/subscriptions) or a [keyed resource](/core/managed-resources). Work tied to a particular DOM element's lifetime belongs in [Mount](/core/mount).
 :::
 
 ### Cancelling a Pending Command

@@ -14,28 +14,24 @@ import {
   valueFromPointer,
 } from './slider.js'
 
-class SliderHarness extends Block<SliderHarness, InitConfig>()(
-  'SliderHarness',
-  {
-    Model: Schema.Struct({ slider: Slider }),
-    OutMessage: Slider.OutMessage,
-  },
-) {}
+class SliderHarness extends Block<SliderHarness>()('SliderHarness', {
+  Model: Schema.Struct({ slider: Slider }),
+  OutMessage: Slider.OutMessage,
+}) {}
 
-const SliderHarnessLive = SliderHarness.make(
-  Effect.fn(function* (_id, config) {
-    const slider = yield* new Slider('slider', config)
-
-    return {
-      model: { slider },
-      update: {
-        ...slider.on({
-          ChangedValue: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-    }
-  }),
-).pipe(Layer.provide(SliderLive))
+const makeSliderHarnessLive = (config: InitConfig) =>
+  SliderHarness.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ slider: new Slider('slider', config) }),
+        update: {
+          ...Slider.on({
+            ChangedValue: (model, outMessage) => ({ model, outMessage }),
+          }),
+        },
+      }
+    }),
+  ).pipe(Layer.provide(SliderLive))
 
 const withRange = (min: number, max: number, step: number): InitConfig => ({
   id: 'test',
@@ -55,8 +51,7 @@ describe('Slider', () => {
   describe('init', () => {
     it.effect('starts Idle with the configured range', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         Story.model(({ slider }) => {
           expect(slider.id).toBe('test')
           expect(slider.min).toBe(0)
@@ -89,8 +84,7 @@ describe('Slider', () => {
   describe('keyboard navigation', () => {
     it.effect('increments by step on StepIncrement', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedKeyboardNavigation({
             direction: 'StepIncrement',
@@ -103,8 +97,7 @@ describe('Slider', () => {
 
     it.effect('decrements by step on StepDecrement', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedKeyboardNavigation({
             direction: 'StepDecrement',
@@ -117,8 +110,7 @@ describe('Slider', () => {
 
     it.effect('increments by 10 steps on PageIncrement', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 100, 1),
+        makeSliderHarnessLive(withRange(0, 100, 1)),
         deliverToSlider(
           Slider.Message.PressedKeyboardNavigation({
             direction: 'PageIncrement',
@@ -131,8 +123,7 @@ describe('Slider', () => {
 
     it.effect('decrements by 10 steps on PageDecrement', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 100, 1),
+        makeSliderHarnessLive(withRange(0, 100, 1)),
         deliverToSlider(
           Slider.Message.PressedKeyboardNavigation({
             direction: 'PageDecrement',
@@ -145,8 +136,7 @@ describe('Slider', () => {
 
     it.effect('jumps to min on Min', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(2, 20, 1),
+        makeSliderHarnessLive(withRange(2, 20, 1)),
         deliverToSlider(
           Slider.Message.PressedKeyboardNavigation({
             direction: 'Min',
@@ -159,8 +149,7 @@ describe('Slider', () => {
 
     it.effect('jumps to max on Max', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 99, 1),
+        makeSliderHarnessLive(withRange(0, 99, 1)),
         deliverToSlider(
           Slider.Message.PressedKeyboardNavigation({
             direction: 'Max',
@@ -175,8 +164,7 @@ describe('Slider', () => {
       'emits no OutMessage when a step increment is clamped to the same value',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 10, 1),
+          makeSliderHarnessLive(withRange(0, 10, 1)),
           deliverToSlider(
             Slider.Message.PressedKeyboardNavigation({
               direction: 'StepIncrement',
@@ -191,8 +179,7 @@ describe('Slider', () => {
       'emits no OutMessage when a step decrement is clamped to the same value',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 10, 1),
+          makeSliderHarnessLive(withRange(0, 10, 1)),
           deliverToSlider(
             Slider.Message.PressedKeyboardNavigation({
               direction: 'StepDecrement',
@@ -205,8 +192,7 @@ describe('Slider', () => {
 
     it.effect('respects fractional step (0.1)', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 1, 0.1),
+        makeSliderHarnessLive(withRange(0, 1, 0.1)),
         deliverToSlider(
           Slider.Message.PressedKeyboardNavigation({
             direction: 'StepIncrement',
@@ -221,8 +207,7 @@ describe('Slider', () => {
   describe('thumb press', () => {
     it.effect('starts a drag without emitting an OutMessage', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(Slider.Message.PressedThumb({ originValue: 5 })),
         Story.expectNoOutMessage(),
         Story.model(model => {
@@ -238,8 +223,7 @@ describe('Slider', () => {
       'ignores a bubbled PressedPointer after PressedThumb so the value is not shifted',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 1, 0.05),
+          makeSliderHarnessLive(withRange(0, 1, 0.05)),
           deliverToSlider(Slider.Message.PressedThumb({ originValue: 0.5 })),
           deliverToSlider(
             Slider.Message.PressedPointer({ value: 0.45, originValue: 0.5 }),
@@ -256,8 +240,7 @@ describe('Slider', () => {
 
     it.effect('is a no-op when already Dragging', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedPointer({ value: 9, originValue: 5 }),
         ),
@@ -275,8 +258,7 @@ describe('Slider', () => {
   describe('pointer drag', () => {
     it.effect('snaps value and starts a drag on track press', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedPointer({ value: 7, originValue: 5 }),
         ),
@@ -294,8 +276,7 @@ describe('Slider', () => {
       'ignores PressedPointer while Dragging (absorbs the thumb→track bubble)',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 10, 1),
+          makeSliderHarnessLive(withRange(0, 10, 1)),
           deliverToSlider(
             Slider.Message.PressedPointer({ value: 7, originValue: 5 }),
           ),
@@ -314,8 +295,7 @@ describe('Slider', () => {
 
     it.effect('snaps PressedPointer value to step', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 2),
+        makeSliderHarnessLive(withRange(0, 10, 2)),
         deliverToSlider(
           Slider.Message.PressedPointer({ value: 4.7, originValue: 0 }),
         ),
@@ -327,8 +307,7 @@ describe('Slider', () => {
       'emits the snapped value on MovedDragPointer while Dragging',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 10, 1),
+          makeSliderHarnessLive(withRange(0, 10, 1)),
           deliverToSlider(
             Slider.Message.PressedPointer({ value: 3, originValue: 5 }),
           ),
@@ -342,8 +321,7 @@ describe('Slider', () => {
 
     it.effect('ignores MovedDragPointer when Idle', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(Slider.Message.MovedDragPointer({ value: 8 })),
         Story.expectNoOutMessage(),
         Story.model(model => {
@@ -354,8 +332,7 @@ describe('Slider', () => {
 
     it.effect('transitions from Dragging to Idle on ReleasedDragPointer', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedPointer({ value: 3, originValue: 5 }),
         ),
@@ -369,8 +346,7 @@ describe('Slider', () => {
 
     it.effect('ignores ReleasedDragPointer when Idle', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(Slider.Message.ReleasedDragPointer()),
         Story.model(model => {
           expect(model).toEqual(defaultModel)
@@ -380,8 +356,7 @@ describe('Slider', () => {
 
     it.effect('emits the origin value on CancelledDrag while Dragging', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedPointer({ value: 9, originValue: 5 }),
         ),
@@ -398,8 +373,7 @@ describe('Slider', () => {
       'emits the origin value on CancelledDrag after PressedThumb',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 10, 1),
+          makeSliderHarnessLive(withRange(0, 10, 1)),
           deliverToSlider(Slider.Message.PressedThumb({ originValue: 5 })),
           deliverToSlider(Slider.Message.MovedDragPointer({ value: 9 })),
           deliverToSlider(Slider.Message.CancelledDrag()),
@@ -412,8 +386,7 @@ describe('Slider', () => {
 
     it.effect('ignores CancelledDrag when Idle', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(Slider.Message.CancelledDrag()),
         Story.model(model => {
           expect(model).toEqual(defaultModel)
@@ -423,8 +396,7 @@ describe('Slider', () => {
 
     it.effect('clamps MovedDragPointer above max', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedPointer({ value: 5, originValue: 5 }),
         ),
@@ -435,8 +407,7 @@ describe('Slider', () => {
 
     it.effect('clamps MovedDragPointer below min', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedPointer({ value: 5, originValue: 5 }),
         ),
@@ -449,8 +420,7 @@ describe('Slider', () => {
   describe('OutMessage', () => {
     it.effect('emits ChangedValue on StepIncrement when value changes', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedKeyboardNavigation({
             direction: 'StepIncrement',
@@ -463,8 +433,7 @@ describe('Slider', () => {
 
     it.effect('emits ChangedValue when restoring origin on CancelledDrag', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.PressedPointer({ value: 9, originValue: 5 }),
         ),
@@ -477,8 +446,7 @@ describe('Slider', () => {
       'emits no OutMessage on ReleasedDragPointer (value already set during drag)',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 10, 1),
+          makeSliderHarnessLive(withRange(0, 10, 1)),
           deliverToSlider(
             Slider.Message.PressedPointer({ value: 3, originValue: 5 }),
           ),
@@ -491,8 +459,7 @@ describe('Slider', () => {
       'emits no OutMessage when PressedPointer snaps to the current value',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 10, 1),
+          makeSliderHarnessLive(withRange(0, 10, 1)),
           deliverToSlider(
             Slider.Message.PressedPointer({ value: 5, originValue: 5 }),
           ),
@@ -688,8 +655,7 @@ describe('Slider', () => {
   describe('informRangeChanged', () => {
     it.effect('updates min and max', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(
           Slider.Message.InformedOfRangeChange({ min: 100, max: 200 }),
         ),
@@ -704,8 +670,7 @@ describe('Slider', () => {
       'handles the informed range fact without emitting a value change',
       () =>
         Story.story(
-          SliderHarnessLive,
-          withRange(0, 10, 1),
+          makeSliderHarnessLive(withRange(0, 10, 1)),
           deliverToSlider(
             Slider.Message.InformedOfRangeChange({ min: 0, max: 50 }),
           ),
@@ -720,8 +685,7 @@ describe('Slider', () => {
 
     it.effect('updates the range even while Dragging', () =>
       Story.story(
-        SliderHarnessLive,
-        withRange(0, 10, 1),
+        makeSliderHarnessLive(withRange(0, 10, 1)),
         deliverToSlider(Slider.Message.PressedThumb({ originValue: 5 })),
         Story.model(({ slider }) => {
           expect(slider.dragState._tag).toBe('Dragging')

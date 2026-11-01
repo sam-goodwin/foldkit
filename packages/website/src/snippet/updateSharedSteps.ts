@@ -16,12 +16,12 @@ const searchStep = (model: Model) => ({
   commands: [SearchCatalog({ query: model.query, page: model.page })],
 })
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     const catalog = yield* Catalog
 
     return {
-      model: { query: '', page: 1, results: [] },
+      init: () => ({ query: '', page: 1, results: [] }),
 
       update: {
         UpdatedQuery: (model, { value }) =>

@@ -13,14 +13,12 @@ export class DeleteProject extends Block<DeleteProject>()('DeleteProject', {
   Message,
 }) {}
 
-export const DeleteProjectLive = DeleteProject.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', {
-      id: 'delete-project',
-    })
-
+export const DeleteProjectLive = DeleteProject.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog },
+      init: () => ({
+        dialog: new Dialog.Dialog('dialog', { id: 'delete-project' }),
+      }),
 
       update: {
         ClickedDeleteProject: model => ({

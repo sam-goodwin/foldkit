@@ -212,16 +212,14 @@ export class DatePicker extends Block<DatePicker, InitConfig, ViewInputs>()(
 /** Implements {@link DatePicker}. Provides `CalendarLive` and `PopoverLive`
  *  to the instances it creates. The Popover opens in `contentFocus` mode so
  *  focus lands on the calendar grid instead of the panel. */
-export const DatePickerLive = DatePicker.make(
-  Effect.fn(function* (_instanceId, config) {
-    const calendar = yield* new UiCalendar.Calendar(
-      'calendar',
-      toCalendarConfig(config),
-    )
-    const popover = yield* new Popover.Popover('popover', toPopoverArgs(config))
-
+export const DatePickerLive = DatePicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { id: config.id, calendar, popover },
+      init: config => ({
+        id: config.id,
+        calendar: new UiCalendar.Calendar('calendar', toCalendarConfig(config)),
+        popover: new Popover.Popover('popover', toPopoverArgs(config)),
+      }),
 
       update: {
         RequestedOpen: openDatePicker,
@@ -275,12 +273,12 @@ export const DatePickerLive = DatePicker.make(
             }),
           ),
 
-        ...popover.on({
+        ...Popover.Popover.on({
           Opened: model => ({ model, messages: [dropCalendarToDays(model)] }),
           Closed: model => ({ model, messages: [dropCalendarToDays(model)] }),
         }),
 
-        ...calendar.on({
+        ...UiCalendar.Calendar.on({
           ChangedViewMonth: (model, { year, month }) => ({
             model,
             outMessage: OutMessage.ChangedViewMonth({ year, month }),

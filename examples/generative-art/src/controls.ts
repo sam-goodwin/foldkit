@@ -42,38 +42,35 @@ export class Controls extends Block<Controls, void, ViewInput>()('Controls', {
   OutMessage,
 }) {}
 
-export const ControlsLive = Controls.make(
-  Effect.fn(function* () {
-    const flowStrengthSlider = yield* new Slider.Slider('flowStrengthSlider', {
-      id: 'flow-strength-slider',
-      min: FLOW_STRENGTH_MIN,
-      max: FLOW_STRENGTH_MAX,
-      step: FLOW_STRENGTH_STEP,
-    })
-    const noiseScaleSlider = yield* new Slider.Slider('noiseScaleSlider', {
-      id: 'noise-scale-slider',
-      min: NOISE_SCALE_MIN_DIVISOR,
-      max: NOISE_SCALE_MAX_DIVISOR,
-      step: NOISE_SCALE_STEP,
-    })
-
+export const ControlsLive = Controls.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         flowStrength: Slider.snapAndClamp(
           INITIAL_FLOW_STRENGTH,
           FLOW_STRENGTH_MIN,
           FLOW_STRENGTH_MAX,
           FLOW_STRENGTH_STEP,
         ),
-        flowStrengthSlider,
+        flowStrengthSlider: new Slider.Slider('flowStrengthSlider', {
+          id: 'flow-strength-slider',
+          min: FLOW_STRENGTH_MIN,
+          max: FLOW_STRENGTH_MAX,
+          step: FLOW_STRENGTH_STEP,
+        }),
         noiseScale: Slider.snapAndClamp(
           INITIAL_NOISE_SCALE,
           NOISE_SCALE_MIN_DIVISOR,
           NOISE_SCALE_MAX_DIVISOR,
           NOISE_SCALE_STEP,
         ),
-        noiseScaleSlider,
-      },
+        noiseScaleSlider: new Slider.Slider('noiseScaleSlider', {
+          id: 'noise-scale-slider',
+          min: NOISE_SCALE_MIN_DIVISOR,
+          max: NOISE_SCALE_MAX_DIVISOR,
+          step: NOISE_SCALE_STEP,
+        }),
+      }),
 
       update: {
         ClickedTogglePlay: model => ({
@@ -84,15 +81,11 @@ export const ControlsLive = Controls.make(
           model,
           outMessage: OutMessage.RequestedReset(),
         }),
-        ...flowStrengthSlider.on({
-          ChangedValue: (model: Model, { value }) => ({
-            model: modifyFields(model, { flowStrength: () => value }),
-          }),
-        }),
-        ...noiseScaleSlider.on({
-          ChangedValue: (model: Model, { value }) => ({
-            model: modifyFields(model, { noiseScale: () => value }),
-          }),
+        ...Slider.Slider.on({
+          ChangedValue: (model: Model, { value }, slider) =>
+            slider.id === 'flowStrengthSlider'
+              ? { model: modifyFields(model, { flowStrength: () => value }) }
+              : { model: modifyFields(model, { noiseScale: () => value }) },
         }),
       },
 

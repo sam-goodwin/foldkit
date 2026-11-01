@@ -19,10 +19,10 @@ export class CoverLetter extends Block<CoverLetter>()('CoverLetter', {
   Message,
 }) {}
 
-export const CoverLetterLive = CoverLetter.make(
-  Effect.fn(function* () {
+export const CoverLetterLive = CoverLetter.layer(
+  Effect.gen(function* () {
     return {
-      model: { content: '' },
+      init: () => ({ content: '' }),
 
       update: {
         UpdatedContent: (model, { value }) => ({

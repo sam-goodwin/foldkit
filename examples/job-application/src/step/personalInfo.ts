@@ -84,29 +84,26 @@ export class PersonalInfo extends Block<PersonalInfo, PersonalInfoArgs>()(
 
 // LIVE
 
-export const PersonalInfoLive = PersonalInfo.make(
-  Effect.fn(function* (_id, { today }) {
-    const pronouns = yield* new PronounsListbox('pronouns', { id: 'pronouns' })
-    const availableDate = yield* new DatePicker.DatePicker('availableDate', {
-      id: 'available-date',
-      today,
-      minDate: today,
-    })
-
+export const PersonalInfoLive = PersonalInfo.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ today }) => ({
         firstName: NotValidated({ value: '' }),
         lastName: NotValidated({ value: '' }),
         email: NotValidated({ value: '' }),
         emailValidationId: 0,
         phone: NotValidated({ value: '' }),
-        pronouns,
+        pronouns: new PronounsListbox('pronouns', { id: 'pronouns' }),
         maybeSelectedPronoun: Option.none(),
         customPronouns: '',
         portfolioUrl: NotValidated({ value: '' }),
-        availableDate,
+        availableDate: new DatePicker.DatePicker('availableDate', {
+          id: 'available-date',
+          today,
+          minDate: today,
+        }),
         maybeAvailableDate: Option.none(),
-      },
+      }),
 
       update: {
         UpdatedFirstName: (model, { value }) => ({
@@ -174,7 +171,7 @@ export const PersonalInfoLive = PersonalInfo.make(
           }),
         }),
 
-        ...pronouns.on({
+        ...PronounsListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeSelectedPronoun: () => Option.some(value),
@@ -182,7 +179,7 @@ export const PersonalInfoLive = PersonalInfo.make(
           }),
         }),
 
-        ...availableDate.on({
+        ...DatePicker.DatePicker.on({
           SelectedDate: (model, { date }) => ({
             model: modifyFields(model, {
               maybeAvailableDate: () => Option.some(date),

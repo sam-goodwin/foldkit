@@ -10,17 +10,16 @@ export class Account extends Block<Account>()('Account', {
   Model: Schema.Struct({ settings: Settings, theme: Theme }),
 }) {}
 
-export const AccountLive = Account.make(
-  Effect.fn(function* () {
-    const settings = yield* new Settings('settings', {
-      initialTheme: 'System',
-    })
-
+export const AccountLive = Account.layer(
+  Effect.gen(function* () {
     return {
-      model: { settings, theme: 'System' },
+      init: () => ({
+        settings: new Settings('settings', { initialTheme: 'System' }),
+        theme: 'System',
+      }),
 
       update: {
-        ...settings.on({
+        ...Settings.on({
           ChangedTheme: (model, { theme }) => ({
             model: modifyFields(model, { theme: () => theme }),
           }),

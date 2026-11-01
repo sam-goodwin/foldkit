@@ -58,19 +58,20 @@ export class Mall extends Block<Mall>()('Mall', {
   Message: MallMessage,
 }) {}
 
-export const MallLive = Mall.make(
-  Effect.fn(function* () {
-    const shop = yield* new Shop('shop')
-    const menu = yield* new MenuPicker('menu', { id: 'mall-menu' })
-
+export const MallLive = Mall.layer(
+  Effect.gen(function* () {
     return {
-      model: { shop, menu, choices: [] },
+      init: () => ({
+        shop: new Shop('shop'),
+        menu: new MenuPicker('menu', { id: 'mall-menu' }),
+        choices: [],
+      }),
       update: {
         ClickedEnterShop: model => ({
           model,
           messages: [model.shop.send(Shop.Message.ClickedOpenMenu())],
         }),
-        ...menu.on({
+        ...MenuPicker.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { choices: Array.append(value) }),
           }),

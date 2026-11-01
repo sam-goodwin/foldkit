@@ -26,10 +26,13 @@ export const PostsQuery = Query.define({
 })
 ```
 
-Create the instance in the parent's constructor, put it in the parent's Model, and provide `PostsQuery.Live` to the parent's Layer. Pass `{ isLoadingOnStart: true }` to start the first fetch when the instance enters the Model, or `{}` to start Idle. The parent drives loading by sending `Requested*` Messages and reads the retained value with `PostsQuery.read`:
+Create the instance with `new` in the parent's `init`, put it in the parent's Model, and provide `PostsQuery.Live` to the parent's Layer. Pass `{ isLoadingOnStart: true }` to start the first fetch when the instance enters the Model, or `{}` to start Idle. The parent drives loading by sending `Requested*` Messages and reads the retained value with `PostsQuery.read`:
 
 ```ts
-const posts = yield * new PostsQuery('posts', { isLoadingOnStart: true })
+// In the parent's init
+init: () => ({
+  posts: new PostsQuery('posts', { isLoadingOnStart: true }),
+}),
 
 // In an update handler
 messages: [model.posts.send(PostsQuery.Message.RequestedRevalidationOrLoad())]

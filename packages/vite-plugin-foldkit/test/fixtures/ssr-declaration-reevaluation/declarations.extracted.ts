@@ -12,10 +12,10 @@ export class Application extends Block<Application>()('Application', {
   Command: [LoadPreferences],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { isTicking: false },
+      init: () => ({ isTicking: false }),
       update: {
         Ticked: model => ({ model }),
         CompletedLoadPreferences: model => ({ model }),

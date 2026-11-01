@@ -57,25 +57,31 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
-    const route = urlToApplicationRoute(url)
-
-    const initialPeopleRoute = Match.value(route).pipe(
-      Match.tag('People', peopleRoute => peopleRoute),
-      Match.orElse(() =>
-        ApplicationRoute.People({ searchText: Option.none() }),
-      ),
-    )
-
-    const peoplePage = yield* new People('peoplePage', {
-      route: initialPeopleRoute,
-    })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { route, peoplePage },
+      init: ({ url }) => {
+        const route = urlToApplicationRoute(url)
 
-      stream: navigationShortcutPresses,
+        const initialPeopleRoute = Match.value(route).pipe(
+          Match.tag('People', peopleRoute => peopleRoute),
+          Match.orElse(() =>
+            ApplicationRoute.People({ searchText: Option.none() }),
+          ),
+        )
+
+        return {
+          route,
+          peoplePage: new People('peoplePage', { route: initialPeopleRoute }),
+        }
+      },
+
+      subscriptions: {
+        navigationShortcutPresses: {
+          dependencies: () => null,
+          stream: () => navigationShortcutPresses,
+        },
+      },
 
       update: {
         CompletedNavigateInternal: model => ({ model }),

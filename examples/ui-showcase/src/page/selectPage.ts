@@ -23,10 +23,10 @@ export class SelectPage extends Block<SelectPage>()('SelectPage', {
   Message,
 }) {}
 
-export const SelectPageLive = SelectPage.make(
-  Effect.fn(function* () {
+export const SelectPageLive = SelectPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { selectDemoValue: 'us' },
+      init: () => ({ selectDemoValue: 'us' }),
 
       update: {
         UpdatedSelectDemoValue: (model, { value }) => ({

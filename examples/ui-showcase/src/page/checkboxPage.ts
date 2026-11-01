@@ -26,14 +26,14 @@ export class CheckboxPage extends Block<CheckboxPage>()('CheckboxPage', {
   Message,
 }) {}
 
-export const CheckboxPageLive = CheckboxPage.make(
-  Effect.fn(function* () {
+export const CheckboxPageLive = CheckboxPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         isCheckboxBasicDemoChecked: false,
         isCheckboxOptionADemoChecked: false,
         isCheckboxOptionBDemoChecked: false,
-      },
+      }),
 
       update: {
         ToggledCheckboxBasicDemo: (model, { isChecked }) => ({

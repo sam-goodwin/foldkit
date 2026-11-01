@@ -271,18 +271,18 @@ const view = (model: Model, h: ApplicationViewBuilder) => ({
   ),
 })
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
-    const list = yield* new ItemVirtualList('list', {
-      id: 'virtual-list',
-      rowHeightPx: ROW_HEIGHT_PX,
-      scrollContainer: scrollContainerFor(flags),
-    })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ flags }) => ({
         config: flags,
-        maybeList: Option.some(list),
+        maybeList: Option.some(
+          new ItemVirtualList('list', {
+            id: 'virtual-list',
+            rowHeightPx: ROW_HEIGHT_PX,
+            scrollContainer: scrollContainerFor(flags),
+          }),
+        ),
         items: Array.makeBy(
           flags.isShort ? SHORT_ROW_COUNT : ROW_COUNT,
           index => ({
@@ -293,7 +293,7 @@ export const ApplicationLive = Application.make(
         ),
         precedingHeight: 800,
         containerHeight: 420,
-      },
+      }),
 
       update: {
         ClickedJumpToIndex: sendToList(

@@ -38,21 +38,22 @@ export const deleteDialogInputs = (
     },
   )
 
-export const DeleteIssueLive = DeleteIssue.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', {
-      id: 'delete-issue-dialog',
-    })
-
+export const DeleteIssueLive = DeleteIssue.layer(
+  Effect.gen(function* () {
     return {
-      model: { issueId: 'issue-1', dialog },
+      init: () => ({
+        issueId: 'issue-1',
+        dialog: new Dialog.Dialog('dialog', {
+          id: 'delete-issue-dialog',
+        }),
+      }),
       update: {
         ClickedOpenDialog: model => ({
           model,
           messages: [model.dialog.send(Dialog.Dialog.Message.RequestedOpen())],
         }),
         ClickedDeleteIssue: model => ({ model }),
-        ...dialog.on({
+        ...Dialog.Dialog.on({
           Opened: model => ({ model }),
           Closed: model => ({ model }),
           CompletedClose: model => ({ model }),
@@ -83,14 +84,15 @@ export class InviteMember extends Block<InviteMember>()('InviteMember', {
   Message: InviteMemberMessage,
 }) {}
 
-export const InviteMemberLive = InviteMember.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', {
-      id: 'invite-member-dialog',
-    })
-
+export const InviteMemberLive = InviteMember.layer(
+  Effect.gen(function* () {
     return {
-      model: { email: 'member@example.com', dialog },
+      init: () => ({
+        email: 'member@example.com',
+        dialog: new Dialog.Dialog('dialog', {
+          id: 'invite-member-dialog',
+        }),
+      }),
       update: {
         ClickedOpenDialog: model => ({
           model,

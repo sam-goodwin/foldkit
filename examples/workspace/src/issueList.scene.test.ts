@@ -27,39 +27,35 @@ import {
 } from './issueList'
 import { WorkspaceListbox } from './listbox'
 
-class IssueListScene extends Block<IssueListScene, ViewInputs>()(
-  'IssueListScene',
-  {
-    Model: Schema.Struct({ issueList: IssueList }),
-    Message: defineMessageUnion({}),
-    OutMessage,
-  },
-) {}
+class IssueListScene extends Block<IssueListScene>()('IssueListScene', {
+  Model: Schema.Struct({ issueList: IssueList }),
+  Message: defineMessageUnion({}),
+  OutMessage,
+}) {}
 
-const IssueListSceneLive = IssueListScene.make(
-  Effect.fn(function* (_id, viewInputs) {
-    const issueList = yield* new IssueList('issueList')
-
-    return {
-      model: { issueList },
-      update: {
-        ...issueList.on({
-          ChangedQuery: (model, outMessage) => ({ model, outMessage }),
-          ChangedStatusFilter: (model, outMessage) => ({ model, outMessage }),
-          ChangedSort: (model, outMessage) => ({ model, outMessage }),
-          ChangedGrouping: (model, outMessage) => ({ model, outMessage }),
-          RequestedClearFilters: (model, outMessage) => ({
-            model,
-            outMessage,
+const makeIssueListSceneLive = (viewInputs: ViewInputs) =>
+  IssueListScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ issueList: new IssueList('issueList') }),
+        update: {
+          ...IssueList.on({
+            ChangedQuery: (model, outMessage) => ({ model, outMessage }),
+            ChangedStatusFilter: (model, outMessage) => ({ model, outMessage }),
+            ChangedSort: (model, outMessage) => ({ model, outMessage }),
+            ChangedGrouping: (model, outMessage) => ({ model, outMessage }),
+            RequestedClearFilters: (model, outMessage) => ({
+              model,
+              outMessage,
+            }),
+            RequestedCreation: (model, outMessage) => ({ model, outMessage }),
+            SavedFilter: (model, outMessage) => ({ model, outMessage }),
           }),
-          RequestedCreation: (model, outMessage) => ({ model, outMessage }),
-          SavedFilter: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-      view: model => model.issueList.view(viewInputs),
-    }
-  }),
-).pipe(Layer.provide(IssueListLive))
+        },
+        view: model => model.issueList.view(viewInputs),
+      }
+    }),
+  ).pipe(Layer.provide(IssueListLive))
 
 const initialFilters = IssueFilters.make({
   query: '',
@@ -109,15 +105,14 @@ describe('Issue List view', () => {
     'disables issue creation when there is no project to create it in',
     () => {
       return scene(
-        IssueListSceneLive,
-        {
+        makeIssueListSceneLive({
           issues: [],
           members: initialWorkspace.members,
           projects: [],
           maybeActiveIssueId: Option.none(),
           filters: initialFilters,
           issueHrefs: {},
-        },
+        }),
         expect(role('button', { name: 'New issue' })).toBeDisabled(),
       )
     },
@@ -132,8 +127,7 @@ describe('Issue List view', () => {
       })
 
       return scene(
-        IssueListSceneLive,
-        sceneInputs(filters),
+        makeIssueListSceneLive(sceneInputs(filters)),
         expect(label('Search issues')).toHaveValue('no matching issue'),
         expect(role('heading', { name: 'No matching issues' })).toExist(),
         type(label('Search issues'), 'keyboard'),
@@ -149,8 +143,7 @@ describe('Issue List view', () => {
     'renders issue hrefs and leaves issues without hrefs as content',
     () => {
       return scene(
-        IssueListSceneLive,
-        sceneInputs(),
+        makeIssueListSceneLive(sceneInputs()),
         expect(
           role('link', { name: 'WSP-101 Build a faster command menu' }),
         ).toHaveAttr('href', '/issues/issue-101'),
@@ -175,8 +168,7 @@ describe('Issue List view', () => {
       })
 
       return scene(
-        IssueListSceneLive,
-        sceneInputs(filters),
+        makeIssueListSceneLive(sceneInputs(filters)),
         expect(role('heading', { name: 'Experience · 1' })).toExist(),
         expect(role('heading', { name: 'Platform · 1' })).toExist(),
         type(label('Saved view name'), '  Project work  '),
@@ -196,8 +188,7 @@ describe('Issue List view', () => {
     'reports validated Listbox selections without changing controlled values',
     () => {
       return scene(
-        IssueListSceneLive,
-        sceneInputs(),
+        makeIssueListSceneLive(sceneInputs()),
         ...openFilter('Filter by status'),
         click(role('option', { name: 'Todo' })),
         expectOutMessage(

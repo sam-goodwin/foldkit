@@ -17,10 +17,10 @@ export class Timer extends Block<Timer>()('Timer', {
   Message,
 }) {}
 
-export const TimerLive = Timer.make(
-  Effect.fn(function* () {
+export const TimerLive = Timer.layer(
+  Effect.gen(function* () {
     return {
-      model: { isRunning: false, elapsedSeconds: 0 },
+      init: () => ({ isRunning: false, elapsedSeconds: 0 }),
 
       update: {
         ClickedStart: model => ({

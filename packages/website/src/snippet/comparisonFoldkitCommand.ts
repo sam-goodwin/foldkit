@@ -26,12 +26,12 @@ export class Application extends Block<
   Command: [SaveCanvas, ExportPng],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const store = yield* KeyValueStore.KeyValueStore
 
     return {
-      // model, update, view, ...
+      // init, update, view, ...
 
       commands: {
         SaveCanvas: canvas =>

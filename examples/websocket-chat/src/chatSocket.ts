@@ -1,11 +1,21 @@
-import { Duration, Effect, Predicate, Queue, Schema, Stream } from 'effect'
+import {
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Match,
+  RcMap,
+  Schema,
+  Stream,
+} from 'effect'
 import { Socket } from 'effect/socket'
-import { Block, Command } from 'foldkit'
+import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { defineTaggedUnion } from 'foldkit/schema'
+import { modifyFields } from 'foldkit/struct'
 
 const WS_URL = 'wss://ws.postman-echo.com/raw'
-const CONNECTION_TIMEOUT_MS = 5000
+const OPEN_TIMEOUT = Duration.seconds(5)
 
 export const SocketState = defineTaggedUnion({
   Opening: {},
@@ -13,9 +23,14 @@ export const SocketState = defineTaggedUnion({
 })
 export type SocketState = typeof SocketState.Type
 
+const Model = Schema.Struct({
+  socketKey: Schema.String,
+  state: SocketState,
+})
+
 const Message = defineMessageUnion({
-  SucceededWaitForOpen: {},
-  FailedWaitForOpen: { error: Schema.String },
+  OpenedSocket: {},
+  FailedOpenSocket: { error: Schema.String },
   ReceivedSocketMessage: { text: Schema.String },
   ClosedSocket: {},
   ErroredSocket: { error: Schema.String },
@@ -30,45 +45,38 @@ const OutMessage = defineMessageUnion({
   Failed: { error: Schema.String },
 })
 
-export const WaitForOpen = Command.define('WaitForOpen', {
-  messages: [Message.SucceededWaitForOpen, Message.FailedWaitForOpen],
-})
+export class ChatSockets extends Context.Service<
+  ChatSockets,
+  RcMap.RcMap<string, Socket.Socket>
+>()('ChatSockets') {}
 
-export class ChatSocket extends Block<
-  ChatSocket,
-  void,
-  void,
-  Socket.WebSocketLike
->()('ChatSocket', {
-  Model: SocketState,
+export const ChatSocketsLive = Layer.effect(
+  ChatSockets,
+  RcMap.make({
+    lookup: (_socketKey: string) =>
+      Socket.makeWebSocket(WS_URL, { openTimeout: OPEN_TIMEOUT }),
+  }),
+)
+
+export class ChatSocket extends Block<ChatSocket>()('ChatSocket', {
+  Model,
   Message,
   OutMessage,
-  Command: [WaitForOpen],
 }) {}
 
-export const ChatSocketLive = ChatSocket.make(
-  Effect.fn(function* () {
-    const makeWebSocket = yield* Socket.WebSocketConstructor
-
-    const socket = yield* Effect.acquireRelease(
-      Effect.sync(() => makeWebSocket(WS_URL)),
-      socket =>
-        Effect.sync(() => {
-          socket.close()
-        }),
-    )
+export const ChatSocketLive = ChatSocket.layer(
+  Effect.gen(function* () {
+    const sockets = yield* ChatSockets
 
     return {
-      model: SocketState.Opening(),
-
-      start: [WaitForOpen()],
+      init: (_, { id }) => ({ socketKey: id, state: SocketState.Opening() }),
 
       update: {
-        SucceededWaitForOpen: () => ({
-          model: SocketState.Open(),
+        OpenedSocket: model => ({
+          model: modifyFields(model, { state: () => SocketState.Open() }),
           outMessage: ChatSocket.OutMessage.Connected(),
         }),
-        FailedWaitForOpen: (model, { error }) => ({
+        FailedOpenSocket: (model, { error }) => ({
           model,
           outMessage: ChatSocket.OutMessage.FailedConnect({ error }),
         }),
@@ -86,88 +94,40 @@ export const ChatSocketLive = ChatSocket.make(
         }),
       },
 
-      commands: {
-        WaitForOpen: () => waitForOpen(socket),
-      },
-
       subscriptions: {
-        socketEvents: {
-          dependencies: model => model._tag === 'Open',
-          stream: (isOpen: boolean) =>
-            isOpen ? streamSocketEvents(socket) : Stream.empty,
+        socket: {
+          dependencies: model => model.socketKey,
+          stream: (socketKey: string) =>
+            Stream.unwrap(
+              Effect.gen(function* () {
+                const socket = yield* RcMap.get(sockets, socketKey)
+                const pull = yield* Socket.readerString(socket)
+
+                return Stream.succeed(Message.OpenedSocket()).pipe(
+                  Stream.concat(
+                    Stream.forever(Stream.fromEffect(pull)).pipe(
+                      Stream.flattenArray,
+                      Stream.map(text =>
+                        Message.ReceivedSocketMessage({ text }),
+                      ),
+                    ),
+                  ),
+                )
+              }),
+            ).pipe(Stream.catch(error => Stream.succeed(toMessage(error)))),
         },
       },
-
-      expose: socket,
     }
   }),
 )
 
-const waitForOpen = (socket: Socket.WebSocketLike) =>
-  Effect.callback<void, Error>(resume => {
-    const removeListeners = () => {
-      socket.removeEventListener('open', handleOpen)
-      socket.removeEventListener('error', handleError)
-    }
-    const handleOpen = () => {
-      removeListeners()
-      resume(Effect.void)
-    }
-    const handleError = () => {
-      removeListeners()
-      resume(Effect.fail(new Error('Failed to connect to WebSocket')))
-    }
-
-    socket.addEventListener('open', handleOpen)
-    socket.addEventListener('error', handleError)
-
-    return Effect.sync(removeListeners)
-  }).pipe(
-    Effect.timeout(Duration.millis(CONNECTION_TIMEOUT_MS)),
-    Effect.catchTag('TimeoutError', () =>
-      Effect.fail(new Error('Connection timeout')),
-    ),
-    Effect.as(Message.SucceededWaitForOpen()),
-    Effect.catch(error =>
-      Effect.succeed(Message.FailedWaitForOpen({ error: error.message })),
-    ),
-  )
-
-const streamSocketEvents = (socket: Socket.WebSocketLike) =>
-  Stream.callback<Message>(queue =>
-    Effect.acquireRelease(
-      Effect.sync(() => {
-        const handleMessage = (event: Socket.WebSocketEvent) => {
-          if (Predicate.isString(event.data)) {
-            Queue.offerUnsafe(
-              queue,
-              Message.ReceivedSocketMessage({ text: event.data }),
-            )
-          }
-        }
-        const handleClose = () => {
-          Queue.offerUnsafe(queue, Message.ClosedSocket())
-          Queue.endUnsafe(queue)
-        }
-        const handleError = () => {
-          Queue.offerUnsafe(
-            queue,
-            Message.ErroredSocket({ error: 'Connection error' }),
-          )
-          Queue.endUnsafe(queue)
-        }
-
-        socket.addEventListener('message', handleMessage)
-        socket.addEventListener('close', handleClose)
-        socket.addEventListener('error', handleError)
-
-        return { handleMessage, handleClose, handleError }
-      }),
-      ({ handleMessage, handleClose, handleError }) =>
-        Effect.sync(() => {
-          socket.removeEventListener('message', handleMessage)
-          socket.removeEventListener('close', handleClose)
-          socket.removeEventListener('error', handleError)
-        }),
-    ).pipe(Effect.flatMap(() => Effect.never)),
+const toMessage = (error: Socket.SocketError): Message =>
+  Match.value(error.reason).pipe(
+    Match.tagsExhaustive({
+      SocketOpenError: () => Message.FailedOpenSocket({ error: error.message }),
+      SocketCloseError: () => Message.ClosedSocket(),
+      SocketReadError: () => Message.ErroredSocket({ error: error.message }),
+      SocketWriteError: () => Message.ErroredSocket({ error: error.message }),
+      SocketUpgradeError: () => Message.ErroredSocket({ error: error.message }),
+    }),
   )

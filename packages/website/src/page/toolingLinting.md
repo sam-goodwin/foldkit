@@ -76,7 +76,7 @@ Requires a `Command.define(...)` declaration to use a nonempty PascalCase `const
 
 ### foldkit/no-hand-rolled-command-struct {#no-hand-rolled-command-struct}
 
-Rejects Command structs assembled by hand. `Command.define` attaches the identity, args, and tracing metadata a plain object literal skips. Declare the Command, list it under the Block's `Command`, and implement it under the constructor's `commands`.
+Rejects Command structs assembled by hand. `Command.define` attaches the identity, args, and tracing metadata a plain object literal skips. Declare the Command, list it under the Block's `Command`, and implement it under `commands` in the Block's Layer.
 
 ::Snippet{name="lintNoHandRolledCommandStruct" label="Rule: foldkit/no-hand-rolled-command-struct"}
 
@@ -154,7 +154,7 @@ Rejects `Schema.withConstructorDefault` inside `Route.query`. Constructor defaul
 
 ### foldkit/no-array-index-view-keys {#no-array-index-view-keys}
 
-Rejects the array index as a view key, and as the key passed to a keyed instance factory from `yield* Child.each('field', args)`. Key by a stable Model identifier, or reordering the list patches the wrong rows and attaches state to the wrong instances.
+Rejects the array index as a view key, and as the id passed to `new Child(id, args)`. Key by a stable Model identifier, or reordering the list patches the wrong rows and attaches state to the wrong instances.
 
 ::Snippet{name="lintNoArrayIndexViewKeys" label="Rule: foldkit/no-array-index-view-keys"}
 
@@ -218,11 +218,11 @@ The rule reports the call wherever it is written. Assigning its result to a loca
 
 #### Deferred Execution Boundaries
 
-Obtain time or randomness inside the Command handler instead. Use `Clock` or `Random` for time and ordinary randomness. For UUIDs and cryptographic randomness, use the `Crypto.Crypto` service and supply the platform Crypto Layer at the application root. Return the value in the result Message. A Block constructor can yield the service once; obtain the changing value inside the Command handler that closes over it.
+Obtain time or randomness inside the Command handler instead. Use `Clock` or `Random` for time and ordinary randomness. For UUIDs and cryptographic randomness, use the `Crypto.Crypto` service and supply the platform Crypto Layer at the application root. Return the value in the result Message. A Block's Layer constructor can yield the service once; obtain the changing value inside the Command handler that closes over it.
 
 Inside a Block implementation, the rule separates the slots by when they run:
 
-- `update` handlers, OutMessage handlers spread in through `instance.on({ ... })`, `view`, and Subscription `dependencies` run at decision time. The rule reports calls in them even though they sit inside the `Effect.fn` constructor.
+- `init`, `start`, `update` handlers, OutMessage handlers spread in through `Child.on({ ... })` or `Child.onAll({ ... })`, `view`, and Subscription `dependencies` run at decision time. The rule reports calls in them even though they sit inside the `Effect.gen` constructor.
 - `commands` and `mounts` handlers and Subscription `stream` functions run when the Runtime executes them, so time and randomness calls are allowed there.
 
 The rule also recognizes the deferred callback positions in Effect and Stream. Not every function passed to Effect is deferred. The rule still checks functions stored as Effect values, `Effect.fromOption`'s `onNone`, callbacks passed to `Effect.run*`, transform callbacks after the body of `Effect.fn` or `Effect.fnUntraced`, and callbacks passed to Effect APIs whose names end in `Eager`.
@@ -241,7 +241,7 @@ This direct-call catalog does not prove that a file is pure. It recognizes stati
 
 ### foldkit/no-module-level-mutable-state {#no-module-level-mutable-state}
 
-Rejects module-level let and var bindings, which hold state outside the Model. Move the data into the Model, or scope a live handle to a Mount or to a child Block that acquires it in its constructor.
+Rejects module-level let and var bindings, which hold state outside the Model. Move the data into the Model, or scope a live handle to a Mount or to a Subscription that acquires it while the Model calls for it.
 
 ::Snippet{name="lintNoModuleLevelMutableState" label="Rule: foldkit/no-module-level-mutable-state"}
 
@@ -257,13 +257,13 @@ Flags `slow: false` in the options passed to `Program.make` or `Program.makeElem
 
 Several rules look inside a Block implementation. A Block is a class that extends `Block<Self, ...>()('Name', contract)`, with `Block` imported from `foldkit` or `foldkit/block`, including namespace imports and aliases. A generic factory may bind the declaration to a const instead of declaring a class, as in `const TabsClass = Block<Tabs<Value>>()('Tabs', contract)`.
 
-The implementation is the object returned by the constructor passed to that class's `make`, either directly or through `Effect.fn(...)`, `Effect.fn('name')(...)`, or `Effect.fnUntraced(...)`. The recognition is syntactic and file-local. A `make` call on a Block class imported from another module is not checked, and a constructor stored in a separate variable before it reaches `make` is not followed. Pass the constructor inline.
+The implementation is the module returned by the `Effect.gen(function* () { ... })` constructor written inline in that class's `layer` call. The recognition is syntactic and file-local. A `layer` call or `new` expression on a Block class imported from another module is not checked, and a constructor stored in a separate variable before it reaches `layer` is not followed. Pass the constructor inline.
 
 ### foldkit/block-name-matches-variable {#block-name-matches-variable}
 
-Requires a Block class declaration to carry its literal Block id as its class name and to pass itself as the `Self` type parameter. The Layer returned by `make`, including through `.pipe(...)`, is named `<BlockId>Live`. The root follows the same rule: `Application` and `ApplicationLive`.
+Requires a Block class declaration to carry its literal Block id as its class name and to pass itself as the `Self` type parameter. The Layer returned by `layer`, including through `.pipe(...)`, is named `<BlockId>Live`. The root follows the same rule: `Application` and `ApplicationLive`.
 
-A generic factory that binds the declaration to a const keeps its own local name, and its Layer still uses the Block id: `const TabsLive = TabsClass.make(...)`. Dynamic Block ids are left for the developer to review. The rule reports without changing the source, because whether the class name or the Block id should change depends on the Block's public identity.
+A generic factory that binds the declaration to a const keeps its own local name, and its Layer still uses the Block id: `const TabsLive = TabsClass.layer(...)`. Dynamic Block ids are left for the developer to review. The rule reports without changing the source, because whether the class name or the Block id should change depends on the Block's public identity.
 
 ::Snippet{name="lintBlockNameMatchesVariable" label="Rule: foldkit/block-name-matches-variable"}
 
@@ -317,6 +317,6 @@ Oxlint reports an unknown rule ID in an explicit configuration. Delete these IDs
 | `foldkit/no-manual-composition-routing`         | None. Foldkit routes a child instance's Messages to it without parent wiring.                                             |
 | `foldkit/no-child-message-construction-in-root` | None. A parent constructs the child's Message and passes it to `model.child.send(...)`.                                   |
 | `foldkit/no-direct-block-state-update`          | None. The parent Model holds the child instance, and the instance's Model changes only through its own update.            |
-| `foldkit/no-empty-to-parent-out-message`        | None. A parent handles child OutMessages with `...child.on({ ... })` and returns its own OutMessage when it forwards one. |
-| `foldkit/no-binding-write-coordination`         | None. Parent reactions to a child live in its `.on` handlers.                                                             |
+| `foldkit/no-empty-to-parent-out-message`        | None. A parent handles child OutMessages with `...Child.on({ ... })` and returns its own OutMessage when it forwards one. |
+| `foldkit/no-binding-write-coordination`         | None. Parent reactions to a child live in its `Child.on` handlers.                                                        |
 | `foldkit/no-completed-block-model-in-schema`    | None. A parent Model Schema names the child class directly, as in `search: Search`.                                       |

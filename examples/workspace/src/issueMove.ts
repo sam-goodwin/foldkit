@@ -77,12 +77,12 @@ export class IssueMove extends Block<IssueMove>()('IssueMove', {
   Command: [MoveIssue],
 }) {}
 
-export const IssueMoveLive = IssueMove.make(
-  Effect.fn(function* () {
+export const IssueMoveLive = IssueMove.layer(
+  Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 
     return {
-      model: { state: IssueMoveState.Idle() },
+      init: () => ({ state: IssueMoveState.Idle() }),
 
       update: {
         RequestedMove: (

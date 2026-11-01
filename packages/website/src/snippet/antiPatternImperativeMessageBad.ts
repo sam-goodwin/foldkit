@@ -23,12 +23,12 @@ export class Weather extends Block<Weather>()('Weather', {
   Command: [FetchWeather],
 }) {}
 
-export const WeatherLive = Weather.make(
-  Effect.fn(function* () {
+export const WeatherLive = Weather.layer(
+  Effect.gen(function* () {
     const weatherApi = yield* WeatherApi
 
     return {
-      model: { forecast: '' },
+      init: () => ({ forecast: '' }),
 
       update: {
         FetchWeather: model => ({ model, commands: [FetchWeather()] }),

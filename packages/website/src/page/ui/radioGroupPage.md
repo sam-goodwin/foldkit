@@ -6,9 +6,9 @@ A single-selection component with roving tabindex keyboard navigation. Arrow key
 
 ### State Ownership and Typed Radio Groups
 
-A RadioGroup instance keeps its own keyboard-focus state, but the parent owns the selection. Store the selected value in your Model, pass it in as `selectedValue`, and store the value from the `Selected` OutMessage back into that field with `...radioGroup.on({ Selected })`. Both vertical and horizontal orientation are supported.
+A RadioGroup instance keeps its own keyboard-focus state, but the parent owns the selection. Store the selected value in your Model, pass it in as `selectedValue`, and store the value from the `Selected` OutMessage back into that field with `...PlanRadioGroup.on({ Selected })`. Both vertical and horizontal orientation are supported.
 
-`RadioGroup.makeBlock<Value>()` returns a Block class with its Layer attached as `Live`. Create an instance in the parent's constructor with `yield* new PlanRadioGroup('planRadioGroup', { id })` and provide `PlanRadioGroup.Live` to the parent's Layer. The class type is [`RadioGroupClass<Value>` from `@foldkit/ui/radioGroup`](/ui/selection-blocks#completed-type), and an instance is `RadioGroup<Value>`, for cases where either has to be named.
+`RadioGroup.makeBlock<Value>()` returns a Block class with its Layer attached as `Live`. Create an instance with `new PlanRadioGroup('planRadioGroup', { id })` in the parent's `init` and provide `PlanRadioGroup.Live` to the parent's Layer. The class type is [`RadioGroupClass<Value>` from `@foldkit/ui/radioGroup`](/ui/selection-blocks#completed-type), and an instance is `RadioGroup<Value>`, for cases where either has to be named.
 
 :::Info{label="See it in an app"}
 Check out how RadioGroup is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/radioGroupPage.ts).
@@ -133,8 +133,8 @@ Each entry in `RenderInfo.options`. Carries the value, derived state flags, and 
 
 ### OutMessage {#out-message}
 
-Facts the component reports to its parent. Handle them by spreading the instance's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
+Facts the component reports to its parent. Handle them by spreading the class's `.on({ ... })`, such as `...PlanRadioGroup.on({ ... })`, into the parent's update record. Variants without a handler are ignored.
 
-| Name       | Type                              | Default | Description                                                                                                                                                                                                                                        |
-| ---------- | --------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Selected` | `{ value: Value; index: number }` | —       | Emitted when an option is committed via click or keyboard. Carries both the option's value (typed as your `Value` union via `RadioGroup.makeBlock<Value>()`) and its index. A read-only group never emits it. Handle it with the instance's `.on`. |
+| Name       | Type                              | Default | Description                                                                                                                                                                                                                                     |
+| ---------- | --------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Selected` | `{ value: Value; index: number }` | —       | Emitted when an option is committed via click or keyboard. Carries both the option's value (typed as your `Value` union via `RadioGroup.makeBlock<Value>()`) and its index. A read-only group never emits it. Handle it with the class's `.on`. |

@@ -38,10 +38,10 @@ const panelView = (model: Model, h: PanelViewBuilder): Html =>
     ],
   )
 
-export const PanelLive = Panel.make(
-  Effect.fn(function* () {
+export const PanelLive = Panel.layer(
+  Effect.gen(function* () {
     return {
-      model: { maybePanelHeight: Option.none() },
+      init: () => ({ maybePanelHeight: Option.none() }),
 
       update: {
         CompletedMeasurePanel: (model, { height }) => ({

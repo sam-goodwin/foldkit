@@ -17,21 +17,24 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
-    const route = urlToApplicationRoute(url)
-
-    const initialPeopleRoute = Match.value(route).pipe(
-      Match.tag('People', peopleRoute => peopleRoute),
-      Match.orElse(() =>
-        ApplicationRoute.People({ searchText: Option.none() }),
-      ),
-    )
-
-    const people = yield* new People('people', { route: initialPeopleRoute })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { route, people },
+      init: ({ url }) => {
+        const route = urlToApplicationRoute(url)
+
+        const initialPeopleRoute = Match.value(route).pipe(
+          Match.tag('People', peopleRoute => peopleRoute),
+          Match.orElse(() =>
+            ApplicationRoute.People({ searchText: Option.none() }),
+          ),
+        )
+
+        return {
+          route,
+          people: new People('people', { route: initialPeopleRoute }),
+        }
+      },
 
       update: {
         ChangedUrl: (model, { url: nextUrl }) => {

@@ -21,7 +21,11 @@ export type DisabledButtonArgs = Readonly<{ isInDialog: boolean }>
 export class DisabledButton extends Block<DisabledButton, DisabledButtonArgs>()(
   'DisabledButton',
   {
-    Model: Schema.Struct({ isEnabled: Schema.Boolean, dialog: Dialog }),
+    Model: Schema.Struct({
+      isInDialog: Schema.Boolean,
+      isEnabled: Schema.Boolean,
+      dialog: Dialog,
+    }),
     Message,
   },
 ) {}
@@ -41,12 +45,14 @@ const submitButton = <AllowedMountRequirements>(
   )
 
 /** Implements {@link DisabledButton}. */
-export const DisabledButtonLive = DisabledButton.make(
-  Effect.fn(function* (_id, { isInDialog }) {
-    const dialog = yield* new Dialog('dialog', { id: 'test-dialog' })
-
+export const DisabledButtonLive = DisabledButton.layer(
+  Effect.gen(function* () {
     return {
-      model: { isEnabled: false, dialog },
+      init: ({ isInDialog }) => ({
+        isInDialog,
+        isEnabled: false,
+        dialog: new Dialog('dialog', { id: 'test-dialog' }),
+      }),
       update: {
         ClickedToggle: model => ({
           model: modifyFields(model, { isEnabled: isEnabled => !isEnabled }),
@@ -58,7 +64,7 @@ export const DisabledButtonLive = DisabledButton.make(
           [],
           [
             h.button([h.OnClick(Message.ClickedToggle())], ['Toggle']),
-            isInDialog
+            model.isInDialog
               ? model.dialog.view({
                   toView: ({ dialog, backdrop, panel, isVisible }) =>
                     h.dialog(

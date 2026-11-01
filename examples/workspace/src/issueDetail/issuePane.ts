@@ -39,12 +39,10 @@ export class IssuePane extends Block<IssuePane, void, ViewInput>()(
   { Model, Message, OutMessage },
 ) {}
 
-export const IssuePaneLive = IssuePane.make(
-  Effect.fn(function* () {
-    const issueDetail = yield* IssueDetail.each('issueDetails')
-
+export const IssuePaneLive = IssuePane.layer(
+  Effect.gen(function* () {
     return {
-      model: { issueDetails: {} },
+      init: () => ({ issueDetails: {} }),
 
       update: {
         RequestedOpen: (model, { issue }) =>
@@ -54,7 +52,7 @@ export const IssuePaneLive = IssuePane.make(
                 model: modifyFields(model, {
                   issueDetails: Record.set(
                     issue.id,
-                    issueDetail(issue.id, { issue }),
+                    new IssueDetail(issue.id, { issue }),
                   ),
                 }),
               },
@@ -68,7 +66,7 @@ export const IssuePaneLive = IssuePane.make(
             informIssueChanged(model, issue),
           ),
         }),
-        ...issueDetail.on({
+        ...IssueDetail.on({
           Saved: (model, { savedIssue }) => ({
             model,
             outMessage: OutMessage.Saved({ savedIssue }),

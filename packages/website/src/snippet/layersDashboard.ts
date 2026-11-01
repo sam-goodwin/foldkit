@@ -8,13 +8,13 @@ export class Dashboard extends Block<Dashboard>()('Dashboard', {
   Model: Schema.Struct({ linked: LinkedCounters, bonus: BonusPanel }),
 }) {}
 
-export const DashboardLive = Dashboard.make(
-  Effect.fn(function* () {
-    const linked = yield* new LinkedCounters('linked')
-    const bonus = yield* new BonusPanel('bonus')
-
+export const DashboardLive = Dashboard.layer(
+  Effect.gen(function* () {
     return {
-      model: { linked, bonus },
+      init: () => ({
+        linked: new LinkedCounters('linked'),
+        bonus: new BonusPanel('bonus'),
+      }),
 
       view: (model, h) => ({
         title: 'Dashboard',

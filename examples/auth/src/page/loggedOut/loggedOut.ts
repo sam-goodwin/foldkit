@@ -26,15 +26,13 @@ export class LoggedOut extends Block<LoggedOut, void, ViewInput>()(
   },
 ) {}
 
-export const LoggedOutLive = LoggedOut.make(
-  Effect.fn(function* () {
-    const login = yield* new Login('login')
-
+export const LoggedOutLive = LoggedOut.layer(
+  Effect.gen(function* () {
     return {
-      model: { login },
+      init: () => ({ login: new Login('login') }),
 
       update: {
-        ...login.on({
+        ...Login.on({
           SucceededLogin: (model, { session }) => ({
             model,
             outMessage: OutMessage.SucceededLogin({ session }),

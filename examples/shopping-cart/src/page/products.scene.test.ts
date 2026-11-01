@@ -11,12 +11,12 @@ class ProductsHost extends Block<ProductsHost>()('ProductsHost', {
   Model: Schema.Struct({ productsPage: Products }),
 }) {}
 
-const ProductsHostLive = ProductsHost.make(
-  Effect.fn(function* () {
-    const productsPage = yield* new Products('productsPage', { products })
-
+const ProductsHostLive = ProductsHost.layer(
+  Effect.gen(function* () {
     return {
-      model: { productsPage },
+      init: () => ({
+        productsPage: new Products('productsPage', { products }),
+      }),
       view: model => model.productsPage.view({ cart: [] }),
     }
   }),

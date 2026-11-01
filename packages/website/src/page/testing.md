@@ -4,7 +4,7 @@
 
 Story and Scene test two parts of a Foldkit application. Story calls update directly. Scene enters through the rendered view. Neither test runs a browser or executes the Effects inside Commands, so both stay deterministic and fast.
 
-Both start from a Block's Layer. Foldkit builds the Block, runs its constructor, and starts the test from the Model the constructor returns. You never assemble a Model by hand to begin a test.
+Both start from a Block's Layer. Foldkit builds the Layer, calls the Block's `init`, and starts the test from the Model `init` returns. You never assemble a Model by hand to begin a test.
 
 ### Compare the Boundaries
 
@@ -47,23 +47,23 @@ See [Project Organization](/patterns/project-organization) for the full layout.
 
 ## Building the Test Layer
 
-The Layer passed to `story` or `scene` must provide exactly one root Block. Everything that Block's constructor needs comes from that Layer:
+The Layer passed to `story` or `scene` must provide exactly one root Block. Everything that Block's Layer needs comes from that Layer:
 
 - Provide each child Block's Layer with `Layer.provide`, the same way the application's entry does. Do not use `Layer.merge`; the test would then see several root Blocks and fail.
-- Provide the services the constructor yields, such as an `HttpClient`, with `Layer.provide` as well. Command handlers never run in a Story or Scene, so a test can provide a real or a stub service. The constructor only needs one to exist.
-- Pass the root's constructor args after the Layer when the Block takes them, such as `{ url }` for a routed root.
+- Provide the services the Layer constructor yields, such as an `HttpClient`, with `Layer.provide` as well. Command handlers never run in a Story or Scene, so a test can provide a real or a stub service. The Layer constructor only needs one to exist.
+- Pass the root's args after the Layer when the Block takes them, such as `{ url }` for a routed root. Foldkit passes them to the root's `init`.
 
-The weather Scene above provides `Http.layer` because the weather Block's constructor yields `HttpClient`.
+The weather Scene above provides `Http.layer` because the weather Block's Layer constructor yields `HttpClient`.
 
 ## Testing a Parent and Its Children
 
-A test of a parent Block runs the whole tree below it. The test reads the Model in its resolved form: each child instance appears as its own Model, so `model.notes` is an array of Note Models. `given` can change a child's state, but it cannot add or remove an instance. Do that with the Messages that add and remove instances in the application.
+A test of a parent Block runs the whole tree below it. The test reads the Model in its resolved form: each child instance appears as its own Model, so `model.notes` is an array of Note Models. `given` can change a child's state, and it can add an instance written as `new Note('note-3')`, which starts from the Model its `init` returns. When the test is about adding or removing children, send the Messages that do it in the application instead.
 
 ### Deliver a Message to a Child
 
-`Block.deliver(Child, path, message)` addresses a Message to one child instance. The path is the instance id for a single instance, or `[collection, key]` for an instance created by `each`. Pass the result to `message` in a Story, or to `deliver` in a Scene.
+`Block.deliver(Child, path, message)` addresses a Message to one child instance. The path is the instance's id, or an array of ids from the root for a grandchild: the parent's id, then the child's. The name of the Model field that holds the instance is not part of the path, so a Note in `model.notes` with id `note-2` is addressed as `'note-2'`. Pass the result to `message` in a Story, or to `deliver` in a Scene.
 
-When the child returns an OutMessage, the parent's `.on` handler runs exactly as it does at runtime.
+When the child returns an OutMessage, the parent's `Note.on` handler runs exactly as it does at runtime.
 
 ::Snippet{name="testingChildBlocks" label="Delivering Messages to child instances"}
 
@@ -71,22 +71,22 @@ When the child returns an OutMessage, the parent's `.on` handler runs exactly as
 
 Resolve a child's Command with the child's own result Message, such as `Note.Message.SucceededSave()`. Foldkit routes the result back to the instance that returned the Command.
 
-When sibling instances have identical pending Commands, a bare Definition matches more than one and the step throws. Select one instance with `Command.at(path, Definition)`, using the same path form as `Block.deliver`. The [Scene Commands section](/testing/scene#commands) shows `Command.at` in context.
+When sibling instances have pending Commands of the same Definition, a bare Definition matches more than one and the step throws. Select one instance with `Command.at(path, Definition)`, using the same path form as `Block.deliver`. The [Scene Commands section](/testing/scene#commands) shows `Command.at` in context.
 
 ### Test a Child Block on Its Own
 
-A child Block is an ordinary Block, so it can be the root of its own test. Its Layer is the root Layer, and its OutMessages appear to `expectOutMessage`. Test the child's behavior in the child's own tests. Test the parent's `.on` handlers, the Messages the parent sends to its children, and anything that needs both together from the parent.
+A child Block is an ordinary Block, so it can be the root of its own test. Its Layer is the root Layer, and its OutMessages appear to `expectOutMessage`. Test the child's behavior in the child's own tests. Test the parent's `on` handlers, the Messages the parent sends to its children, and anything that needs both together from the parent.
 
 A Block whose view takes a view input cannot be the root of a Scene, because nothing would supply the input. Test it through a small test-only parent Block, as shown in [Blocks with a view input](/testing/scene#blocks-with-a-view-input).
 
-## Streams and Subscriptions
+## Subscriptions {#streams-and-subscriptions}
 
-Neither Story nor Scene runs a Block's `stream` or `subscriptions`. A test supplies the Messages those sources would produce: `message` in a Story, `deliver` in a Scene. For a child's Stream, address the Message with `Block.deliver`.
+Neither Story nor Scene runs a Block's `subscriptions`. A test supplies the Messages those Streams would produce: `message` in a Story, `deliver` in a Scene. For a child's Subscription, address the Message with `Block.deliver`.
 
-See [Deliver a Stream or Subscription Message](/testing/story#deliver-a-stream-or-subscription-message) for an example.
+See [Deliver a Subscription Message](/testing/story#deliver-a-stream-or-subscription-message) for an example.
 
 ## Executing Effects
 
-A Command handler is a function the Block's constructor returns, closing over the services the constructor yields. Story and Scene never call it. To test a handler's work, extract it as a function of those services and run it with test services. The [Story page](/testing/story#test-command-effects) shows an HTTP handler tested against a stub client.
+A Command handler is a function the Block's Layer constructor returns, closing over the services the Layer constructor yields. Story and Scene never call it. To test a handler's work, extract it as a function of those services and run it with test services. The [Story page](/testing/story#test-command-effects) shows an HTTP handler tested against a stub client.
 
 Choose the lowest service boundary whose behavior the test needs to exercise. If an API service contains authentication or retry policy, keep that service and replace its transport. The [Commands guide](/core/commands) covers handler services in depth.

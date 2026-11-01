@@ -4,6 +4,7 @@ import { modifyFields } from 'foldkit/struct'
 
 import { VirtualList } from '@foldkit/ui'
 
+import { ChatVirtualList } from './demo/components'
 import {
   VirtualListChatHistoryLoad,
   type VirtualListChatHistoryMode,
@@ -291,12 +292,18 @@ export const handleCompletedFetchVirtualListChatHistory = (
   }
 }
 
+export const chatListForSource = (source: VirtualListChatHistorySource) =>
+  new ChatVirtualList(
+    VirtualListChatHistorySource.match(source, {
+      Unbounded: () => 'virtualListChatUnboundedDemo',
+      Finite: () => 'virtualListChatFiniteDemo',
+    }),
+    virtualListChatInitConfig(source),
+  )
+
 export const selectVirtualListChatHistoryModeStep = (
   model: Model,
   mode: VirtualListChatHistoryMode,
-  chatListForSource: (
-    source: VirtualListChatHistorySource,
-  ) => Model['virtualListChatDemo'],
 ) => {
   if (mode === historyModeForSource(model.virtualListChatHistorySource)) {
     return { model }

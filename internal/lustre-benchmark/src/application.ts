@@ -8,10 +8,10 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: init().model,
+      init: () => init().model,
       update: updateHandlers,
       view,
     }

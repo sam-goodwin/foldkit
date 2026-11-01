@@ -28,14 +28,14 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         content: DEFAULT_CONTENT,
         fillColor: DEFAULT_FILL_COLOR,
         backgroundColor: DEFAULT_BACKGROUND_COLOR,
-      },
+      }),
 
       update: {
         UpdatedContent: (model, { value }) => ({

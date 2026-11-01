@@ -18,13 +18,11 @@ export class Welcome extends Block<Welcome>()('Welcome', {
   Command: [StartWelcome],
 }) {}
 
-export const WelcomeLive = Welcome.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', { id: 'welcome' })
-
+export const WelcomeLive = Welcome.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog },
-      start: [StartWelcome()],
+      init: () => ({ dialog: new Dialog.Dialog('dialog', { id: 'welcome' }) }),
+      start: () => [StartWelcome()],
 
       update: {
         CompletedStartWelcome: model => ({

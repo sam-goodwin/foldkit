@@ -120,47 +120,13 @@ export class Application extends Block<
   ],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags, url }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const store = yield* KeyValueStore.KeyValueStore
-    const loggedOut = yield* new LoggedOut('loggedOut')
-
-    const route = urlToApplicationRoute(url)
-
-    const initial = Option.match(flags.maybeSession, {
-      onNone: () =>
-        Match.value(route).pipe(
-          Match.tag('Home', 'Login', 'NotFound', loggedOutRoute => ({
-            model: LoggedOutModel({ route: loggedOutRoute, loggedOut }),
-            start: [],
-          })),
-          Match.orElse(() => ({
-            model: LoggedOutModel({
-              route: ApplicationRoute.Login(),
-              loggedOut,
-            }),
-            start: [RedirectToLogin()],
-          })),
-        ),
-      onSome: session =>
-        Match.value(route).pipe(
-          Match.tag('Dashboard', 'Settings', 'NotFound', loggedInRoute => ({
-            model: LoggedInModel({ route: loggedInRoute, session }),
-            start: [],
-          })),
-          Match.orElse(() => ({
-            model: LoggedInModel({
-              route: ApplicationRoute.Dashboard(),
-              session,
-            }),
-            start: [RedirectToDashboard()],
-          })),
-        ),
-    })
 
     return {
-      model: initial.model,
-      start: initial.start,
+      init: args => initialState(args).model,
+      start: (_model, args) => initialState(args).start,
 
       update: {
         ClickedLink: (model, { request }) =>
@@ -216,7 +182,7 @@ export const ApplicationLive = Application.make(
         ClickedLogout: () => ({
           model: LoggedOutModel({
             route: ApplicationRoute.Home(),
-            loggedOut,
+            loggedOut: new LoggedOut('loggedOut'),
           }),
           commands: [ClearSession(), RedirectToHome()],
         }),
@@ -240,7 +206,7 @@ export const ApplicationLive = Application.make(
         SucceededSaveSession: model => ({ model }),
         SucceededClearSession: model => ({ model }),
 
-        ...loggedOut.on({
+        ...LoggedOut.on({
           SucceededLogin: (_model, { session }) => ({
             model: LoggedInModel({
               route: ApplicationRoute.Dashboard(),
@@ -309,6 +275,44 @@ export const ApplicationLive = Application.make(
     }
   }),
 )
+
+const initialState = ({ flags, url }: Readonly<{ flags: Flags; url: Url }>) => {
+  const route = urlToApplicationRoute(url)
+
+  return Option.match(flags.maybeSession, {
+    onNone: () =>
+      Match.value(route).pipe(
+        Match.tag('Home', 'Login', 'NotFound', loggedOutRoute => ({
+          model: LoggedOutModel({
+            route: loggedOutRoute,
+            loggedOut: new LoggedOut('loggedOut'),
+          }),
+          start: [],
+        })),
+        Match.orElse(() => ({
+          model: LoggedOutModel({
+            route: ApplicationRoute.Login(),
+            loggedOut: new LoggedOut('loggedOut'),
+          }),
+          start: [RedirectToLogin()],
+        })),
+      ),
+    onSome: session =>
+      Match.value(route).pipe(
+        Match.tag('Dashboard', 'Settings', 'NotFound', loggedInRoute => ({
+          model: LoggedInModel({ route: loggedInRoute, session }),
+          start: [],
+        })),
+        Match.orElse(() => ({
+          model: LoggedInModel({
+            route: ApplicationRoute.Dashboard(),
+            session,
+          }),
+          start: [RedirectToDashboard()],
+        })),
+      ),
+  })
+}
 
 const title = (model: Model): string =>
   Match.value(model.route).pipe(

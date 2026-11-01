@@ -95,7 +95,7 @@ describe('rendering templates', () => {
       'export class Application extends Block<',
     )
     expect(readTemplateFile('rendering/ssg/src/application.ts')).toContain(
-      'export const ApplicationLive = Application.make(',
+      'export const ApplicationLive = Application.layer(',
     )
     expect(readTemplateFile('rendering/ssg/src/entry.ts')).toContain(
       'Program.make(Application, {',
@@ -133,7 +133,7 @@ describe('rendering templates', () => {
       'export class Application extends Block<',
     )
     expect(readTemplateFile('rendering/ssr/src/application.ts')).toContain(
-      'export const ApplicationLive = Application.make(',
+      'export const ApplicationLive = Application.layer(',
     )
     expect(readTemplateFile('rendering/ssr/src/entry.ts')).toContain(
       'Program.make(Application, {',

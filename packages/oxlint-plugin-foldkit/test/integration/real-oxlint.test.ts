@@ -103,7 +103,7 @@ describe('real-oxlint rule fixtures', () => {
 
   it('reports every direct decision-time operation in its invalid fixture', () => {
     expect(countDiagnostics('no-impure-call-at-decision-time', 'invalid')).toBe(
-      35,
+      36,
     )
   })
 
@@ -168,7 +168,7 @@ describe('real-oxlint rule fixtures', () => {
     ).toHaveLength(2)
     expect(
       inBlockFixture('no-impure-call-at-decision-time', 'invalid'),
-    ).toHaveLength(4)
+    ).toHaveLength(5)
     expect(
       inBlockFixture('block-name-matches-variable', 'invalid'),
     ).toHaveLength(5)

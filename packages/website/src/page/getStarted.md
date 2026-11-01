@@ -53,7 +53,7 @@ The Counter starter begins with these files:
 - `AGENTS.md`: your instructions for AI coding assistants working on the project
 - `FOLDKIT.md`: Foldkit's own conventions for those assistants, [replaced from the current template when you upgrade Foldkit](/ai/overview)
 
-In a small starter, `src/application.ts` declares the Model, the Message union, and the root Block class `Application`. `Application.make(...)` implements it and returns `ApplicationLive`, the Layer that provides the root Block. Its constructor returns the starting Model, one update handler per Message, and the view. Commands, Mounts, and Subscriptions the root owns are listed on the class and implemented in the same constructor. Larger examples move substantial pieces into focused files as the application grows.
+In a small starter, `src/application.ts` declares the Model, the Message union, and the root Block class `Application`. `Application.layer(...)` implements it and returns `ApplicationLive`, the Layer that provides the root Block. Its constructor returns `init`, which builds the starting Model, one update handler per Message, and the view. Commands and Mounts the root owns are listed on the class and implemented in the same returned record, beside any Subscriptions. Larger examples move substantial pieces into focused files as the application grows.
 
 ### Runtime Entry
 

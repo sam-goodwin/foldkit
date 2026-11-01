@@ -19,14 +19,13 @@ export class ErrorDialog extends Block<ErrorDialog>()('ErrorDialog', {
   Message,
 }) {}
 
-export const ErrorDialogLive = ErrorDialog.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', {
-      id: 'export-error-dialog',
-    })
-
+export const ErrorDialogLive = ErrorDialog.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog, maybeExportError: Option.none() },
+      init: () => ({
+        dialog: new Dialog.Dialog('dialog', { id: 'export-error-dialog' }),
+        maybeExportError: Option.none(),
+      }),
 
       update: {
         RequestedShowError: (model, { error }) => ({
@@ -36,7 +35,7 @@ export const ErrorDialogLive = ErrorDialog.make(
           messages: [model.dialog.send(Dialog.Dialog.Message.RequestedOpen())],
         }),
 
-        ...dialog.on({
+        ...Dialog.Dialog.on({
           Closed: model => ({
             model: modifyFields(model, {
               maybeExportError: () => Option.none(),

@@ -45,13 +45,13 @@ const changeThemeStep = (model: Model, theme: Theme) => ({
   outMessage: OutMessage.ChangedTheme({ theme }),
 })
 
-export const SettingsLive = Settings.make(
-  Effect.fn(function* () {
-    // Services are yielded once per instance and closed over by the handler.
+export const SettingsLive = Settings.layer(
+  Effect.gen(function* () {
+    // The Layer yields services once. Every instance's handlers close over them.
     const settingsStore = yield* SettingsStore
 
     return {
-      model: { theme: 'System' },
+      init: () => ({ theme: 'System' }),
 
       update: {
         ClickedTheme: (model, { theme }) => changeThemeStep(model, theme),

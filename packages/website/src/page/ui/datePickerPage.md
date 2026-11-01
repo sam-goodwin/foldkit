@@ -6,9 +6,9 @@ An accessible date picker that wraps `Calendar` in a `Popover`. Consumers provid
 
 ### State Ownership
 
-Create a `DatePicker.DatePicker` instance in the parent's constructor and hold it in the parent Model. Render it with `model.datePicker.view({ ... })` and provide `DatePicker.DatePickerLive` to the parent's Layer. DatePicker holds its own Calendar and Popover instances, and its Layer provides theirs.
+Create an instance with `new DatePicker.DatePicker('datePicker', { id, today })` in the parent's `init` and hold it in the parent Model. Render it with `model.datePicker.view({ ... })` and provide `DatePicker.DatePickerLive` to the parent's Layer. DatePicker holds its own Calendar and Popover instances, and its Layer provides theirs.
 
-The parent owns the selected date. Store it in the parent Model, pass it to the view as `maybeSelectedDate`, and handle `SelectedDate` and `ClearedDate` with `...datePicker.on({ ... })`. DatePicker can also report `ChangedViewMonth` when navigation changes the visible month.
+The parent owns the selected date. Store it in the parent Model, pass it to the view as `maybeSelectedDate`, and handle `SelectedDate` and `ClearedDate` with `...DatePicker.DatePicker.on({ ... })`. DatePicker can also report `ChangedViewMonth` when navigation changes the visible month.
 
 ### Programmatic Control
 
@@ -129,11 +129,11 @@ The discriminated union passed to `toCalendarView`. Pattern-match on `_tag` (`'D
 
 ### OutMessage {#out-message}
 
-Facts the component reports to its parent. Handle them by spreading the instance's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
+Facts the component reports to its parent. Handle them by spreading `...DatePicker.DatePicker.on({ ... })` into the parent's update record. Variants without a handler are ignored.
 
 | Name               | Type                              | Default | Description                                                                                                                                                                                                                       |
 | ------------------ | --------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SelectedDate`     | `{ date: CalendarDate }`          | —       | Emitted when the user commits a date (click / Enter / Space). Handle it with the instance's `.on` to lift the date into domain state.                                                                                             |
+| `SelectedDate`     | `{ date: CalendarDate }`          | —       | Emitted when the user commits a date (click / Enter / Space). Handle it with the class's `.on` to lift the date into domain state.                                                                                                |
 | `ClearedDate`      | `{}`                              | —       | Emitted when the user clears the selected date (through the clear control or a `RequestedClear()` Message from the parent). The popover stays open. Handle it by setting the parent-owned selected-date field to `Option.none()`. |
 | `ChangedViewMonth` | `{ year: number; month: number }` | —       | Emitted when navigation changes the visible month inside the calendar grid.                                                                                                                                                       |
 

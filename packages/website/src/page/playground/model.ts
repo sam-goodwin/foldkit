@@ -40,9 +40,6 @@ export const Message = defineMessageUnion({
   EditedPlaygroundFile: { path: Schema.String, content: Schema.String },
   SucceededMountPlaygroundEditor: {},
   FailedMountPlaygroundEditor: { reason: Schema.String },
-  SucceededSchedulePlaygroundFileWrite: {},
-  FailedSchedulePlaygroundFileWrite: { reason: Schema.String },
-  CompletedWaitForPlaygroundServerFailure: { reason: Schema.String },
 })
 export type Message = typeof Message.Type
 export type EditedPlaygroundFile = typeof Message.EditedPlaygroundFile.Type

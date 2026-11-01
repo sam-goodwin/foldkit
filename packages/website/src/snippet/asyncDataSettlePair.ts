@@ -26,8 +26,8 @@ class Notes extends Block<Notes>()('Notes', {
   Command: [LoadAllNotes],
 }) {}
 
-const NotesLive = Notes.make(
-  Effect.fn(function* () {
+const NotesLive = Notes.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 
     const fetchAllNotes = client.get('/api/notes').pipe(
@@ -36,8 +36,8 @@ const NotesLive = Notes.make(
     )
 
     return {
-      model: { allNotes: NotesAsyncData.Loading() },
-      start: [LoadAllNotes()],
+      init: () => ({ allNotes: NotesAsyncData.Loading() }),
+      start: () => [LoadAllNotes()],
 
       update: {
         SucceededLoadAllNotes: (model, { notes }) => ({

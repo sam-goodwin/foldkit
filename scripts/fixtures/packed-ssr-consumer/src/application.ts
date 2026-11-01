@@ -237,10 +237,11 @@ const view = (model: Model, h: ApplicationViewBuilder): Document => {
   }
 }
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: Model.make({ count: flags.start, formState: 'Controlled' }),
+      init: ({ flags }) =>
+        Model.make({ count: flags.start, formState: 'Controlled' }),
       update: {
         ClickedIncrement: model => ({
           model: modifyFields(model, { count: count => count + 1 }),

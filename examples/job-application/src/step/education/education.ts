@@ -1,6 +1,9 @@
 import { Array, Crypto, Effect, Layer, Schema } from 'effect'
 import { Block, Command } from 'foldkit'
-import type { CalendarDate } from 'foldkit/calendar'
+import {
+  type CalendarDate,
+  CalendarDate as CalendarDateSchema,
+} from 'foldkit/calendar'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
@@ -14,6 +17,7 @@ import {
 } from './educationEntry'
 
 const Model = Schema.Struct({
+  today: CalendarDateSchema,
   entries: Schema.Array(EducationEntry),
 })
 type Model = typeof Model.Type
@@ -47,13 +51,15 @@ export class Education extends Block<Education, EducationArgs>()('Education', {
   Command: [GenerateEducationEntryId],
 }) {}
 
-export const EducationLive = Education.make(
-  Effect.fn(function* (_id, { today, initialEntryId }) {
+export const EducationLive = Education.layer(
+  Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
-    const entry = yield* EducationEntry.each('entries', { today })
 
     return {
-      model: { entries: [entry(initialEntryId)] },
+      init: ({ today, initialEntryId }) => ({
+        today,
+        entries: [new EducationEntry(initialEntryId, { today })],
+      }),
 
       update: {
         ClickedAddEntry: model => ({
@@ -63,7 +69,9 @@ export const EducationLive = Education.make(
 
         SucceededGenerateEducationEntryId: (model, { entryId }) => ({
           model: modifyFields(model, {
-            entries: Array.append(entry(entryId)),
+            entries: Array.append(
+              new EducationEntry(entryId, { today: model.today }),
+            ),
           }),
         }),
 
@@ -82,7 +90,7 @@ export const EducationLive = Education.make(
           ),
         }),
 
-        ...entry.on({
+        ...EducationEntry.on({
           Removed: (model, _, removed) => ({
             model: modifyFields(model, {
               entries: Array.filter(({ id }) => id !== removed.id),

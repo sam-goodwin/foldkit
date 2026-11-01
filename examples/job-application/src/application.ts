@@ -91,48 +91,30 @@ export class Application extends Block<
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
-    const {
-      today,
-      initialWorkHistoryEntryId,
-      initialEducationEntryId,
-      initialSkillsEntryId,
-    } = flags
-
-    const personalInfo = yield* new PersonalInfo('personalInfo', { today })
-    const workHistory = yield* new WorkHistory('workHistory', {
-      today,
-      initialEntryId: initialWorkHistoryEntryId,
-    })
-    const education = yield* new Education('education', {
-      today,
-      initialEntryId: initialEducationEntryId,
-    })
-    const skills = yield* new Skills('skills', {
-      initialEntryId: initialSkillsEntryId,
-    })
-    const coverLetter = yield* new CoverLetter('coverLetter')
-    const attachments = yield* new Attachments('attachments')
-    const review = yield* new Review('review')
-    const preview = yield* new Preview('preview')
-    const stepMenu = yield* new StepMenu('stepMenu', { id: 'step-menu' })
-    const stepTabs = yield* new StepTabs('stepTabs', { id: 'step-tabs' })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ flags }) => ({
         currentStep: 'PersonalInfo',
-        personalInfo,
-        workHistory,
-        education,
-        skills,
-        coverLetter,
-        attachments,
-        review,
-        preview,
-        stepMenu,
-        stepTabs,
-      },
+        personalInfo: new PersonalInfo('personalInfo', { today: flags.today }),
+        workHistory: new WorkHistory('workHistory', {
+          today: flags.today,
+          initialEntryId: flags.initialWorkHistoryEntryId,
+        }),
+        education: new Education('education', {
+          today: flags.today,
+          initialEntryId: flags.initialEducationEntryId,
+        }),
+        skills: new Skills('skills', {
+          initialEntryId: flags.initialSkillsEntryId,
+        }),
+        coverLetter: new CoverLetter('coverLetter'),
+        attachments: new Attachments('attachments'),
+        review: new Review('review'),
+        preview: new Preview('preview'),
+        stepMenu: new StepMenu('stepMenu', { id: 'step-menu' }),
+        stepTabs: new StepTabs('stepTabs', { id: 'step-tabs' }),
+      }),
 
       update: {
         ClickedNext: model => ({
@@ -143,7 +125,7 @@ export const ApplicationLive = Application.make(
           model: modifyFields(model, { currentStep: toPreviousStep }),
         }),
 
-        ...review.on({
+        ...Review.on({
           AttemptedSubmit: model => ({
             model,
             messages: [
@@ -164,14 +146,14 @@ export const ApplicationLive = Application.make(
           }),
         }),
 
-        ...stepMenu.on({
+        ...StepMenu.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { currentStep: () => value }),
           }),
           Closed: model => ({ model }),
         }),
 
-        ...stepTabs.on({
+        ...StepTabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { currentStep: () => value }),
           }),

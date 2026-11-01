@@ -48,13 +48,12 @@ const preservedPayload = (
   flags: null,
   root: {
     id,
-    path: [],
     model: Schema.encodeSync(Schema.toCodecJson(ModelSchema))(model),
   },
 })
 
 describe('Runtime Model preservation', () => {
-  it('restores declared Date and HashMap values through the actual Runtime without repeating construction', async () => {
+  it('restores declared Date and HashMap values through the actual Runtime', async () => {
     const Model = Schema.Struct({
       date: Schema.Date,
       values: Schema.HashMap(Schema.String, Schema.Number),
@@ -64,15 +63,14 @@ describe('Runtime Model preservation', () => {
       'DeclaredPreservation',
       { Model },
     ) {}
-    const construct = vi.fn(() => ({
-      date: new Date('2026-10-27T00:00:00.000Z'),
-      values: HashMap.make(['one', 1]),
-    }))
     const renderedModels: Array<Model> = []
-    const DeclaredPreservationLive = DeclaredPreservation.make(
-      Effect.fn(function* () {
+    const DeclaredPreservationLive = DeclaredPreservation.layer(
+      Effect.gen(function* () {
         return {
-          model: construct(),
+          init: () => ({
+            date: new Date('2026-10-27T00:00:00.000Z'),
+            values: HashMap.make(['one', 1]),
+          }),
           view: (model, h) => {
             renderedModels.push(model)
             return h.p([], [model.date.toISOString()])
@@ -155,10 +153,13 @@ describe('Runtime Model preservation', () => {
         { Model, Message },
       ) {}
       const renderedModels: Array<Model> = []
-      const PreservedSnapshotLive = PreservedSnapshot.make(
-        Effect.fn(function* () {
+      const PreservedSnapshotLive = PreservedSnapshot.layer(
+        Effect.gen(function* () {
           return {
-            model: { maybeInspectedModel: Option.some('supported'), count: 0 },
+            init: () => ({
+              maybeInspectedModel: Option.some('supported'),
+              count: 0,
+            }),
             update: {
               ClickedUnsupported: model => ({
                 model: {

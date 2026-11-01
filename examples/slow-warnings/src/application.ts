@@ -175,18 +175,23 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         activeWorkload: 'Idle',
         nextWarningId: 1,
         warnings: [],
         patchRows: 0,
         patchRun: 0,
-      },
+      }),
 
-      stream: slowWarningReports,
+      subscriptions: {
+        slowWarningReports: {
+          dependencies: () => null,
+          stream: () => slowWarningReports,
+        },
+      },
 
       update: {
         ClickedRunUpdateWork: model => {

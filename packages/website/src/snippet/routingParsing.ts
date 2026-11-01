@@ -52,11 +52,11 @@ class Application extends Block<Application, Readonly<{ url: Url.Url }>>()(
   { Model, Message },
 ) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      // The constructor parses the starting URL...
-      model: { route: urlToApplicationRoute(url) },
+      // init parses the starting URL...
+      init: ({ url }) => ({ route: urlToApplicationRoute(url) }),
 
       update: {
         // ...and the ChangedUrl handler parses every later URL

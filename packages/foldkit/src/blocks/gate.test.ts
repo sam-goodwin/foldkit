@@ -17,10 +17,10 @@ class Reader extends Block<Reader>()('Reader', {
   Message: ReaderMessage,
 }) {}
 
-const ReaderLive = Reader.make(
-  Effect.fn(function* () {
+const ReaderLive = Reader.layer(
+  Effect.gen(function* () {
     return {
-      model: { page: 1, isLoaded: false },
+      init: () => ({ page: 1, isLoaded: false }),
       update: {
         ClickedNext: model => ({ model: { ...model, page: model.page + 1 } }),
         CompletedRead: model => ({ model: { ...model, isLoaded: true } }),
@@ -50,18 +50,16 @@ const isAllowed = (
   { _tag }: typeof ReaderMessage.Type,
 ): boolean => authority === 'Confirmed' || _tag === 'CompletedRead'
 
-const PageLive = Page.make(
-  Effect.fn(function* () {
-    const reader = yield* new Reader('reader')
-    const row = yield* Reader.each('readers')
-
+const PageLive = Page.layer(
+  Effect.gen(function* () {
     return {
-      model: { authority: 'Checking', reader, readers: [] },
+      init: () => ({
+        authority: 'Checking',
+        reader: new Reader('reader'),
+        readers: [],
+      }),
       update: {
-        ...reader.when((model, readerMessage) =>
-          isAllowed(model.authority, readerMessage),
-        ),
-        ...row.when((model, readerMessage) =>
+        ...Reader.when((model, readerMessage) =>
           isAllowed(model.authority, readerMessage),
         ),
         SucceededConfirmIdentity: model => ({
@@ -72,7 +70,10 @@ const PageLive = Page.make(
           messages: [model.reader.send(Reader.Message.ClickedNext())],
         }),
         ClickedAddReader: model => ({
-          model: { ...model, readers: Array.append(model.readers, row('a')) },
+          model: {
+            ...model,
+            readers: Array.append(model.readers, new Reader('a')),
+          },
         }),
       },
       view: (_, h) => h.div([]),
@@ -108,12 +109,12 @@ describe('Block when', () => {
     story(
       PageLive,
       message(Page.Message.ClickedAddReader()),
-      message(deliver(Reader, ['readers', 'a'], Reader.Message.ClickedNext())),
+      message(deliver(Reader, 'a', Reader.Message.ClickedNext())),
       model(page =>
         expect(Array.map(page.readers, ({ page }) => page)).toEqual([1]),
       ),
       message(Page.Message.SucceededConfirmIdentity()),
-      message(deliver(Reader, ['readers', 'a'], Reader.Message.ClickedNext())),
+      message(deliver(Reader, 'a', Reader.Message.ClickedNext())),
       model(page =>
         expect(Array.map(page.readers, ({ page }) => page)).toEqual([2]),
       ),

@@ -1,4 +1,14 @@
-import { Array, Deferred, Effect, Exit, Layer, Option, Schema } from 'effect'
+import {
+  Array,
+  Context,
+  Deferred,
+  Effect,
+  Exit,
+  Layer,
+  Option,
+  Schema,
+  Stream,
+} from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as Command from '../command/index.js'
@@ -40,11 +50,11 @@ class Report extends Block<Report>()('Report', {
 }) {}
 
 const makeReportLive = (gate: Deferred.Deferred<void>) =>
-  Report.make(
-    Effect.fn(function* () {
+  Report.layer(
+    Effect.gen(function* () {
       return {
-        model: { loads: 0 },
-        start: [Load()],
+        init: () => ({ loads: 0 }),
+        start: () => [Load()],
         update: {
           CompletedLoad: model => ({ model: { loads: model.loads + 1 } }),
         },
@@ -64,14 +74,14 @@ class Dashboard extends Block<Dashboard>()('Dashboard', {
   Message: defineMessageUnion({ ClickedOpen: {}, ClickedClose: {} }),
 }) {}
 
-const DashboardLive = Dashboard.make(
-  Effect.fn(function* () {
-    const report = yield* new Report('report')
-
+const DashboardLive = Dashboard.layer(
+  Effect.gen(function* () {
     return {
-      model: { maybeReport: Option.none() },
+      init: () => ({ maybeReport: Option.none() }),
       update: {
-        ClickedOpen: () => ({ model: { maybeReport: Option.some(report) } }),
+        ClickedOpen: () => ({
+          model: { maybeReport: Option.some(new Report('report')) },
+        }),
         ClickedClose: () => ({ model: { maybeReport: Option.none() } }),
       },
       view: (model, h) =>
@@ -148,11 +158,9 @@ describe('Block Command results', () => {
             DashboardLive.pipe(Layer.provide(makeReportLive(gate))),
           )
           const graph = Engine.makeGraph({ isSimulation: true })
-          const root = Engine.constructSync(
+          const root = Engine.constructRoot(
             graph,
             runtimeBlockOf(Dashboard),
-            [],
-            'Dashboard',
             undefined,
             context,
           )
@@ -201,10 +209,10 @@ class Toggle extends Block<Toggle>()('Toggle', {
   OutMessage: defineMessageUnion({ Opened: {}, Closed: {} }),
 }) {}
 
-const ToggleLive = Toggle.make(
-  Effect.fn(function* () {
+const ToggleLive = Toggle.layer(
+  Effect.gen(function* () {
     return {
-      model: { isOpen: false },
+      init: () => ({ isOpen: false }),
       update: {
         ClickedToggle: model => ({
           model: { isOpen: !model.isOpen },
@@ -226,17 +234,21 @@ class Panel extends Block<Panel>()('Panel', {
   }),
 }) {}
 
-const PanelLive = Panel.make(
-  Effect.fn(function* () {
-    const toggle = yield* new Toggle('toggle')
+const initPanel = () => ({
+  toggle: new Toggle('toggle'),
+  opens: 0,
+  closes: 0,
+})
 
+const PanelLive = Panel.layer(
+  Effect.gen(function* () {
     return {
-      model: { toggle, opens: 0, closes: 0 },
+      init: initPanel,
       update: {
-        ...toggle.on({
+        ...Toggle.on({
           Opened: model => ({ model: { ...model, opens: model.opens + 1 } }),
         }),
-        ...toggle.on({
+        ...Toggle.on({
           Closed: model => ({ model: { ...model, closes: model.closes + 1 } }),
         }),
       },
@@ -245,14 +257,12 @@ const PanelLive = Panel.make(
   }),
 )
 
-const ExhaustivePanelLive = Panel.make(
-  Effect.fn(function* () {
-    const toggle = yield* new Toggle('toggle')
-
+const ExhaustivePanelLive = Panel.layer(
+  Effect.gen(function* () {
     return {
-      model: { toggle, opens: 0, closes: 0 },
+      init: initPanel,
       update: {
-        ...toggle.onAll({
+        ...Toggle.onAll({
           Opened: model => ({ model: { ...model, opens: model.opens + 1 } }),
           Closed: model => ({ model: { ...model, closes: model.closes + 1 } }),
         }),
@@ -298,17 +308,281 @@ class Resource extends Block<Resource>()('Resource', {
   Model: Schema.Struct({}),
 }) {}
 
-const ResourceLive = Resource.make(
-  Effect.fn(function* (id) {
-    yield* Effect.addFinalizer(() => Effect.sync(() => released.push(id)))
-    return { model: {}, view: (_, h) => h.div([]) }
+const ResourceLive = Resource.layer(
+  Effect.gen(function* () {
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => released.push('Resource')),
+    )
+    return { init: () => ({}), view: (_, h) => h.div([]) }
   }),
 )
 
 describe('Block stories', () => {
-  it('closes instance scopes when the story ends', async () => {
+  it('releases the resources of Block Layers when the story ends', async () => {
     released.length = 0
     await Effect.runPromise(story(ResourceLive))
     expect(released).toEqual(['Resource'])
   })
+})
+
+// INSTANCE IDENTITY
+
+const TrackerMessage = defineMessageUnion({
+  ClickedIncrement: {},
+  CompletedLoad: {},
+})
+
+const LoadTracker = Command.define('LoadTracker', {
+  args: { label: Schema.String, count: Schema.Number },
+  messages: [TrackerMessage.CompletedLoad],
+})
+
+class Tracker extends Block<Tracker, { readonly label: string }>()('Tracker', {
+  Model: Schema.Struct({ label: Schema.String, count: Schema.Number }),
+  Message: TrackerMessage,
+  Command: [LoadTracker],
+}) {}
+
+const makeTrackerLive = (events: Array<string>) =>
+  Tracker.layer(
+    Effect.gen(function* () {
+      return {
+        init: ({ label }) => ({ label, count: 0 }),
+        start: model => [
+          LoadTracker({ label: model.label, count: model.count }),
+        ],
+        update: {
+          ClickedIncrement: model => ({
+            model: { ...model, count: model.count + 1 },
+          }),
+          CompletedLoad: model => ({ model }),
+        },
+        commands: {
+          LoadTracker: () => Effect.succeed(Tracker.Message.CompletedLoad()),
+        },
+        subscriptions: {
+          presence: {
+            dependencies: model => model.label,
+            stream: (label: string) =>
+              Stream.unwrap(
+                Effect.acquireRelease(
+                  Effect.sync(() => events.push(`acquired ${label}`)),
+                  () => Effect.sync(() => events.push(`released ${label}`)),
+                ).pipe(Effect.as(Stream.never)),
+              ),
+          },
+        },
+      }
+    }),
+  )
+
+class Shelf extends Block<Shelf>()('Shelf', {
+  Model: Schema.Struct({
+    maybeLeft: Schema.Option(Tracker),
+    maybeRight: Schema.Option(Tracker),
+    copies: Schema.Array(Tracker),
+  }),
+  Message: defineMessageUnion({
+    ClickedOpen: { label: Schema.String },
+    ClickedMove: {},
+    ClickedClose: {},
+    ClickedRestore: {},
+    ClickedCopy: {},
+  }),
+}) {}
+
+const ShelfLive = Shelf.layer(
+  Effect.gen(function* () {
+    let maybeClosed: Option.Option<Tracker> = Option.none()
+
+    return {
+      init: () => ({
+        maybeLeft: Option.none(),
+        maybeRight: Option.none(),
+        copies: [],
+      }),
+      update: {
+        ClickedOpen: (model, { label }) => ({
+          model: {
+            ...model,
+            maybeLeft: Option.some(new Tracker('tracker', { label })),
+          },
+        }),
+        ClickedMove: model => ({
+          model: {
+            ...model,
+            maybeLeft: Option.none(),
+            maybeRight: model.maybeLeft,
+          },
+        }),
+        ClickedClose: model => {
+          maybeClosed = model.maybeLeft
+          return { model: { ...model, maybeLeft: Option.none() } }
+        },
+        ClickedRestore: model => ({
+          model: { ...model, maybeLeft: maybeClosed },
+        }),
+        ClickedCopy: model => ({
+          model: {
+            ...model,
+            copies: [
+              new Tracker('copy', { label: 'first' }),
+              new Tracker('copy', { label: 'second' }),
+            ],
+          },
+        }),
+      },
+    }
+  }),
+)
+
+const commandSummaries = (
+  commands: ReadonlyArray<Engine.AnyCommand>,
+): ReadonlyArray<Readonly<{ name: string; args: unknown }>> =>
+  Array.map(commands, ({ name, args }) => ({ name, args }))
+
+const withShelf = (
+  run: (
+    graph: Engine.Graph,
+    root: Engine.RuntimeInstance,
+    events: Array<string>,
+  ) => Effect.Effect<void>,
+): Promise<void> =>
+  Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const events: Array<string> = []
+        const context = yield* Layer.build(
+          ShelfLive.pipe(Layer.provide(makeTrackerLive(events))),
+        )
+        const graph = Engine.makeGraph({ isSimulation: false })
+        yield* Effect.addFinalizer(() => Engine.disposeGraph(graph))
+        Deferred.doneUnsafe(
+          graph.runtimeContext,
+          Effect.succeed(Context.empty()),
+        )
+        const root = Engine.constructRoot(
+          graph,
+          runtimeBlockOf(Shelf),
+          undefined,
+          context,
+        )
+        yield* run(graph, root, events)
+      }),
+    ),
+  )
+
+const waitFor = (assertion: () => void): Effect.Effect<void> =>
+  Effect.promise(() => vi.waitFor(assertion))
+
+const settle: Effect.Effect<void> = Effect.promise(
+  () => new Promise(resolve => setTimeout(resolve, 20)),
+)
+
+describe('Block instance identity', () => {
+  it('runs init and returns start Commands for a child created in update', () =>
+    withShelf((graph, root) =>
+      Effect.sync(() => {
+        const opened = Engine.update(
+          graph,
+          root,
+          Shelf.Message.ClickedOpen({ label: 'inbox' }),
+        )
+
+        expect(Engine.resolve(opened.instance)).toEqual({
+          maybeLeft: Option.some({ label: 'inbox', count: 0 }),
+          maybeRight: Option.none(),
+          copies: [],
+        })
+        expect(commandSummaries(opened.commands)).toEqual([
+          { name: 'LoadTracker', args: { label: 'inbox', count: 0 } },
+        ])
+      }),
+    ))
+
+  it('keeps an instance running when it moves to another field of its parent', () =>
+    withShelf((graph, root, events) =>
+      Effect.gen(function* () {
+        const opened = Engine.update(
+          graph,
+          root,
+          Shelf.Message.ClickedOpen({ label: 'inbox' }),
+        )
+        yield* waitFor(() => expect(events).toEqual(['acquired inbox']))
+
+        const moved = Engine.update(
+          graph,
+          opened.instance,
+          Shelf.Message.ClickedMove(),
+        )
+        yield* settle
+
+        expect(moved.commands).toEqual([])
+        expect(events).toEqual(['acquired inbox'])
+        expect(Engine.resolve(moved.instance)).toEqual({
+          maybeLeft: Option.none(),
+          maybeRight: Option.some({ label: 'inbox', count: 0 }),
+          copies: [],
+        })
+      }),
+    ))
+
+  it('starts an instance put back in the Model with the state it holds', () =>
+    withShelf((graph, root, events) =>
+      Effect.gen(function* () {
+        const opened = Engine.update(
+          graph,
+          root,
+          Shelf.Message.ClickedOpen({ label: 'inbox' }),
+        )
+        const incremented = Engine.update(
+          graph,
+          opened.instance,
+          deliver(Tracker, 'tracker', Tracker.Message.ClickedIncrement()),
+        )
+        yield* waitFor(() => expect(events).toEqual(['acquired inbox']))
+
+        const closed = Engine.update(
+          graph,
+          incremented.instance,
+          Shelf.Message.ClickedClose(),
+        )
+        yield* waitFor(() =>
+          expect(events).toEqual(['acquired inbox', 'released inbox']),
+        )
+
+        const restored = Engine.update(
+          graph,
+          closed.instance,
+          Shelf.Message.ClickedRestore(),
+        )
+
+        expect(Engine.resolve(restored.instance)).toEqual({
+          maybeLeft: Option.some({ label: 'inbox', count: 1 }),
+          maybeRight: Option.none(),
+          copies: [],
+        })
+        expect(commandSummaries(restored.commands)).toEqual([
+          { name: 'LoadTracker', args: { label: 'inbox', count: 1 } },
+        ])
+        yield* waitFor(() =>
+          expect(events).toEqual([
+            'acquired inbox',
+            'released inbox',
+            'acquired inbox',
+          ]),
+        )
+      }),
+    ))
+
+  it('throws when a parent holds two children with the same id', () =>
+    withShelf((graph, root) =>
+      Effect.sync(() => {
+        expect(() =>
+          Engine.update(graph, root, Shelf.Message.ClickedCopy()),
+        ).toThrow(
+          'Block "Shelf" holds two children with id "copy". Ids must be unique among one parent\'s children.',
+        )
+      }),
+    ))
 })

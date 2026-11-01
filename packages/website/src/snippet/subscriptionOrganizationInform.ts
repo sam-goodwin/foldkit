@@ -10,12 +10,13 @@ export class Lobby extends Block<Lobby>()('Lobby', {
   Message: defineMessageUnion({ ClickedHelp: {}, ClickedCloseHelp: {} }),
 }) {}
 
-export const LobbyLive = Lobby.make(
-  Effect.fn(function* () {
-    const room = yield* new Room('room')
-
+export const LobbyLive = Lobby.layer(
+  Effect.gen(function* () {
     return {
-      model: { room, isHelpOpen: false },
+      init: () => ({
+        room: new Room('room', { roomId: 'general' }),
+        isHelpOpen: false,
+      }),
 
       update: {
         ClickedHelp: model => ({

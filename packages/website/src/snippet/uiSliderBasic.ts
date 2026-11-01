@@ -13,22 +13,23 @@ export class Rating extends Block<Rating>()('Rating', {
   }),
 }) {}
 
-export const RatingLive = Rating.make(
-  Effect.fn(function* () {
-    const ratingDemo = yield* new Slider.Slider('ratingDemo', {
-      id: 'rating',
-      min: 0,
-      max: 10,
-      step: 1,
-    })
-
+export const RatingLive = Rating.layer(
+  Effect.gen(function* () {
     return {
-      // Seed the value you own, snapped to the Slider's range
-      model: { ratingDemo, ratingValue: SliderSnapAndClamp(3, 0, 10, 1) },
+      init: () => ({
+        ratingDemo: new Slider.Slider('ratingDemo', {
+          id: 'rating',
+          min: 0,
+          max: 10,
+          step: 1,
+        }),
+        // Seed the value you own, snapped to the Slider's range
+        ratingValue: SliderSnapAndClamp(3, 0, 10, 1),
+      }),
 
       update: {
         // Store each new value in the field you own
-        ...ratingDemo.on({
+        ...Slider.Slider.on({
           ChangedValue: (model, { value }) => ({
             model: modifyFields(model, { ratingValue: () => value }),
           }),

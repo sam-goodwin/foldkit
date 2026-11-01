@@ -11,6 +11,7 @@ const USERNAME_INPUT_ID = 'roomPageUsername'
 const USERNAME_MAX_LENGTH = 24
 
 const Model = Schema.Struct({
+  roomId: Schema.String,
   username: Schema.String,
 })
 
@@ -47,12 +48,12 @@ export class JoinForm extends Block<JoinForm, JoinFormArgs>()('JoinForm', {
   Command: [JoinRoom, FocusRoomPageUsernameInput],
 }) {}
 
-export const JoinFormLive = JoinForm.make(
-  Effect.fn(function* (_id, { roomId }) {
+export const JoinFormLive = JoinForm.layer(
+  Effect.gen(function* () {
     const client = yield* RoomsClient
 
     return {
-      model: { username: '' },
+      init: ({ roomId }) => ({ roomId, username: '' }),
 
       update: {
         RequestedFocus: model => ({
@@ -69,7 +70,7 @@ export const JoinFormLive = JoinForm.make(
         SubmittedForm: model => ({
           model,
           commands: Array.filter(
-            [JoinRoom({ username: model.username, roomId })],
+            [JoinRoom({ username: model.username, roomId: model.roomId })],
             () => String.isNonEmpty(model.username),
           ),
         }),

@@ -16,12 +16,10 @@ export class Application extends Block<Application>()('Application', {
   Message: defineMessageUnion({ ClickedHome: {}, ClickedSettings: {} }),
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const themeMenu = yield* new ThemeMenu('themeMenu')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { page: Page.Home() },
+      init: () => ({ page: Page.Home() }),
 
       update: {
         ClickedHome: model => ({
@@ -29,7 +27,8 @@ export const ApplicationLive = Application.make(
         }),
         ClickedSettings: model => ({
           model: modifyFields(model, {
-            page: () => Page.Settings({ themeMenu }),
+            page: () =>
+              Page.Settings({ themeMenu: new ThemeMenu('themeMenu') }),
           }),
         }),
       },

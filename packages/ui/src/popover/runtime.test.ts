@@ -17,12 +17,13 @@ class PopoverSiblingRuntimeTest extends Block<PopoverSiblingRuntimeTest>()(
   },
 ) {}
 
-const PopoverSiblingRuntimeTestLive = PopoverSiblingRuntimeTest.make(
-  Effect.fn(function* () {
-    const popover = yield* new Popover('popover', { id: popoverId })
-
+const PopoverSiblingRuntimeTestLive = PopoverSiblingRuntimeTest.layer(
+  Effect.gen(function* () {
     return {
-      model: { popover, isBadgeShown: false },
+      init: () => ({
+        popover: new Popover('popover', { id: popoverId }),
+        isBadgeShown: false,
+      }),
       update: {
         ClickedToggleBadge: model => ({
           model: modifyFields(model, { isBadgeShown: isShown => !isShown }),

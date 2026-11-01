@@ -1,5 +1,15 @@
-import { Cause, Context, Crypto, Effect, Exit, Layer, Schema } from 'effect'
-import { Block, Command } from 'foldkit'
+import {
+  Cause,
+  Context,
+  Crypto,
+  Effect,
+  Exit,
+  Layer,
+  RcMap,
+  Schema,
+  Stream,
+} from 'effect'
+import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
 export interface ComputeEngine {
@@ -29,6 +39,30 @@ export const ComputeEngineLayer: Layer.Layer<
   ),
 )
 
+export class ComputeEngines extends Context.Service<
+  ComputeEngines,
+  RcMap.RcMap<string, ComputeEngine>
+>()('ComputeEngines') {}
+
+export const makeComputeEnginesLayer = <R>(
+  engineLayer: Layer.Layer<ComputeEngineService, never, R>,
+): Layer.Layer<ComputeEngines, never, R> =>
+  Layer.effect(
+    ComputeEngines,
+    RcMap.make({
+      lookup: (_engineKey: string) =>
+        Layer.build(engineLayer).pipe(
+          Effect.map(context => Context.get(context, ComputeEngineService)),
+        ),
+    }),
+  )
+
+export const ComputeEnginesLive = makeComputeEnginesLayer(ComputeEngineLayer)
+
+const Model = Schema.Struct({
+  engineKey: Schema.String,
+})
+
 const Message = defineMessageUnion({
   SucceededBootEngine: { engineId: Schema.String },
   FailedBootEngine: { reason: Schema.String },
@@ -39,62 +73,51 @@ const OutMessage = defineMessageUnion({
   FailedStart: { reason: Schema.String },
 })
 
-export const BootEngine = Command.define('BootEngine', {
-  messages: [Message.SucceededBootEngine, Message.FailedBootEngine],
-})
-
-export class Engine extends Block<
-  Engine,
-  void,
-  void,
-  Effect.Effect<ComputeEngine>
->()('Engine', {
+export class Engine extends Block<Engine>()('Engine', {
+  Model,
   Message,
   OutMessage,
-  Command: [BootEngine],
 }) {}
 
-export const makeEngineLive = <R>(
-  engineLayer: Layer.Layer<ComputeEngineService, never, R>,
-) =>
-  Engine.make(
-    Effect.fn(function* () {
-      const engineExit = yield* Layer.build(engineLayer).pipe(
-        Effect.map(context => Context.get(context, ComputeEngineService)),
-        Effect.exit,
-      )
+export const EngineLive = Engine.layer(
+  Effect.gen(function* () {
+    const engines = yield* ComputeEngines
 
-      return {
-        start: [BootEngine()],
+    return {
+      init: (_, { id }) => ({ engineKey: id }),
 
-        update: {
-          SucceededBootEngine: (model, { engineId }) => ({
-            model,
-            outMessage: Engine.OutMessage.Started({ engineId }),
-          }),
-          FailedBootEngine: (model, { reason }) => ({
-            model,
-            outMessage: Engine.OutMessage.FailedStart({ reason }),
-          }),
-        },
+      update: {
+        SucceededBootEngine: (model, { engineId }) => ({
+          model,
+          outMessage: Engine.OutMessage.Started({ engineId }),
+        }),
+        FailedBootEngine: (model, { reason }) => ({
+          model,
+          outMessage: Engine.OutMessage.FailedStart({ reason }),
+        }),
+      },
 
-        commands: {
-          BootEngine: () =>
-            Effect.succeed(
-              Exit.match(engineExit, {
-                onSuccess: ({ engineId }) =>
-                  Engine.Message.SucceededBootEngine({ engineId }),
-                onFailure: cause =>
-                  Engine.Message.FailedBootEngine({
-                    reason: String(Cause.squash(cause)),
+      subscriptions: {
+        engine: {
+          dependencies: model => model.engineKey,
+          stream: (engineKey: string) =>
+            Stream.fromEffect(
+              RcMap.get(engines, engineKey).pipe(
+                Effect.exit,
+                Effect.map(
+                  Exit.match({
+                    onSuccess: ({ engineId }) =>
+                      Engine.Message.SucceededBootEngine({ engineId }),
+                    onFailure: cause =>
+                      Engine.Message.FailedBootEngine({
+                        reason: String(Cause.squash(cause)),
+                      }),
                   }),
-              }),
-            ),
+                ),
+              ),
+            ).pipe(Stream.concat(Stream.never), Stream.scoped),
         },
-
-        expose: engineExit,
-      }
-    }),
-  )
-
-export const EngineLive = makeEngineLive(ComputeEngineLayer)
+      },
+    }
+  }),
+)

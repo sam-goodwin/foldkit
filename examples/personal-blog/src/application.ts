@@ -83,12 +83,13 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
-    const counter = yield* new Counter('counter')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { route: urlToApplicationRoute(url), counter },
+      init: ({ url }) => ({
+        route: urlToApplicationRoute(url),
+        counter: new Counter('counter'),
+      }),
 
       update: {
         ClickedLink: (model, { request }) =>

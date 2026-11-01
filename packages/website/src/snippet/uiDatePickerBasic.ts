@@ -14,7 +14,7 @@ import type {
 import { triggerId as DatePickerTriggerId } from '@foldkit/ui/datePicker'
 
 // Read `today` once at the app boundary, for example through Flags, and pass
-// it in as constructor args so the constructor stays pure
+// it in as args so `init` stays pure
 export const flags = Effect.gen(function* () {
   const today = yield* Calendar.today.local
   return { today }
@@ -209,23 +209,24 @@ const yearsView = (
     ],
   )
 
-export const DatePickerExampleLive = DatePickerExample.make(
-  Effect.fn(function* (_id, { today }) {
-    // DatePicker holds its own Calendar and Popover instances
-    const datePickerDemo = yield* new DatePicker.DatePicker('datePickerDemo', {
-      id: 'date-picker-demo',
-      today,
-      minDate: today,
-      maxDate: Calendar.addMonths(today, 3),
-    })
-
+export const DatePickerExampleLive = DatePickerExample.layer(
+  Effect.gen(function* () {
     return {
-      model: { datePickerDemo, maybeSelectedDate: Option.none() },
+      init: ({ today }) => ({
+        // DatePicker holds its own Calendar and Popover instances
+        datePickerDemo: new DatePicker.DatePicker('datePickerDemo', {
+          id: 'date-picker-demo',
+          today,
+          minDate: today,
+          maxDate: Calendar.addMonths(today, 3),
+        }),
+        maybeSelectedDate: Option.none(),
+      }),
 
       update: {
         // `SelectedDate` carries the committed date; the popover has already
         // closed. `ClearedDate` fires when the user clears the selection.
-        ...datePickerDemo.on({
+        ...DatePicker.DatePicker.on({
           SelectedDate: (model, { date }) => ({
             model: modifyFields(model, {
               maybeSelectedDate: () => Option.some(date),

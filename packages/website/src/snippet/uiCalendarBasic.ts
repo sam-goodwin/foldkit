@@ -13,7 +13,7 @@ import type {
 } from '@foldkit/ui/calendar'
 
 // Read `today` once at the app boundary, for example through Flags, and pass
-// it in as constructor args so the constructor stays pure
+// it in as args so `init` stays pure
 export const flags = Effect.gen(function* () {
   const today = yield* Calendar.today.local
   return { today }
@@ -207,23 +207,24 @@ const yearsView = (
     ],
   )
 
-export const CalendarExampleLive = CalendarExample.make(
-  Effect.fn(function* (_id, { today }) {
-    // `initialViewDate` seeds the month the calendar opens onto
-    const calendarDemo = yield* new UiCalendar.Calendar('calendarDemo', {
-      id: 'calendar-demo',
-      today,
-      initialViewDate: today,
-    })
-
+export const CalendarExampleLive = CalendarExample.layer(
+  Effect.gen(function* () {
     return {
-      model: { calendarDemo, maybeSelectedDate: Option.none() },
+      init: ({ today }) => ({
+        // `initialViewDate` seeds the month the calendar opens onto
+        calendarDemo: new UiCalendar.Calendar('calendarDemo', {
+          id: 'calendar-demo',
+          today,
+          initialViewDate: today,
+        }),
+        maybeSelectedDate: Option.none(),
+      }),
 
       update: {
         // `SelectedDate` fires when the user commits a date with a click,
         // Enter, or Space. `ChangedViewMonth` fires when navigation shifts the
         // visible month without selecting a date.
-        ...calendarDemo.on({
+        ...UiCalendar.Calendar.on({
           SelectedDate: (model, { date }) => ({
             model: modifyFields(model, {
               maybeSelectedDate: () => Option.some(date),

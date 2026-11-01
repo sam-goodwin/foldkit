@@ -258,10 +258,10 @@ export class Tooltip extends Block<Tooltip, InitConfig, ViewInputs>()(
 
 /** The Tooltip implementation. Provide it to every parent that creates a
  *  Tooltip instance. */
-export const TooltipLive = Tooltip.make(
-  Effect.fn(function* (_id, config) {
+export const TooltipLive = Tooltip.layer(
+  Effect.gen(function* () {
     return {
-      model: makeInitialModel(config),
+      init: makeInitialModel,
 
       update: {
         InformedOfShowDelayChange: updateVisibility,

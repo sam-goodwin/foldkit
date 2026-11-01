@@ -49,12 +49,15 @@ class SignupForm extends Block<SignupForm>()('SignupForm', {
   Command: [CheckEmailAvailable],
 }) {}
 
-const SignupFormLive = SignupForm.make(
-  Effect.fn(function* () {
+const SignupFormLive = SignupForm.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 
     return {
-      model: { email: NotValidated({ value: '' }), emailValidationId: 0 },
+      init: () => ({
+        email: NotValidated({ value: '' }),
+        emailValidationId: 0,
+      }),
 
       update: {
         ChangedEmail: (model, { value }) => {

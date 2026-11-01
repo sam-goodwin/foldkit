@@ -1,1 +1,1 @@
-export { subscriptions, viewportWidthChanges } from './subscription'
+export { subscriptions } from './subscription'

@@ -140,8 +140,16 @@ const resolvesToBlockClass = (
     ? isIdentifier(unwrapExpression(node))
     : Option.isSome(resolvedBlockDeclaration(node, references))
 
+/** Recognizes `new Counter(id, args)`, which creates an instance of a local
+ *  Foldkit Block class. */
+export const isBlockInstanceConstruction = (
+  node: ESTree.Node,
+  references: WeakMap<ESTree.Node, Reference> | undefined,
+): node is ESTree.NewExpression =>
+  node.type === 'NewExpression' && resolvesToBlockClass(node.callee, references)
+
 /** Recognizes `Block.method(...)` on a local Foldkit Block class, such as
- *  `Counter.make(...)` or `Counter.each(...)`. */
+ *  `Counter.layer(...)` or `Counter.on(...)`. */
 export const isBlockClassMethodCall = (
   node: unknown,
   method: string,
@@ -159,6 +167,12 @@ export const isBlockClassMethodCall = (
   )
 }
 
+const effectFunctionFactoryMethods: ReadonlySet<string> = new Set([
+  'fn',
+  'fnUntraced',
+  'gen',
+])
+
 const isEffectFunctionFactory = (
   node: ESTree.Node,
   references: WeakMap<ESTree.Node, Reference> | undefined,
@@ -169,7 +183,8 @@ const isEffectFunctionFactory = (
       const [method, extraMember] = path.members
       return (
         path.root.name === 'Effect' &&
-        (method === 'fn' || method === 'fnUntraced') &&
+        method !== undefined &&
+        effectFunctionFactoryMethods.has(method) &&
         extraMember === undefined
       )
     })
@@ -184,14 +199,15 @@ const isEffectFunctionFactory = (
     return (
       (path.source === 'effect' || path.source === 'effect/Effect') &&
       namespace === 'Effect' &&
-      (method === 'fn' || method === 'fnUntraced') &&
+      method !== undefined &&
+      effectFunctionFactoryMethods.has(method) &&
       extraMember === undefined
     )
   })
 }
 
-/** Unwraps `Effect.fn(body)`, `Effect.fn('name')(body)` and
- *  `Effect.fnUntraced(body)` to the body function. */
+/** Unwraps `Effect.gen(body)`, `Effect.fn(body)`, `Effect.fn('name')(body)`
+ *  and `Effect.fnUntraced(body)` to the body function. */
 const effectFunctionBody = (
   node: ESTree.Node,
   references: WeakMap<ESTree.Node, Reference> | undefined,
@@ -214,24 +230,24 @@ const effectFunctionBody = (
       return Option.none()
     }
 
-    return Option.flatMap(Array.head(value.arguments), argument => {
+    return Array.findFirst(value.arguments, argument => {
       const body = unwrapExpression(argument)
       return isFunctionNode(body) ? Option.some(body) : Option.none()
     })
   })
 
-/** The constructor function passed to a Block class's `make`. */
-export const blockConstructorOfMakeCall = (
+/** The constructor generator passed to a Block class's `layer`. */
+export const blockConstructorOfLayerCall = (
   call: ESTree.CallExpression,
   references: WeakMap<ESTree.Node, Reference> | undefined,
 ): Option.Option<FunctionNode> =>
-  isBlockClassMethodCall(call, 'make', references)
+  isBlockClassMethodCall(call, 'layer', references)
     ? Option.flatMap(Array.head(call.arguments), argument =>
         effectFunctionBody(argument, references),
       )
     : Option.none()
 
-const enclosingMakeCall = (
+const enclosingLayerCall = (
   node: ESTree.Node,
   references: WeakMap<ESTree.Node, Reference> | undefined,
 ): boolean => {
@@ -241,7 +257,7 @@ const enclosingMakeCall = (
   }
 
   if (isCallExpression(parent) && parent.arguments.includes(node as never)) {
-    if (isBlockClassMethodCall(parent, 'make', references)) {
+    if (isBlockClassMethodCall(parent, 'layer', references)) {
       return Option.exists(
         Array.head(parent.arguments),
         first => first === node,
@@ -253,7 +269,7 @@ const enclosingMakeCall = (
       isEffectFunctionFactory(callee, references) ||
       (isCallExpression(callee) &&
         isEffectFunctionFactory(callee.callee, references))
-    return isFactoryCall && enclosingMakeCall(parent, references)
+    return isFactoryCall && enclosingLayerCall(parent, references)
   }
 
   if (
@@ -262,18 +278,18 @@ const enclosingMakeCall = (
     parent.type === 'TSSatisfiesExpression' ||
     parent.type === 'TSNonNullExpression'
   ) {
-    return enclosingMakeCall(parent, references)
+    return enclosingLayerCall(parent, references)
   }
 
   return false
 }
 
-/** Recognizes a Block constructor: the function passed to a Block class's
- *  `make`, directly or through `Effect.fn`. */
+/** Recognizes a Block constructor: the generator passed to a Block class's
+ *  `layer` through `Effect.gen`, or a function passed directly. */
 export const isBlockConstructor = (
   fn: FunctionNode,
   references: WeakMap<ESTree.Node, Reference> | undefined,
-): boolean => enclosingMakeCall(fn, references)
+): boolean => enclosingLayerCall(fn, references)
 
 const enclosingFunction = (node: ESTree.Node): Option.Option<FunctionNode> => {
   const parent = node.parent
@@ -322,6 +338,8 @@ export const isBlockImplementationObject = (
     isBlockConstructor(fn, references),
   )
 
+const outMessageHandlerMethods: ReadonlySet<string> = new Set(['on', 'onAll'])
+
 const propertyOfValue = (
   node: ESTree.Node,
 ): Option.Option<ESTree.ObjectProperty> => {
@@ -335,7 +353,7 @@ const propertyOfValue = (
  * The property path from a Block implementation object to `node`, such as
  * `['view']`, `['update', 'ClickedSave']`, `['commands', 'Save']`, or
  * `['subscriptions', 'keys', 'stream']`. OutMessage handlers spread into
- * `update` through `instance.on({ ... })` have the path
+ * `update` through `Child.on({ ... })` or `Child.onAll({ ... })` have the path
  * `['update', 'on', 'Tag']`.
  */
 export const blockImplementationPath = (
@@ -373,7 +391,9 @@ export const blockImplementationPath = (
       isCallExpression(objectParent) &&
       objectParent.arguments.includes(object as never) &&
       isMemberExpression(objectParent.callee) &&
-      Option.contains(staticMemberName(objectParent.callee), 'on') &&
+      Option.exists(staticMemberName(objectParent.callee), name =>
+        outMessageHandlerMethods.has(name),
+      ) &&
       objectParent.parent?.type === 'SpreadElement' &&
       isObjectExpression(objectParent.parent.parent)
     ) {
@@ -404,7 +424,7 @@ export const blockImplementationPath = (
 }
 
 /** Recognizes a Block's update handler, including OutMessage handlers passed
- *  to a child instance's `on`. */
+ *  to a child Block's `on` or `onAll`. */
 export const isBlockUpdateHandler = (
   fn: ESTree.Node,
   references: WeakMap<ESTree.Node, Reference> | undefined,

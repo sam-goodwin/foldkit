@@ -21,10 +21,10 @@ class SearchPanel extends Block<SearchPanel>()('SearchPanel', {
   Mount: [FocusSearchInput],
 }) {}
 
-const SearchPanelLive = SearchPanel.make(
-  Effect.fn(function* () {
+const SearchPanelLive = SearchPanel.layer(
+  Effect.gen(function* () {
     return {
-      model: { isOpen: false },
+      init: () => ({ isOpen: false }),
 
       update: {
         ClickedOpenSearch: model => ({

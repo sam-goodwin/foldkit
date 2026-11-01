@@ -6,22 +6,26 @@ import { modifyFields } from 'foldkit/struct'
 export class Counter extends Block<Counter, Readonly<{ max: number }>>()(
   'Counter',
   {
-    Model: Schema.Struct({ count: Schema.Number }),
+    Model: Schema.Struct({
+      label: Schema.String,
+      count: Schema.Number,
+      max: Schema.Number,
+    }),
     Message: defineMessageUnion({ ClickedIncrement: {}, RequestedReset: {} }),
     OutMessage: defineMessageUnion({ ReachedMax: {} }),
   },
 ) {}
 
-export const CounterLive = Counter.make(
-  Effect.fn(function* (id, { max }) {
+export const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: ({ max }, { id }) => ({ label: id, count: 0, max }),
 
       update: {
         ClickedIncrement: model => {
           const nextModel = modifyFields(model, { count: Number.increment })
 
-          if (nextModel.count === max) {
+          if (nextModel.count === nextModel.max) {
             return {
               model: nextModel,
               outMessage: Counter.OutMessage.ReachedMax(),
@@ -38,7 +42,7 @@ export const CounterLive = Counter.make(
       view: (model, h) =>
         h.button(
           [h.OnClick(Counter.Message.ClickedIncrement())],
-          [`${id}: ${model.count}/${max}`],
+          [`${model.label}: ${model.count}/${model.max}`],
         ),
     }
   }),

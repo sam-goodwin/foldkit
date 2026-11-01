@@ -27,19 +27,20 @@ export class InvoiceTable extends Block<
   Message,
 }) {}
 
-export const InvoiceTableLive = InvoiceTable.make(
-  Effect.fn(function* (_id, { invoices }) {
-    // An ancestor element scrolls, not the list
-    const invoiceRows = yield* new InvoiceRows('invoiceRows', {
-      id: 'invoice-rows',
-      rowHeightPx: 48,
-      scrollContainer: VirtualList.ScrollContainer.Ancestor({
-        selector: '#invoice-scroll',
-      }),
-    })
-
+export const InvoiceTableLive = InvoiceTable.layer(
+  Effect.gen(function* () {
     return {
-      model: { invoices, invoiceRows },
+      init: ({ invoices }) => ({
+        invoices,
+        // An ancestor element scrolls, not the list
+        invoiceRows: new InvoiceRows('invoiceRows', {
+          id: 'invoice-rows',
+          rowHeightPx: 48,
+          scrollContainer: VirtualList.ScrollContainer.Ancestor({
+            selector: '#invoice-scroll',
+          }),
+        }),
+      }),
 
       update: {
         ClickedJumpToLastInvoice: model => ({

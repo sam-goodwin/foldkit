@@ -40,12 +40,14 @@ const CounterMessage = defineMessageUnion({
 })
 
 const SaveCount = Command.define('SaveCount', {
-  args: { count: Schema.Number },
+  args: { counterId: Schema.String, count: Schema.Number },
   messages: [CounterMessage.SucceededSaveCount, CounterMessage.FailedSaveCount],
 })
 
 class Counter extends Block<Counter, { readonly max: number }>()('Counter', {
   Model: Schema.Struct({
+    counterId: Schema.String,
+    max: Schema.Number,
     count: Schema.Number,
     maybeError: Schema.Option(Schema.String),
   }),
@@ -54,16 +56,21 @@ class Counter extends Block<Counter, { readonly max: number }>()('Counter', {
   Command: [SaveCount],
 }) {}
 
-const CounterLive = Counter.make(
-  Effect.fn(function* (id, { max }) {
+const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     const store = yield* CountStore
 
     return {
-      model: { count: 0, maybeError: Option.none() },
+      init: ({ max }, { id }) => ({
+        counterId: id,
+        max,
+        count: 0,
+        maybeError: Option.none(),
+      }),
       update: {
         ClickedIncrement: model => {
           const nextCount = Number.increment(model.count)
-          return nextCount === max
+          return nextCount === model.max
             ? {
                 model: { ...model, count: nextCount },
                 outMessage: Counter.OutMessage.ReachedMax(),
@@ -72,7 +79,9 @@ const CounterLive = Counter.make(
         },
         ClickedSave: model => ({
           model,
-          commands: [SaveCount({ count: model.count })],
+          commands: [
+            SaveCount({ counterId: model.counterId, count: model.count }),
+          ],
         }),
         RequestedReset: model => ({ model: { ...model, count: 0 } }),
         SucceededSaveCount: model => ({
@@ -84,8 +93,8 @@ const CounterLive = Counter.make(
       },
       commands: {
         SaveCount: Effect.fn(
-          function* ({ count }) {
-            yield* store.save(id, count)
+          function* ({ counterId, count }) {
+            yield* store.save(counterId, count)
             return Counter.Message.SucceededSaveCount()
           },
           Effect.catch(error =>
@@ -101,11 +110,11 @@ const CounterLive = Counter.make(
           [
             h.button(
               [h.OnClick(Counter.Message.ClickedIncrement())],
-              [`${id}: ${model.count}/${max}`],
+              [`${model.counterId}: ${model.count}/${model.max}`],
             ),
             h.button(
               [h.OnClick(Counter.Message.ClickedSave())],
-              [`Save ${id}`],
+              [`Save ${model.counterId}`],
             ),
             ...Option.toArray(
               Option.map(model.maybeError, reason =>
@@ -122,19 +131,24 @@ class LinkedCounters extends Block<LinkedCounters>()('LinkedCounters', {
   Model: Schema.Struct({ left: Counter, right: Counter }),
 }) {}
 
-const LinkedCountersLive = LinkedCounters.make(
-  Effect.fn(function* () {
-    const left = yield* new Counter('left', { max: 10 })
-    const right = yield* new Counter('right', { max: 3 })
-
+const LinkedCountersLive = LinkedCounters.layer(
+  Effect.gen(function* () {
     return {
-      model: { left, right },
+      init: () => ({
+        left: new Counter('left', { max: 10 }),
+        right: new Counter('right', { max: 3 }),
+      }),
       update: {
-        ...left.on({
-          ReachedMax: model => ({
-            model,
-            messages: [model.right.send(Counter.Message.RequestedReset())],
-          }),
+        ...Counter.on({
+          ReachedMax: (model, _, counter) =>
+            counter.id === 'left'
+              ? {
+                  model,
+                  messages: [
+                    model.right.send(Counter.Message.RequestedReset()),
+                  ],
+                }
+              : { model },
         }),
       },
       view: (model, h) => h.div([], [model.left.view(), model.right.view()]),
@@ -153,16 +167,17 @@ class CounterList extends Block<CounterList>()('CounterList', {
   }),
 }) {}
 
-const CounterListLive = CounterList.make(
-  Effect.fn(function* () {
-    const row = yield* Counter.each('rows', { max: 2 })
-
+const CounterListLive = CounterList.layer(
+  Effect.gen(function* () {
     return {
-      model: { rows: [], nextRowId: 0 },
+      init: () => ({ rows: [], nextRowId: 0 }),
       update: {
         ClickedAddRow: model => ({
           model: {
-            rows: Array.append(model.rows, row(`row-${model.nextRowId}`)),
+            rows: Array.append(
+              model.rows,
+              new Counter(`row-${model.nextRowId}`, { max: 2 }),
+            ),
             nextRowId: model.nextRowId + 1,
           },
         }),
@@ -172,7 +187,7 @@ const CounterListLive = CounterList.make(
             rows: Array.filter(model.rows, counter => counter.id !== id),
           },
         }),
-        ...row.on({
+        ...Counter.on({
           ReachedMax: (model, _, counter) => ({
             model: {
               ...model,
@@ -269,18 +284,11 @@ describe('Block', () => {
       CounterListLive.pipe(Layer.provide(CounterLive)),
       message(CounterList.Message.ClickedAddRow()),
       message(CounterList.Message.ClickedAddRow()),
-      message(
-        deliver(Counter, ['rows', 'row-1'], Counter.Message.ClickedIncrement()),
-      ),
+      message(deliver(Counter, 'row-1', Counter.Message.ClickedIncrement())),
       model(model => {
-        expect(model.rows).toEqual([
-          { count: 0, maybeError: Option.none() },
-          { count: 1, maybeError: Option.none() },
-        ])
+        expect(Array.map(model.rows, ({ count }) => count)).toEqual([0, 1])
       }),
-      message(
-        deliver(Counter, ['rows', 'row-1'], Counter.Message.ClickedIncrement()),
-      ),
+      message(deliver(Counter, 'row-1', Counter.Message.ClickedIncrement())),
       model(model => expect(model.rows).toHaveLength(1)),
       message(CounterList.Message.ClickedRemoveRow({ id: 'row-0' })),
       model(model => expect(model.rows).toEqual([])),

@@ -162,23 +162,20 @@ export class Application extends Block<Application>()('Application', {
 
 // LIVE
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const controls = yield* new Controls('controls')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         particles: [],
         nextId: 0,
         elapsedSeconds: 0,
         maybeMousePosition: Option.none(),
         isRunning: true,
-        controls,
-      },
+        controls: new Controls('controls'),
+      }),
 
-      start: Array.makeBy(INITIAL_PARTICLE_COUNT, () =>
-        GenerateAmbientParticle(),
-      ),
+      start: () =>
+        Array.makeBy(INITIAL_PARTICLE_COUNT, () => GenerateAmbientParticle()),
 
       update: {
         TickedFrame: (model, { deltaTimeMs }) => {
@@ -224,7 +221,7 @@ export const ApplicationLive = Application.make(
           }),
         }),
 
-        ...controls.on({
+        ...Controls.on({
           RequestedTogglePlay: (model: Model) => ({
             model: modifyFields(model, { isRunning: isRunning => !isRunning }),
           }),

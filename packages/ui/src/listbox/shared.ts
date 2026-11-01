@@ -72,18 +72,17 @@ export type BaseInitConfig = Readonly<{
  *  creates. */
 export const animationId = (id: string): string => `${id}-listbox`
 
-/** Creates the shared base fields for a listbox model from its constructor
- *  args and its Animation instance. */
-export const baseInit = (
-  config: BaseInitConfig,
-  animation: Animation.Animation,
-): BaseModel => ({
+/** Creates the shared base fields for a listbox model, including its
+ *  Animation instance, from its constructor args. */
+export const baseInit = (config: BaseInitConfig): BaseModel => ({
   id: config.id,
   isOpen: false,
   isAnimated: config.isAnimated ?? false,
   isModal: config.isModal ?? false,
   orientation: config.orientation ?? 'Vertical',
-  animation,
+  animation: new Animation.Animation('animation', {
+    id: animationId(config.id),
+  }),
   maybeActiveItemIndex: Option.none(),
   activationTrigger: 'Keyboard',
   searchQuery: '',
@@ -409,7 +408,6 @@ type HandlerReturn<Model, Value extends string> = Readonly<{
  *  opening, closing, activation, typeahead, and the Animation lifecycle;
  *  `selectionBehavior` and `handleSelectedItem` vary by variant. */
 export const makeUpdate = <Value extends string>(
-  animation: Animation.Animation,
   selectionBehavior: 'CloseWithFocus' | 'KeepOpen',
   handleSelectedItem: (
     model: BaseModel,
@@ -701,7 +699,7 @@ export const makeUpdate = <Value extends string>(
 
   return {
     ...handlers,
-    ...animation.on({
+    ...Animation.Animation.on({
       StartedLeaveAnimating: (model, { generation }) => ({
         model,
         commands: [

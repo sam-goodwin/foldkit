@@ -28,16 +28,16 @@ export class Application extends Block<Application>()('Application', {
   Command: [SubmitOrder],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const orders = yield* Orders
 
     return {
-      model: {
+      init: () => ({
         orderDraft: OrderDraft.make({ itemIds: [] }),
         order: OrderData.Idle(),
         route: ApplicationRoute.Checkout(),
-      },
+      }),
       update: {
         ClickedPlaceOrder: model => ({
           model: modifyFields(model, {

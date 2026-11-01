@@ -14,16 +14,16 @@ export class Settings extends Block<Settings>()('Settings', {
   Message,
 }) {}
 
-export const SettingsLive = Settings.make(
-  Effect.fn(function* () {
-    // isAnimated: true coordinates the open and close transitions
-    const dialog = yield* new Dialog.Dialog('dialog', {
-      id: 'confirm',
-      isAnimated: true,
-    })
-
+export const SettingsLive = Settings.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog },
+      init: () => ({
+        // isAnimated: true coordinates the open and close transitions
+        dialog: new Dialog.Dialog('dialog', {
+          id: 'confirm',
+          isAnimated: true,
+        }),
+      }),
 
       update: {
         ClickedOpenDialog: model => ({

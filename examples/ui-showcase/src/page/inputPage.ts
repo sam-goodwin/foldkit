@@ -21,10 +21,10 @@ export class InputPage extends Block<InputPage>()('InputPage', {
   Message,
 }) {}
 
-export const InputPageLive = InputPage.make(
-  Effect.fn(function* () {
+export const InputPageLive = InputPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { inputDemoValue: '' },
+      init: () => ({ inputDemoValue: '' }),
 
       update: {
         UpdatedInputDemoValue: (model, { value }) => ({

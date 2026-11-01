@@ -24,42 +24,45 @@ type PopoverSceneArgs = Readonly<{
   overrides?: Overrides
 }>
 
-class PopoverScene extends Block<PopoverScene, PopoverSceneArgs>()(
-  'PopoverScene',
-  { Model: Schema.Struct({ popover: Popover }) },
-) {}
+class PopoverScene extends Block<PopoverScene>()('PopoverScene', {
+  Model: Schema.Struct({ popover: Popover }),
+}) {}
 
-const PopoverSceneLive = PopoverScene.make(
-  Effect.fn(function* (_id, { contentFocus = false, overrides = {} }) {
-    const popover = yield* new Popover('popover', { id: 'test', contentFocus })
-
-    return {
-      model: { popover },
-      view: (model, h) =>
-        model.popover.view({
-          anchor: { placement: 'bottom-start' },
-          toView: ({ button, panel, backdrop, arrow, isVisible }) =>
-            h.div(
-              [],
-              [
-                h.keyed('button')('test-button', [...button]),
-                ...(isVisible
-                  ? [
-                      h.keyed('div')('test-backdrop', [...backdrop]),
-                      h.keyed('div')(
-                        'test-panel-container',
-                        [...panel],
-                        [h.keyed('div')('test-arrow', [...arrow])],
-                      ),
-                    ]
-                  : []),
-              ],
-            ),
-          ...overrides,
+const makePopoverSceneLive = ({
+  contentFocus = false,
+  overrides = {},
+}: PopoverSceneArgs) =>
+  PopoverScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({
+          popover: new Popover('popover', { id: 'test', contentFocus }),
         }),
-    }
-  }),
-).pipe(Layer.provide(PopoverLive))
+        view: (model, h) =>
+          model.popover.view({
+            anchor: { placement: 'bottom-start' },
+            toView: ({ button, panel, backdrop, arrow, isVisible }) =>
+              h.div(
+                [],
+                [
+                  h.keyed('button')('test-button', [...button]),
+                  ...(isVisible
+                    ? [
+                        h.keyed('div')('test-backdrop', [...backdrop]),
+                        h.keyed('div')(
+                          'test-panel-container',
+                          [...panel],
+                          [h.keyed('div')('test-arrow', [...arrow])],
+                        ),
+                      ]
+                    : []),
+                ],
+              ),
+            ...overrides,
+          }),
+      }
+    }),
+  ).pipe(Layer.provide(PopoverLive))
 
 const acknowledgeAnchor = Scene.Mount.resolve(
   AnchorPopover,
@@ -99,8 +102,7 @@ describe('Popover', () => {
   describe('view', () => {
     it.effect('renders button with aria-expanded false when closed', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         Scene.expect(button).toHaveAttr('aria-expanded', 'false'),
         Scene.expect(button).not.toHaveAttr('aria-controls'),
       ),
@@ -108,8 +110,7 @@ describe('Popover', () => {
 
     it.effect('renders button with aria-expanded true when open', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         openPopover,
         Scene.expect(button).toHaveAttr('aria-expanded', 'true'),
         Scene.expect(button).toHaveAttr('aria-controls', 'test-panel'),
@@ -120,8 +121,7 @@ describe('Popover', () => {
 
     it.effect('renders panel when open', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         openPopover,
         Scene.expect(panel).toExist(),
         Scene.expect(panel).toHaveAttr('tabIndex', '0'),
@@ -133,8 +133,7 @@ describe('Popover', () => {
 
     it.effect('closes when focus leaves the panel', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         openPopover,
         acknowledgeAnchor,
         acknowledgeBackdrop,
@@ -146,13 +145,12 @@ describe('Popover', () => {
     )
 
     it.effect('does not render panel when closed', () =>
-      Scene.scene(PopoverSceneLive, {}, Scene.expect(panel).toBeAbsent()),
+      Scene.scene(makePopoverSceneLive({}), Scene.expect(panel).toBeAbsent()),
     )
 
     it.effect('renders backdrop when open', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         openPopover,
         Scene.expect(backdrop).toExist(),
         acknowledgeAnchor,
@@ -162,8 +160,7 @@ describe('Popover', () => {
 
     it.effect('does not have aria-haspopup on the button', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         Scene.expect(button).toExist(),
         Scene.expect(button).not.toHaveAttr('aria-haspopup'),
       ),
@@ -171,8 +168,7 @@ describe('Popover', () => {
 
     it.effect('does not have role on the panel', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         openPopover,
         Scene.expect(panel).toExist(),
         Scene.expect(panel).not.toHaveAttr('role'),
@@ -183,8 +179,7 @@ describe('Popover', () => {
 
     it.effect('adds anchor positioning styles and hooks', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         openPopover,
         Scene.expect(panel).toHaveStyle('position', 'absolute'),
         Scene.expect(panel).toHaveStyle('margin', '0'),
@@ -198,8 +193,7 @@ describe('Popover', () => {
 
     it.effect('emits the derived id and aria-hidden on the arrow', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         openPopover,
         Scene.expect(arrow).toHaveAttr('id', 'test-arrow'),
         Scene.expect(arrow).toHaveAttr('aria-hidden', 'true'),
@@ -210,8 +204,7 @@ describe('Popover', () => {
 
     it.effect('passes the arrow id to the anchor Mount', () =>
       Scene.scene(
-        PopoverSceneLive,
-        {},
+        makePopoverSceneLive({}),
         openPopover,
         Scene.Mount.expectHas(
           AnchorPopover({
@@ -227,8 +220,7 @@ describe('Popover', () => {
 
     it.effect('passes the arrow padding to the anchor Mount when given', () =>
       Scene.scene(
-        PopoverSceneLive,
-        { overrides: { arrowPadding: 8 } },
+        makePopoverSceneLive({ overrides: { arrowPadding: 8 } }),
         openPopover,
         Scene.Mount.expectHas(
           AnchorPopover({
@@ -248,8 +240,7 @@ describe('Popover', () => {
         'renders panel without tabindex when contentFocus is enabled',
         () =>
           Scene.scene(
-            PopoverSceneLive,
-            { contentFocus: true },
+            makePopoverSceneLive({ contentFocus: true }),
             openContentFocusPopover,
             Scene.expect(panel).toExist(),
             Scene.expect(panel).not.toHaveAttr('tabIndex'),
@@ -262,8 +253,7 @@ describe('Popover', () => {
         'renders panel without a focus-leave handler when contentFocus is enabled',
         () =>
           Scene.scene(
-            PopoverSceneLive,
-            { contentFocus: true },
+            makePopoverSceneLive({ contentFocus: true }),
             openContentFocusPopover,
             Scene.expect(panel).not.toHaveHandler('focusout'),
             acknowledgeAnchor,
@@ -275,8 +265,7 @@ describe('Popover', () => {
         'keeps the panel keydown handler when contentFocus is enabled',
         () =>
           Scene.scene(
-            PopoverSceneLive,
-            { contentFocus: true },
+            makePopoverSceneLive({ contentFocus: true }),
             openContentFocusPopover,
             Scene.expect(panel).toHaveHandler('keydown'),
             acknowledgeAnchor,
@@ -290,8 +279,7 @@ describe('Popover', () => {
         'no aria-label or aria-labelledby on the button by default',
         () =>
           Scene.scene(
-            PopoverSceneLive,
-            {},
+            makePopoverSceneLive({}),
             Scene.expect(button).not.toHaveAttr('aria-label'),
             Scene.expect(button).not.toHaveAttr('aria-labelledby'),
           ),
@@ -301,8 +289,7 @@ describe('Popover', () => {
         'applies aria-label to the button when ariaLabel is provided',
         () =>
           Scene.scene(
-            PopoverSceneLive,
-            { overrides: { ariaLabel: 'Options' } },
+            makePopoverSceneLive({ overrides: { ariaLabel: 'Options' } }),
             Scene.expect(button).toHaveAttr('aria-label', 'Options'),
             Scene.expect(button).not.toHaveAttr('aria-labelledby'),
           ),
@@ -312,8 +299,9 @@ describe('Popover', () => {
         'applies aria-labelledby to the button when ariaLabelledBy is provided',
         () =>
           Scene.scene(
-            PopoverSceneLive,
-            { overrides: { ariaLabelledBy: 'options-label' } },
+            makePopoverSceneLive({
+              overrides: { ariaLabelledBy: 'options-label' },
+            }),
             Scene.expect(button).toHaveAttr('aria-labelledby', 'options-label'),
             Scene.expect(button).not.toHaveAttr('aria-label'),
           ),
@@ -323,13 +311,12 @@ describe('Popover', () => {
         'prefers aria-label over aria-labelledby when both are provided',
         () =>
           Scene.scene(
-            PopoverSceneLive,
-            {
+            makePopoverSceneLive({
               overrides: {
                 ariaLabel: 'Options',
                 ariaLabelledBy: 'options-label',
               },
-            },
+            }),
             Scene.expect(button).toHaveAttr('aria-label', 'Options'),
             Scene.expect(button).not.toHaveAttr('aria-labelledby'),
           ),

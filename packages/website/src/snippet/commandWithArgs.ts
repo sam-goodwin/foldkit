@@ -19,10 +19,10 @@ export class Application extends Block<Application>()('Application', {
   Command: [WaitBeforeReset],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: () => ({ count: 0 }),
 
       update: {
         ClickedResetAfterDelay: (model, { delayMs }) => ({

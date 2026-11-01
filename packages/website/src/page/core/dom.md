@@ -59,11 +59,11 @@ Catch a meaningful failure with `Effect.catch` and turn it into a Message. Use `
 
 ## Using Dom Streams
 
-Each Dom Stream helper returns a composable Stream. Compose it with Effect Stream operators, then return it from a Block's `stream`, a `subscriptions` entry, or a Mount handler. For a listener attached to one rendered element, a Mount declared with `Mount.defineStream` starts it when the element appears and stops it when the element leaves the view:
+Each Dom Stream helper returns a composable Stream. Compose it with Effect Stream operators, then return it from a `subscriptions` entry or a Mount handler. For a listener attached to one rendered element, a Mount declared with `Mount.defineStream` starts it when the element appears and stops it when the element leaves the view:
 
 ::Snippet{name="domMountEvent" label="Element pointer Stream owned by a Mount"}
 
-The [Subscriptions guide](/core/subscriptions) covers always-on `stream` and Model-driven `subscriptions` entries.
+The [Subscriptions guide](/core/subscriptions) covers `subscriptions` entries, both always-on and Model-driven.
 
 ### Animation Frames
 
@@ -135,7 +135,7 @@ Sequences may have any length and expire after one second unless `sequenceTimeou
 
 #### Model-Dependent Key Bindings
 
-The Stream's output type comes from each binding's `mapEvent`. Return a fixed table as the Block's `stream`, or build the table in a `subscriptions` entry from its dependencies when availability follows the Model. Derive `isEnabled` from those dependencies, as the example does for Escape. If the meaning of a key depends on the Model, dispatch a factual Message such as `PressedEscape` and make the decision in update; `mapEvent` should not read application state.
+The Stream's output type comes from each binding's `mapEvent`. Return a fixed table from a `subscriptions` entry whose dependencies never change, or build the table in a `subscriptions` entry from its dependencies when availability follows the Model. Derive `isEnabled` from those dependencies, as the example does for Escape. If the meaning of a key depends on the Model, dispatch a factual Message such as `PressedEscape` and make the decision in update; `mapEvent` should not read application state.
 
 ::Snippet{name="subscriptionKeyBindings" label="Model-dependent key bindings"}
 

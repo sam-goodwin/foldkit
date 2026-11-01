@@ -13,12 +13,12 @@ export class DeleteIssue extends Block<DeleteIssue>()('DeleteIssue', {
   Message,
 }) {}
 
-export const DeleteIssueLive = DeleteIssue.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', { id: 'delete-issue' })
-
+export const DeleteIssueLive = DeleteIssue.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog },
+      init: () => ({
+        dialog: new Dialog.Dialog('dialog', { id: 'delete-issue' }),
+      }),
 
       update: {
         ClickedConfirmDeletion: model => ({

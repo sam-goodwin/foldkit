@@ -26,10 +26,10 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { query: queryOf(url) },
+      init: ({ url }) => ({ query: queryOf(url) }),
 
       update: {
         ClickedLink: model => ({ model }),

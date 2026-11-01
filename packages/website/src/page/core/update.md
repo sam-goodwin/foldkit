@@ -2,7 +2,7 @@
 
 ## Update Defines Message Reactions {#overview}
 
-Update decides how a Block reacts to each Message. A Block's constructor returns an `update` record with one handler per Message tag. Each handler receives the current Model and the Message, and returns the next Model plus anything the Runtime should do next.
+Update decides how a Block reacts to each Message. The module a Block's Layer returns includes an `update` record with one handler per Message tag. Each handler receives the current Model and the Message, and returns the next Model plus anything the Runtime should do next.
 
 Update is pure. Given the same Model and Message, a handler returns the same result. It does not mutate state, call browser APIs, start timers, or make requests. Work like that is described by a Command, which update returns and the Runtime performs. A pure handler is direct to test: pass in the inputs and assert on the returned values.
 
@@ -74,7 +74,7 @@ The order of Commands in a result is the order they were collected. It is not an
 
 ## Handling Child OutMessages
 
-A parent handles a child's OutMessages by spreading `child.on({ ... })` into its update record. Each handler receives the parent's Model, the OutMessage, and the instance that reported it. It returns an ordinary update result for the parent, so it can return Commands, send Messages to other children, or report an OutMessage of the parent's own:
+A parent handles a child's OutMessages by spreading `Child.on({ ... })` into its update record. One entry covers every instance of that Block the parent's Model holds. Each handler receives the parent's Model, the OutMessage, and the instance that reported it. It returns an ordinary update result for the parent, so it can return Commands, send Messages to other children, or report an OutMessage of the parent's own:
 
 ::Snippet{name="updateForwardOutMessage" label="Reporting a child fact further up"}
 

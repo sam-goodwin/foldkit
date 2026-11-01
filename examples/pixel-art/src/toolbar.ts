@@ -92,30 +92,21 @@ export class Toolbar extends Block<Toolbar, void, ViewInput>()('Toolbar', {
   OutMessage,
 }) {}
 
-export const ToolbarLive = Toolbar.make(
-  Effect.fn(function* () {
-    const themeListbox = yield* new ThemeListbox('themeListbox', {
-      id: 'theme-picker',
-    })
-    const toolRadioGroup = yield* new ToolRadioGroup('toolRadioGroup', {
-      id: TOOL_RADIO_GROUP_ID,
-    })
-    const gridSizeRadioGroup = yield* new GridSizeRadioGroup(
-      'gridSizeRadioGroup',
-      { id: GRID_SIZE_RADIO_GROUP_ID },
-    )
-    const paletteRadioGroup = yield* new PaletteRadioGroup(
-      'paletteRadioGroup',
-      { id: PALETTE_RADIO_GROUP_ID },
-    )
-
+export const ToolbarLive = Toolbar.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        themeListbox,
-        toolRadioGroup,
-        gridSizeRadioGroup,
-        paletteRadioGroup,
-      },
+      init: () => ({
+        themeListbox: new ThemeListbox('themeListbox', { id: 'theme-picker' }),
+        toolRadioGroup: new ToolRadioGroup('toolRadioGroup', {
+          id: TOOL_RADIO_GROUP_ID,
+        }),
+        gridSizeRadioGroup: new GridSizeRadioGroup('gridSizeRadioGroup', {
+          id: GRID_SIZE_RADIO_GROUP_ID,
+        }),
+        paletteRadioGroup: new PaletteRadioGroup('paletteRadioGroup', {
+          id: PALETTE_RADIO_GROUP_ID,
+        }),
+      }),
 
       update: {
         ToggledMirrorHorizontal: model => ({
@@ -133,21 +124,21 @@ export const ToolbarLive = Toolbar.make(
           outMessage: OutMessage.ClickedClear(),
         }),
 
-        ...toolRadioGroup.on({
+        ...ToolRadioGroup.on({
           Selected: (model, { value }) => ({
             model,
             outMessage: OutMessage.SelectedTool({ tool: value }),
           }),
         }),
 
-        ...gridSizeRadioGroup.on({
+        ...GridSizeRadioGroup.on({
           Selected: (model, { value }) => ({
             model,
             outMessage: OutMessage.SelectedGridSize({ size: Number(value) }),
           }),
         }),
 
-        ...paletteRadioGroup.on({
+        ...PaletteRadioGroup.on({
           Selected: (model, { value }) =>
             Option.match(decodePaletteIndex(Number(value)), {
               onNone: () => ({ model }),
@@ -158,7 +149,7 @@ export const ToolbarLive = Toolbar.make(
             }),
         }),
 
-        ...themeListbox.on({
+        ...ThemeListbox.on({
           Selected: (model, { value }) => ({
             model,
             outMessage: OutMessage.SelectedPaletteTheme({

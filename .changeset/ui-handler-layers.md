@@ -2,7 +2,7 @@
 '@foldkit/ui': minor
 ---
 
-Every stateful Foldkit UI component is a Block. A parent creates an instance in its constructor, holds it in its Model, provides the component's Layer, renders it with `model.x.view(input)`, sends it Messages with `model.x.send(...)` under `messages`, and handles its OutMessages with `.on`. The `init`, `update`, `view`, `Model`, `Message`, `OutMessage`, `subscriptions`, and Command exports of each component are replaced by the Block class, and a parent no longer needs a `Got*Message` wrapper, `Update.foldChild`, or `h.submodel`. The component's Commands, Mounts, and Subscriptions run from its Layer, so the parent does not register them.
+Every stateful Foldkit UI component is a Block. A parent creates an instance with `new`, holds it in its Model, provides the component's Layer, renders it with `model.x.view(input)`, sends it Messages with `model.x.send(...)` under `messages`, and handles its OutMessages with the class's `on`, such as `Dialog.Dialog.on({ ... })`. The `init`, `update`, `view`, `Model`, `Message`, `OutMessage`, `subscriptions`, and Command exports of each component are replaced by the Block class, and a parent no longer needs a `Got*Message` wrapper, `Update.foldChild`, or `h.submodel`. The component's Commands, Mounts, and Subscriptions run from its Layer, so the parent does not register them.
 
 Components with a fixed Item type export a class and its Layer: `Animation.Animation` and `AnimationLive`, `Calendar.Calendar`, `DatePicker.DatePicker`, `Dialog.Dialog`, `DragAndDrop.DragAndDrop`, `FileDrop.FileDrop`, `HoverIntent.HoverIntent`, `Popover.Popover`, `Slider.Slider`, and `Tooltip.Tooltip`, each with a matching `*Live` Layer. Generic components have a `makeBlock` factory that returns a class with its Layer attached as `Live`. Call it once at module scope and name the result for its domain. `Combobox.create`, `Combobox.Multi.create`, `Listbox.create`, `Listbox.Multi.create`, `Menu.create`, `RadioGroup.create`, `Tabs.create`, and `VirtualList.create` become `makeBlock`, and `Toast.make` becomes `Toast.makeBlock`. Existing type parameters and Schema arguments are unchanged.
 
@@ -43,14 +43,12 @@ export class Toolbar extends Block<Toolbar>()('Toolbar', {
   Model: Schema.Struct({ menu: ActionMenu }),
 }) {}
 
-export const ToolbarLive = Toolbar.make(
-  Effect.fn(function* () {
-    const menu = yield* new ActionMenu('menu', { id: 'actions' })
-
+export const ToolbarLive = Toolbar.layer(
+  Effect.gen(function* () {
     return {
-      model: { menu },
+      init: () => ({ menu: new ActionMenu('menu', { id: 'actions' }) }),
       update: {
-        ...menu.on({
+        ...ActionMenu.on({
           Selected: (model, { value }) => ({ model }),
         }),
       },
@@ -64,7 +62,7 @@ Drive a component by sending one of its `Requested*` Messages. The free function
 
 `Dialog.boot` is removed. To show a Dialog when its parent starts, return a `start` Command from the parent and send `RequestedOpen` from the handler for that Command's result Message.
 
-For a dynamic collection of components, create a factory with `yield* Dialog.Dialog.each('dialogs', args)` and store the instances it returns in a Model field such as `Schema.Array(Dialog.Dialog)`. Each instance needs a stable key. `factory.on({...})` handles OutMessages from every instance in the collection.
+For a dynamic collection of components, store instances in a Model field such as `Schema.Array(Dialog.Dialog)` and create each one in the update handler that adds it, as in `new Dialog.Dialog(dialogId, { id: dialogId })`. Give each instance a stable id that is unique among the parent's children. One `Dialog.Dialog.on({ ... })` entry handles OutMessages from every Dialog the parent's Model holds, and its third argument is the instance that reported.
 
 Animation's view input takes a `toView: () => Html` renderer instead of `content: Html`. The renderer runs as the parent, so event handlers inside it produce the parent's Messages.
 
@@ -110,7 +108,7 @@ model.dragAndDrop.view({
 })
 ```
 
-Toast is a class built by `Toast.makeBlock(PayloadSchema)`. Show an entry by sending `AppToast.requestShow({ payload })` to the instance, and provide `AppToast.Live`. The Toast Story helper moves from the module-level `Toast.test.drainEntry` to the class: `AppToast.test.drainEntry({ path, entryId })`, where `path` is the Toast instance's path from the Story root, as in `Block.deliver`. It drains a freshly shown, non-sticky entry through enter, auto-dismiss, and exit, and `version` defaults to `0`. Resolve individual Commands after hover, swipe, or manual dismissal has advanced the entry.
+Toast is a class built by `Toast.makeBlock(PayloadSchema)`. Show an entry by sending `AppToast.requestShow({ payload })` to the instance, and provide `AppToast.Live`. The Toast Story helper moves from the module-level `Toast.test.drainEntry` to the class: `AppToast.test.drainEntry({ path, entryId })`, where `path` is the Toast instance's path from the Story root as in `Block.deliver`: its parents' ids followed by its own id. It drains a freshly shown, non-sticky entry through enter, auto-dismiss, and exit, and `version` defaults to `0`. Resolve individual Commands after hover, swipe, or manual dismissal has advanced the entry.
 
 ```ts
 // Before

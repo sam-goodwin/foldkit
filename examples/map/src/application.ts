@@ -115,14 +115,13 @@ export class Application extends Block<Application>()('Application', {
   Mount: [MountMap],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const maps = yield* MapRegistry
-    const sidebar = yield* new Sidebar('sidebar')
 
     return {
-      model: {
-        sidebar,
+      init: () => ({
+        sidebar: new Sidebar('sidebar'),
         locations: featuredLocations,
         maybeMapHostId: Option.none(),
         maybeMapError: Option.none(),
@@ -130,10 +129,10 @@ export const ApplicationLive = Application.make(
         maybeSelectedLocationId: Option.none(),
         maybeUserLocation: Option.none(),
         geolocateState: GeolocateState.Idle(),
-      },
+      }),
 
       update: {
-        ...sidebar.on({
+        ...Sidebar.on({
           SelectedLocation: (model, { locationId }) =>
             Option.match(findLocation(model, locationId), {
               onNone: () => ({ model }),

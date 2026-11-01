@@ -1,11 +1,21 @@
 import { Option } from 'effect'
-import { Command, click, expect, given, role, scene, text } from 'foldkit/scene'
+import { Block } from 'foldkit'
+import {
+  Command,
+  click,
+  deliver,
+  expect,
+  given,
+  role,
+  scene,
+  text,
+} from 'foldkit/scene'
 
 import { describe, it } from '@effect/vitest'
 
 import { Compute, EngineState, Message } from './application'
 import { application } from './application.fixture'
-import { BootEngine, Engine } from './engine'
+import { Engine } from './engine'
 
 describe('view', () => {
   it.effect('initial view shows the engine off with a Start button', () =>
@@ -28,9 +38,12 @@ describe('view', () => {
         expect(text('Booting engine...')).toExist(),
         expect(role('button', { name: 'Stop engine' })).toExist(),
         expect(role('button', { name: 'Start engine' })).toBeAbsent(),
-        Command.resolve(
-          BootEngine,
-          Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+        deliver(
+          Block.deliver(
+            Engine,
+            'computeEngine',
+            Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+          ),
         ),
       ),
   )
@@ -40,7 +53,7 @@ describe('view', () => {
       application,
       given({
         engine: EngineState.Ready({ engineId: 'engine-1' }),
-        maybeComputeEngine: Option.none(),
+        maybeComputeEngine: Option.some(new Engine('computeEngine')),
         computeCount: 2,
         maybeSquareResult: Option.none(),
       }),
@@ -57,16 +70,20 @@ describe('view', () => {
     () =>
       scene(
         application,
-        given({
-          engine: EngineState.Ready({ engineId: 'engine-1' }),
-          maybeComputeEngine: Option.none(),
-          computeCount: 2,
-          maybeSquareResult: Option.none(),
-        }),
+        click(role('button', { name: 'Start engine' })),
+        deliver(
+          Block.deliver(
+            Engine,
+            'computeEngine',
+            Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+          ),
+        ),
         click(role('button', { name: 'Compute next square' })),
-        Command.expectExact(Compute({ value: 3 })),
-        Command.resolve(Compute, Message.SucceededCompute({ result: 9 })),
-        expect(text('Square result: 9')).toExist(),
+        Command.resolve(Compute, Message.SucceededCompute({ result: 1 })),
+        click(role('button', { name: 'Compute next square' })),
+        Command.expectExact(Compute({ engineKey: 'computeEngine', value: 2 })),
+        Command.resolve(Compute, Message.SucceededCompute({ result: 4 })),
+        expect(text('Square result: 4')).toExist(),
       ),
   )
 
@@ -75,9 +92,12 @@ describe('view', () => {
       application,
       click(role('button', { name: 'Start engine' })),
       expect(text('Booting engine...')).toExist(),
-      Command.resolve(
-        BootEngine,
-        Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+      deliver(
+        Block.deliver(
+          Engine,
+          'computeEngine',
+          Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+        ),
       ),
       expect(text('Engine ready: engine-1')).toExist(),
       expect(
@@ -92,11 +112,14 @@ describe('view', () => {
     scene(
       application,
       click(role('button', { name: 'Start engine' })),
-      Command.resolve(
-        BootEngine,
-        Engine.Message.FailedBootEngine({
-          reason: 'Error: crypto unavailable',
-        }),
+      deliver(
+        Block.deliver(
+          Engine,
+          'computeEngine',
+          Engine.Message.FailedBootEngine({
+            reason: 'Error: crypto unavailable',
+          }),
+        ),
       ),
       expect(text('Engine failed: Error: crypto unavailable')).toExist(),
       expect(role('button', { name: 'Start engine' })).toExist(),

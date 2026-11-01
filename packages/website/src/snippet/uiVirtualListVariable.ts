@@ -28,15 +28,16 @@ export class ActivityFeed extends Block<ActivityFeed>()('ActivityFeed', {
   Message,
 }) {}
 
-export const ActivityFeedLive = ActivityFeed.make(
-  Effect.fn(function* () {
-    const activityList = yield* new ActivityList('activityList', {
-      id: 'activity-list',
-      rowHeightPx: 56,
-    })
-
+export const ActivityFeedLive = ActivityFeed.layer(
+  Effect.gen(function* () {
     return {
-      model: { activityList, activities: [] },
+      init: () => ({
+        activityList: new ActivityList('activityList', {
+          id: 'activity-list',
+          rowHeightPx: 56,
+        }),
+        activities: [],
+      }),
 
       update: {
         // Programmatic scrolling works the same with variable heights. The

@@ -186,16 +186,15 @@ export const mounts = [AnchorPopover, PortalPopoverBackdrop]
 
 // UPDATE
 
-const makeInitialModel = (
-  args: PopoverArgs,
-  animation: Animation.Animation,
-): Model => ({
+const makeInitialModel = (args: PopoverArgs): Model => ({
   id: args.id,
   isOpen: false,
   isAnimated: args.isAnimated ?? false,
   isModal: args.isModal ?? false,
   contentFocus: args.contentFocus ?? false,
-  animation,
+  animation: new Animation.Animation('animation', {
+    id: `${args.id}-panel`,
+  }),
   maybeLastButtonPointerType: Option.none(),
 })
 
@@ -390,14 +389,10 @@ export class Popover extends Block<Popover, PopoverArgs, ViewInput>()(
 
 /** Implements {@link Popover}. Provides `AnimationLive` to the Animation
  *  instance it creates. */
-export const PopoverLive = Popover.make(
-  Effect.fn(function* (_instanceId, args) {
-    const animation = yield* new Animation.Animation('animation', {
-      id: `${args.id}-panel`,
-    })
-
+export const PopoverLive = Popover.layer(
+  Effect.gen(function* () {
     return {
-      model: makeInitialModel(args, animation),
+      init: makeInitialModel,
 
       update: {
         RequestedOpen: openPopover,
@@ -431,7 +426,7 @@ export const PopoverLive = Popover.make(
         SuppressedSpaceScroll: model => ({ model }),
         CompletedAnchorPopover: model => ({ model }),
         CompletedPortalPopoverBackdrop: model => ({ model }),
-        ...animation.on({
+        ...Animation.Animation.on({
           StartedLeaveAnimating: (model, { generation }) => ({
             model,
             commands: [

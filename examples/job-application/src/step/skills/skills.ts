@@ -40,13 +40,14 @@ export class Skills extends Block<Skills, SkillsArgs>()('Skills', {
   Command: [GenerateSkillsEntryId],
 }) {}
 
-export const SkillsLive = Skills.make(
-  Effect.fn(function* (_id, { initialEntryId }) {
+export const SkillsLive = Skills.layer(
+  Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
-    const entry = yield* SkillsEntry.each('entries')
 
     return {
-      model: { entries: [entry(initialEntryId)] },
+      init: ({ initialEntryId }) => ({
+        entries: [new SkillsEntry(initialEntryId)],
+      }),
 
       update: {
         ClickedAddEntry: model => ({
@@ -56,7 +57,7 @@ export const SkillsLive = Skills.make(
 
         SucceededGenerateSkillsEntryId: (model, { entryId }) => ({
           model: modifyFields(model, {
-            entries: Array.append(entry(entryId)),
+            entries: Array.append(new SkillsEntry(entryId)),
           }),
         }),
 
@@ -75,7 +76,7 @@ export const SkillsLive = Skills.make(
           ),
         }),
 
-        ...entry.on({
+        ...SkillsEntry.on({
           Removed: (model, _, removed) => ({
             model: modifyFields(model, {
               entries: Array.filter(({ id }) => id !== removed.id),

@@ -2,6 +2,7 @@ import { Option } from 'effect'
 import {
   Command,
   click,
+  deliver,
   expect,
   given,
   placeholder,
@@ -19,8 +20,12 @@ import {
   SendMessage,
   TimestampSentMessage,
 } from './application'
-import { application, zonedAt } from './application.fixture'
-import { ChatSocket, WaitForOpen } from './chatSocket'
+import {
+  application,
+  deliverToChatSocket,
+  zonedAt,
+} from './application.fixture'
+import { ChatSocket } from './chatSocket'
 
 const idleModel = {
   connection: ConnectionState.Disconnected(),
@@ -47,7 +52,7 @@ describe('view', () => {
       application,
       click(role('button', { name: 'Connect to Chat' })),
       expect(text('Connecting...')).toExist(),
-      Command.resolve(WaitForOpen, ChatSocket.Message.SucceededWaitForOpen()),
+      deliver(deliverToChatSocket(ChatSocket.Message.OpenedSocket())),
     ),
   )
 
@@ -55,7 +60,7 @@ describe('view', () => {
     scene(
       application,
       click(role('button', { name: 'Connect to Chat' })),
-      Command.resolve(WaitForOpen, ChatSocket.Message.SucceededWaitForOpen()),
+      deliver(deliverToChatSocket(ChatSocket.Message.OpenedSocket())),
       expect(placeholder('Type a message...')).toExist(),
       expect(role('button', { name: 'Send' })).toBeDisabled(),
       type(placeholder('Type a message...'), 'hi'),
@@ -100,11 +105,13 @@ describe('view', () => {
         application,
         click(role('button', { name: 'Connect to Chat' })),
         expect(text('Connecting...')).toExist(),
-        Command.resolve(WaitForOpen, ChatSocket.Message.SucceededWaitForOpen()),
+        deliver(deliverToChatSocket(ChatSocket.Message.OpenedSocket())),
         expect(placeholder('Type a message...')).toExist(),
         type(placeholder('Type a message...'), 'hi there'),
         click(role('button', { name: 'Send' })),
-        Command.expectExact(SendMessage({ text: 'hi there' })),
+        Command.expectExact(
+          SendMessage({ socketKey: 'chatSocket', text: 'hi there' }),
+        ),
         Command.resolve(
           SendMessage,
           Message.SucceededSendMessage({ text: 'hi there' }),
@@ -127,9 +134,10 @@ describe('view', () => {
       application,
       click(role('button', { name: 'Connect to Chat' })),
       expect(text('Connecting...')).toExist(),
-      Command.resolve(
-        WaitForOpen,
-        ChatSocket.Message.FailedWaitForOpen({ error: 'Connection timeout' }),
+      deliver(
+        deliverToChatSocket(
+          ChatSocket.Message.FailedOpenSocket({ error: 'Connection timeout' }),
+        ),
       ),
       expect(text('Connection Error')).toExist(),
       expect(text('Connection timeout')).toExist(),

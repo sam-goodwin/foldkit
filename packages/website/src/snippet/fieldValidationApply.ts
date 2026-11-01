@@ -29,10 +29,10 @@ class SignupForm extends Block<SignupForm>()('SignupForm', {
   Message,
 }) {}
 
-const SignupFormLive = SignupForm.make(
-  Effect.fn(function* () {
+const SignupFormLive = SignupForm.layer(
+  Effect.gen(function* () {
     return {
-      model: { username: NotValidated({ value: '' }) },
+      init: () => ({ username: NotValidated({ value: '' }) }),
 
       update: {
         ChangedUsername: (model, { value }) => ({

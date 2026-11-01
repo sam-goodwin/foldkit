@@ -13,12 +13,12 @@ class MenuTriggerClickTest extends Block<MenuTriggerClickTest>()(
   { Model: Schema.Struct({ menu: TestMenu }) },
 ) {}
 
-const MenuTriggerClickTestLive = MenuTriggerClickTest.make(
-  Effect.fn(function* () {
-    const menu = yield* new TestMenu('menu', { id: 'actions', isModal: true })
-
+const MenuTriggerClickTestLive = MenuTriggerClickTest.layer(
+  Effect.gen(function* () {
     return {
-      model: { menu },
+      init: () => ({
+        menu: new TestMenu('menu', { id: 'actions', isModal: true }),
+      }),
       view: (model, h) =>
         h.div(
           [],

@@ -17,12 +17,12 @@ class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const toast = yield* new Notifications('toast', { id: 'notifications' })
-
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { toast },
+      init: () => ({
+        toast: new Notifications('toast', { id: 'notifications' }),
+      }),
       update: {
         ClickedSave: model => ({
           model,

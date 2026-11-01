@@ -108,40 +108,31 @@ export class Shop extends Block<Shop>()('Shop', {
   Message: ShopMessage,
 }) {}
 
-export const ShopLive = Shop.make(
-  Effect.fn(function* () {
-    const picker = yield* new Picker('picker', { id: 'picker' })
-    const encodedPicker = yield* new EncodedPicker('encodedPicker', {
-      id: 'encoded-picker',
-    })
-    const listPicker = yield* new ListPicker('listPicker', {
-      id: 'list-picker',
-    })
-    const menu = yield* new MenuPicker('menu', { id: 'menu' })
-    const notifications = yield* new Notifications('notifications', {
-      id: 'notifications',
-    })
-    const slider = yield* new RootSlider('slider', {
-      id: 'volume',
-      min: 0,
-      max: 100,
-      step: 1,
-    })
-    const tooltip = yield* new Tooltip.Tooltip('tooltip', { id: 'help' })
-    const board = yield* new DragAndDrop.DragAndDrop('board', {})
-
+export const ShopLive = Shop.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        picker,
-        encodedPicker,
-        listPicker,
-        menu,
-        notifications,
-        slider,
-        tooltip,
-        board,
+      init: () => ({
+        picker: new Picker('picker', { id: 'picker' }),
+        encodedPicker: new EncodedPicker('encodedPicker', {
+          id: 'encoded-picker',
+        }),
+        listPicker: new ListPicker('listPicker', {
+          id: 'list-picker',
+        }),
+        menu: new MenuPicker('menu', { id: 'menu' }),
+        notifications: new Notifications('notifications', {
+          id: 'notifications',
+        }),
+        slider: new RootSlider('slider', {
+          id: 'volume',
+          min: 0,
+          max: 100,
+          step: 1,
+        }),
+        tooltip: new Tooltip.Tooltip('tooltip', { id: 'help' }),
+        board: new DragAndDrop.DragAndDrop('board', {}),
         selections: [],
-      },
+      }),
       update: {
         ClickedShowSaved: model => ({
           model,
@@ -155,17 +146,17 @@ export const ShopLive = Shop.make(
           model,
           messages: [model.menu.send(MenuPicker.Message.RequestedOpen())],
         }),
-        ...picker.on({
+        ...Picker.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { selections: Array.append(value) }),
           }),
         }),
-        ...listPicker.on({
+        ...ListPicker.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { selections: Array.append(value) }),
           }),
         }),
-        ...menu.on({
+        ...MenuPicker.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { selections: Array.append(value) }),
           }),

@@ -64,18 +64,18 @@ export class PostsTab extends Block<PostsTab>()('PostsTab', {
   Command: [FetchPosts, FetchPostDetail],
 }) {}
 
-export const PostsTabLive = PostsTab.make(
-  Effect.fn(function* () {
+export const PostsTabLive = PostsTab.layer(
+  Effect.gen(function* () {
     const clock = yield* Clock.Clock
 
     return {
-      model: {
+      init: () => ({
         posts: PostsData.Loading(),
         postDetailById: HashMap.empty(),
         maybeSelectedPostId: Option.none(),
-      },
+      }),
 
-      start: [FetchPosts()],
+      start: () => [FetchPosts()],
 
       update: {
         RequestedLoadIfMissing: model =>

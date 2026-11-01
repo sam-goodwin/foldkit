@@ -21,40 +21,39 @@ import {
   type ViewInput,
 } from './issueBoard'
 
-class IssueBoardScene extends Block<IssueBoardScene, Partial<ViewInput>>()(
-  'IssueBoardScene',
-  { Model: Schema.Struct({ issueBoard: IssueBoard }), OutMessage },
-) {}
+class IssueBoardScene extends Block<IssueBoardScene>()('IssueBoardScene', {
+  Model: Schema.Struct({ issueBoard: IssueBoard }),
+  OutMessage,
+}) {}
 
-const IssueBoardSceneLive = IssueBoardScene.make(
-  Effect.fn(function* (_id, viewInputOverrides) {
-    const issueBoard = yield* new IssueBoard('issueBoard')
+const makeIssueBoardSceneLive = (viewInputOverrides: Partial<ViewInput>) => {
+  const viewInput: ViewInput = {
+    issues: initialWorkspace.issues,
+    members: initialWorkspace.members,
+    issueHrefs: { 'issue-101': '/issues/issue-101' },
+    ...viewInputOverrides,
+  }
 
-    const viewInput: ViewInput = {
-      issues: initialWorkspace.issues,
-      members: initialWorkspace.members,
-      issueHrefs: { 'issue-101': '/issues/issue-101' },
-      ...viewInputOverrides,
-    }
-
-    return {
-      model: { issueBoard },
-      update: issueBoard.on({
-        RequestedCreation: (model, outMessage) => ({ model, outMessage }),
-        RequestedMove: (model, outMessage) => ({ model, outMessage }),
-      }),
-      view: (model, h) => h.div([], [model.issueBoard.view(viewInput)]),
-    }
-  }),
-).pipe(Layer.provide(IssueBoardLive))
+  return IssueBoardScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ issueBoard: new IssueBoard('issueBoard') }),
+        update: IssueBoard.on({
+          RequestedCreation: (model, outMessage) => ({ model, outMessage }),
+          RequestedMove: (model, outMessage) => ({ model, outMessage }),
+        }),
+        view: (model, h) => h.div([], [model.issueBoard.view(viewInput)]),
+      }
+    }),
+  ).pipe(Layer.provide(IssueBoardLive))
+}
 
 describe('Issue Board view', () => {
   it.effect('renders all statuses and exposes accessible drag handles', () => {
     const handle = role('button', { name: 'Drag WSP-101' })
 
     return scene(
-      IssueBoardSceneLive,
-      {},
+      makeIssueBoardSceneLive({}),
       expect(role('heading', { name: 'Backlog' })).toExist(),
       expect(role('heading', { name: 'Todo' })).toExist(),
       expect(role('heading', { name: 'In progress' })).toExist(),
@@ -65,8 +64,7 @@ describe('Issue Board view', () => {
 
   it.effect('renders a native issue title link when its href is supplied', () =>
     scene(
-      IssueBoardSceneLive,
-      {},
+      makeIssueBoardSceneLive({}),
       expect(role('link', { name: 'Build a faster command menu' })).toHaveAttr(
         'href',
         '/issues/issue-101',
@@ -77,8 +75,7 @@ describe('Issue Board view', () => {
 
   it.effect('renders non-link title content when its href is absent', () =>
     scene(
-      IssueBoardSceneLive,
-      { issueHrefs: {} },
+      makeIssueBoardSceneLive({ issueHrefs: {} }),
       expect(
         role('link', { name: 'Build a faster command menu' }),
       ).not.toExist(),
@@ -88,8 +85,7 @@ describe('Issue Board view', () => {
 
   it.effect('requests issue creation in the selected column', () =>
     scene(
-      IssueBoardSceneLive,
-      {},
+      makeIssueBoardSceneLive({}),
       click(role('button', { name: 'Create issue in In progress' })),
       expectOutMessage(OutMessage.RequestedCreation({ status: 'InProgress' })),
     ),
@@ -103,8 +99,7 @@ describe('Issue Board view', () => {
     const title = text('Build a faster command menu')
 
     return scene(
-      IssueBoardSceneLive,
-      { isSaving: true },
+      makeIssueBoardSceneLive({ isSaving: true }),
       expect(
         role('link', { name: 'Build a faster command menu' }),
       ).not.toExist(),

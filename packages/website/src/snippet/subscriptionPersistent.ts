@@ -1,4 +1,4 @@
-import { Duration, Effect, Number, Schema, Stream } from 'effect'
+import { Duration, Effect, Function, Number, Schema, Stream } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -8,15 +8,21 @@ export class Heartbeat extends Block<Heartbeat>()('Heartbeat', {
   Message: defineMessageUnion({ TickedHeartbeat: {} }),
 }) {}
 
-export const HeartbeatLive = Heartbeat.make(
-  Effect.fn(function* () {
+export const HeartbeatLive = Heartbeat.layer(
+  Effect.gen(function* () {
     return {
-      model: { beatCount: 0 },
+      init: () => ({ beatCount: 0 }),
 
-      stream: Stream.tick(Duration.seconds(30)).pipe(
-        Stream.drop(1),
-        Stream.as(Heartbeat.Message.TickedHeartbeat()),
-      ),
+      subscriptions: {
+        heartbeatTicks: {
+          dependencies: Function.constVoid,
+          stream: () =>
+            Stream.tick(Duration.seconds(30)).pipe(
+              Stream.drop(1),
+              Stream.as(Heartbeat.Message.TickedHeartbeat()),
+            ),
+        },
+      },
 
       update: {
         TickedHeartbeat: model => ({

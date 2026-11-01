@@ -117,7 +117,7 @@ describe('example detail initial sources', () => {
         message(
           Block.deliver(
             SourceFileTabs,
-            ['sourceFileTabs', 'counter'],
+            'counter',
             SourceFileTabs.Message.FocusedTab({ index: 2 }),
           ),
         ),

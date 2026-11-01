@@ -21,19 +21,20 @@ export class Application extends Block<
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
-    const settings = yield* new Settings('settings')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { settings, previewTheme: flags.savedTheme },
+      init: ({ flags }) => ({
+        settings: new Settings('settings'),
+        previewTheme: flags.savedTheme,
+      }),
 
       update: {
         ClickedResetSettings: model => ({
           model,
           messages: [model.settings.send(Settings.Message.RequestedReset())],
         }),
-        ...settings.on({
+        ...Settings.on({
           ChangedTheme: (model, { theme }) => ({
             model: modifyFields(model, { previewTheme: () => theme }),
           }),

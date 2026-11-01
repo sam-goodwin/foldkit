@@ -34,12 +34,12 @@ export class Application extends Block<Application>()('Application', {
   Command: [Search],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 
     return {
-      model: { queryInput: '', searchResults: SearchResultsData.Idle() },
+      init: () => ({ queryInput: '', searchResults: SearchResultsData.Idle() }),
       update: {
         UpdatedQuery: (model, { query }) => ({
           model: modifyFields(model, {

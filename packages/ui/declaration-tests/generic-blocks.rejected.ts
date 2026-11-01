@@ -42,26 +42,26 @@ class Orchard extends Block<Orchard>()('Orchard', {
   Message: defineMessageUnion({ ClickedFruit: {} }),
 }) {}
 
-export const OrchardLive = Orchard.make(
-  Effect.fn(function* () {
-    const menu = yield* new MenuPicker('menu', { id: 'menu' })
-    const picker = yield* new Picker('picker', { id: 'picker' })
+// @ts-expect-error Menu constructor args require the DOM id.
+export const missingIdMenu = new MenuPicker('missingId', {})
 
-    // @ts-expect-error Menu constructor args require the DOM id.
-    yield* new MenuPicker('missingId', {})
-
+export const OrchardLive = Orchard.layer(
+  Effect.gen(function* () {
     return {
-      model: { menu, picker },
+      init: () => ({
+        menu: new MenuPicker('menu', { id: 'menu' }),
+        picker: new Picker('picker', { id: 'picker' }),
+      }),
       update: {
         ClickedFruit: model => ({ model }),
-        ...menu.on({
+        ...MenuPicker.on({
           Selected: (model, { value }) => {
             // @ts-expect-error Parent OutMessage handlers preserve the generic Menu payload.
             const wrong: 'Banana' = value
             return { model: wrong === 'Banana' ? model : model }
           },
         }),
-        ...picker.on({
+        ...Picker.on({
           // @ts-expect-error Parent OutMessage handlers accept only declared OutMessage tags.
           Opened: model => ({ model }),
         }),

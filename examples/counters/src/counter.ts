@@ -19,10 +19,10 @@ export class Counter extends Block<Counter>()('Counter', {
   Message,
 }) {}
 
-export const CounterLive = Counter.make(
-  Effect.fn(function* () {
+export const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: () => ({ count: 0 }),
 
       update: {
         ClickedDecrement: model => ({

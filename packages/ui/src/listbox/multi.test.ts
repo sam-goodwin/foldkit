@@ -40,26 +40,25 @@ const initialModel = (config: InitConfig): Model => {
   return model
 }
 
-class ListboxScene extends Block<ListboxScene, ViewInputs<string>>()(
-  'ListboxScene',
-  { Model: Schema.Struct({ listbox: TestListbox }), OutMessage },
-) {}
+class ListboxScene extends Block<ListboxScene>()('ListboxScene', {
+  Model: Schema.Struct({ listbox: TestListbox }),
+  OutMessage,
+}) {}
 
-const ListboxSceneLive = ListboxScene.make(
-  Effect.fn(function* (_id, viewInputs) {
-    const listbox = yield* new TestListbox('listbox', testConfig)
-
-    return {
-      model: { listbox },
-      update: {
-        ...listbox.on({
-          Selected: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-      view: model => model.listbox.view(viewInputs),
-    }
-  }),
-).pipe(Layer.provide(TestListbox.Live))
+const makeListboxSceneLive = (viewInputs: ViewInputs<string>) =>
+  ListboxScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ listbox: new TestListbox('listbox', testConfig) }),
+        update: {
+          ...TestListbox.on({
+            Selected: (model, outMessage) => ({ model, outMessage }),
+          }),
+        },
+        view: model => model.listbox.view(viewInputs),
+      }
+    }),
+  ).pipe(Layer.provide(TestListbox.Live))
 
 const acknowledgeAnchor = Scene.Mount.resolve(
   AnchorListbox,
@@ -213,8 +212,7 @@ describe('Listbox.Multi', () => {
     describe('aria-multiselectable', () => {
       it.effect('items container has aria-multiselectable', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: openMultiModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-items-container"]')).toHaveAttr(
@@ -234,8 +232,7 @@ describe('Listbox.Multi', () => {
 
       it.effect('emits aria-readonly alongside aria-multiselectable', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true }),
+          makeListboxSceneLive(sceneView({ isReadOnly: true })),
           Scene.given({ listbox: openMultiModel() }),
           Scene.expect(itemsContainer).toHaveAttr(
             'aria-multiselectable',
@@ -252,8 +249,9 @@ describe('Listbox.Multi', () => {
         'drops the item click handler so membership cannot be toggled',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ isReadOnly: true, selectedValues: ['Apple'] }),
+            makeListboxSceneLive(
+              sceneView({ isReadOnly: true, selectedValues: ['Apple'] }),
+            ),
             Scene.given({ listbox: openMultiModel() }),
             Scene.expect(item(0)).not.toHaveHandler('click'),
             Scene.expect(item(1)).not.toHaveHandler('click'),
@@ -266,8 +264,7 @@ describe('Listbox.Multi', () => {
 
       it.effect('does not commit the active item on Enter', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true }),
+          makeListboxSceneLive(sceneView({ isReadOnly: true })),
           Scene.given({ listbox: openMultiModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -284,8 +281,7 @@ describe('Listbox.Multi', () => {
         'no aria-label or aria-labelledby on the trigger by default',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView(),
+            makeListboxSceneLive(sceneView()),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               const button = Scene.find(html, '[key="test-button"]')
@@ -299,8 +295,7 @@ describe('Listbox.Multi', () => {
         'applies aria-label to the trigger when ariaLabel is provided',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ ariaLabel: 'Fruit' }),
+            makeListboxSceneLive(sceneView({ ariaLabel: 'Fruit' })),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               const button = Scene.find(html, '[key="test-button"]')
@@ -314,8 +309,7 @@ describe('Listbox.Multi', () => {
         'applies aria-labelledby to the trigger when ariaLabelledBy is provided',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ ariaLabelledBy: 'fruit-label' }),
+            makeListboxSceneLive(sceneView({ ariaLabelledBy: 'fruit-label' })),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               const button = Scene.find(html, '[key="test-button"]')
@@ -329,11 +323,12 @@ describe('Listbox.Multi', () => {
         'prefers aria-label over aria-labelledby when both are provided',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({
-              ariaLabel: 'Fruit',
-              ariaLabelledBy: 'fruit-label',
-            }),
+            makeListboxSceneLive(
+              sceneView({
+                ariaLabel: 'Fruit',
+                ariaLabelledBy: 'fruit-label',
+              }),
+            ),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               const button = Scene.find(html, '[key="test-button"]')
@@ -351,8 +346,9 @@ describe('Listbox.Multi', () => {
     describe('multiple data-selected', () => {
       it.effect('multiple items have data-selected', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ selectedValues: ['Apple', 'Banana'] }),
+          makeListboxSceneLive(
+            sceneView({ selectedValues: ['Apple', 'Banana'] }),
+          ),
           Scene.given({ listbox: openMultiModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-item-0"]')).toHaveAttr(
@@ -373,11 +369,12 @@ describe('Listbox.Multi', () => {
     describe('form integration', () => {
       it.effect('renders multiple hidden inputs for multi-select', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({
-            name: 'fruit',
-            selectedValues: ['Apple', 'Banana'],
-          }),
+          makeListboxSceneLive(
+            sceneView({
+              name: 'fruit',
+              selectedValues: ['Apple', 'Banana'],
+            }),
+          ),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             const inputs = Scene.findAll(html, 'input[type="hidden"]')
@@ -390,8 +387,7 @@ describe('Listbox.Multi', () => {
 
       it.effect('renders empty hidden input when no items selected', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ name: 'fruit' }),
+          makeListboxSceneLive(sceneView({ name: 'fruit' })),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             const inputs = Scene.findAll(html, 'input[type="hidden"]')

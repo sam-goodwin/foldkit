@@ -8,12 +8,12 @@ export class SaveButton extends Block<SaveButton>()('SaveButton', {
   Model: Schema.Struct({ tooltip: Tooltip.Tooltip }),
 }) {}
 
-export const SaveButtonLive = SaveButton.make(
-  Effect.fn(function* () {
-    const tooltip = yield* new Tooltip.Tooltip('tooltip', { id: 'save-button' })
-
+export const SaveButtonLive = SaveButton.layer(
+  Effect.gen(function* () {
     return {
-      model: { tooltip },
+      init: () => ({
+        tooltip: new Tooltip.Tooltip('tooltip', { id: 'save-button' }),
+      }),
 
       // The tooltip describes the trigger but does not name it, so give an
       // icon-only trigger an accessible name with `ariaLabel`

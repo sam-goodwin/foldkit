@@ -164,31 +164,32 @@ export class Application extends Block<Application>()('Application', {
   Command: [GenerateApplePosition],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const snake = createSnake(INITIAL_POSITION)
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        snake,
+      init: () => ({
+        snake: createSnake(INITIAL_POSITION),
         apple: { x: 15, y: 15 },
         direction: INITIAL_DIRECTION,
         nextDirection: INITIAL_DIRECTION,
         gameState: 'NotStarted',
         points: 0,
         highScore: 0,
-      },
-
-      start: [GenerateApplePosition({ snake })],
-
-      stream: Dom.streamFromEventFilterMapPreventDefault({
-        target: document,
-        type: 'keydown',
-        filterMapEvent: keyboardEvent =>
-          Option.some(Message.PressedKey({ key: keyboardEvent.key })),
       }),
 
+      start: model => [GenerateApplePosition({ snake: model.snake })],
+
       subscriptions: {
+        keyPresses: {
+          dependencies: () => null,
+          stream: () =>
+            Dom.streamFromEventFilterMapPreventDefault({
+              target: document,
+              type: 'keydown',
+              filterMapEvent: keyboardEvent =>
+                Option.some(Message.PressedKey({ key: keyboardEvent.key })),
+            }),
+        },
         gameClockTicks: {
           dependencies: model => ({
             isPlaying: model.gameState === 'Playing',

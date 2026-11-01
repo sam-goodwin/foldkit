@@ -28,26 +28,21 @@ export class CalendarPage extends Block<
   Readonly<{ today: CalendarDate }>
 >()('CalendarPage', { Model }) {}
 
-export const CalendarPageLive = CalendarPage.make(
-  Effect.fn(function* (_id, { today }) {
-    const calendarBasicDemo = yield* new Calendar.Calendar(
-      'calendarBasicDemo',
-      {
-        id: 'calendar-basic-demo',
-        today,
-        minDate: FoldkitCalendar.subtractYears(today, 1),
-        maxDate: FoldkitCalendar.addYears(today, 1),
-      },
-    )
-
+export const CalendarPageLive = CalendarPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        calendarBasicDemo,
+      init: ({ today }) => ({
+        calendarBasicDemo: new Calendar.Calendar('calendarBasicDemo', {
+          id: 'calendar-basic-demo',
+          today,
+          minDate: FoldkitCalendar.subtractYears(today, 1),
+          maxDate: FoldkitCalendar.addYears(today, 1),
+        }),
         maybeCalendarBasicDemoSelectedDate: Option.none(),
-      },
+      }),
 
       update: {
-        ...calendarBasicDemo.on({
+        ...Calendar.Calendar.on({
           SelectedDate: (model, { date }) => ({
             model: modifyFields(model, {
               maybeCalendarBasicDemoSelectedDate: () => Option.some(date),

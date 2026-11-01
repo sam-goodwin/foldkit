@@ -56,29 +56,28 @@ const animationMessage = (message: typeof Animation.Message.Type) =>
 const makeListboxScene = <Item, Value extends string>(
   SceneListbox: ListboxClass<Item, Value>,
 ) => {
-  class ListboxScene extends Block<ListboxScene, ViewInputs<Item, Value>>()(
-    'ListboxScene',
-    { Model: Schema.Struct({ listbox: SceneListbox }), OutMessage },
-  ) {}
+  class ListboxScene extends Block<ListboxScene>()('ListboxScene', {
+    Model: Schema.Struct({ listbox: SceneListbox }),
+    OutMessage,
+  }) {}
 
-  return ListboxScene.make(
-    Effect.fn(function* (_id, viewInputs) {
-      const listbox = yield* new SceneListbox('listbox', testConfig)
-
-      return {
-        model: { listbox },
-        update: {
-          ...listbox.on({
-            Selected: (model, outMessage) => ({ model, outMessage }),
-          }),
-        },
-        view: model => model.listbox.view(viewInputs),
-      }
-    }),
-  ).pipe(Layer.provide(SceneListbox.Live))
+  return (viewInputs: ViewInputs<Item, Value>) =>
+    ListboxScene.layer(
+      Effect.gen(function* () {
+        return {
+          init: () => ({ listbox: new SceneListbox('listbox', testConfig) }),
+          update: {
+            ...SceneListbox.on({
+              Selected: (model, outMessage) => ({ model, outMessage }),
+            }),
+          },
+          view: model => model.listbox.view(viewInputs),
+        }
+      }),
+    ).pipe(Layer.provide(SceneListbox.Live))
 }
 
-const ListboxSceneLive = makeListboxScene(TestListbox)
+const makeListboxSceneLive = makeListboxScene(TestListbox)
 
 const acknowledgeAnchor = Scene.Mount.resolve(
   AnchorListbox,
@@ -1724,8 +1723,7 @@ describe('Listbox', () => {
     describe('ARIA', () => {
       it.effect('only points at the items panel while it is rendered', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: closedModel() }),
           Scene.expect(Scene.selector('[key="test-button"]')).not.toHaveAttr(
             'aria-controls',
@@ -1742,8 +1740,7 @@ describe('Listbox', () => {
 
       it.effect('keeps the items panel out of the Tab order', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: openModel() }),
           Scene.expect(Scene.selector('#test-items')).toHaveAttr(
             'tabIndex',
@@ -1756,8 +1753,7 @@ describe('Listbox', () => {
 
       it.effect('button has aria-haspopup="listbox"', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-button"]')).toHaveAttr(
@@ -1772,8 +1768,7 @@ describe('Listbox', () => {
 
       it.effect('items container has role="listbox"', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-items-container"]')).toHaveAttr(
@@ -1788,8 +1783,7 @@ describe('Listbox', () => {
 
       it.effect('items have role="option"', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-item-0"]')).toHaveAttr(
@@ -1808,8 +1802,9 @@ describe('Listbox', () => {
 
       it.effect('selected item has aria-selected="true"', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ maybeSelectedValue: Option.some('Apple') }),
+          makeListboxSceneLive(
+            sceneView({ maybeSelectedValue: Option.some('Apple') }),
+          ),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-item-0"]')).toHaveAttr(
@@ -1824,8 +1819,9 @@ describe('Listbox', () => {
 
       it.effect('non-selected items have aria-selected="false"', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ maybeSelectedValue: Option.some('Apple') }),
+          makeListboxSceneLive(
+            sceneView({ maybeSelectedValue: Option.some('Apple') }),
+          ),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-item-1"]')).toHaveAttr(
@@ -1840,8 +1836,9 @@ describe('Listbox', () => {
 
       it.effect('data-selected attribute on selected item', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ maybeSelectedValue: Option.some('Banana') }),
+          makeListboxSceneLive(
+            sceneView({ maybeSelectedValue: Option.some('Banana') }),
+          ),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-item-0"]')).not.toHaveAttr(
@@ -1859,8 +1856,7 @@ describe('Listbox', () => {
 
       it.effect('items container has no aria-multiselectable', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(
@@ -1882,8 +1878,7 @@ describe('Listbox', () => {
         'emits aria-readonly and data-readonly on the items container, and data-readonly on the button and every item',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ isReadOnly: true }),
+            makeListboxSceneLive(sceneView({ isReadOnly: true })),
             Scene.given({ listbox: openModel() }),
             Scene.expect(itemsContainer).toHaveAttr('aria-readonly', 'true'),
             Scene.expect(itemsContainer).toHaveAttr('data-readonly', ''),
@@ -1897,8 +1892,9 @@ describe('Listbox', () => {
 
       it.effect('emits data-readonly on the wrapper', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true, className: 'test-wrapper' }),
+          makeListboxSceneLive(
+            sceneView({ isReadOnly: true, className: 'test-wrapper' }),
+          ),
           Scene.given({ listbox: openModel() }),
           Scene.expect(Scene.selector('.test-wrapper')).toHaveAttr(
             'data-readonly',
@@ -1911,8 +1907,7 @@ describe('Listbox', () => {
 
       it.effect('emits no read-only attributes by default', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: openModel() }),
           Scene.expect(itemsContainer).not.toHaveAttr('aria-readonly'),
           Scene.expect(itemsContainer).not.toHaveAttr('data-readonly'),
@@ -1925,14 +1920,15 @@ describe('Listbox', () => {
 
       it.effect('passes isReadOnly to itemToConfig', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({
-            isReadOnly: true,
-            itemToConfig: (_item, context) => ({
-              content: null,
-              className: context.isReadOnly ? 'is-read-only' : 'is-editable',
+          makeListboxSceneLive(
+            sceneView({
+              isReadOnly: true,
+              itemToConfig: (_item, context) => ({
+                content: null,
+                className: context.isReadOnly ? 'is-read-only' : 'is-editable',
+              }),
             }),
-          }),
+          ),
           Scene.given({ listbox: openModel() }),
           Scene.expect(item(0)).toHaveClass('is-read-only'),
           acknowledgeAnchor,
@@ -1944,8 +1940,9 @@ describe('Listbox', () => {
         'emits both aria-readonly/data-readonly and aria-disabled/data-disabled when set together',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ isReadOnly: true, isDisabled: true }),
+            makeListboxSceneLive(
+              sceneView({ isReadOnly: true, isDisabled: true }),
+            ),
             Scene.given({ listbox: openModel() }),
             Scene.expect(itemsContainer).toHaveAttr('aria-readonly', 'true'),
             Scene.expect(button).toHaveAttr('data-readonly', ''),
@@ -1962,8 +1959,7 @@ describe('Listbox', () => {
         'drops the item click handler while keeping the keydown handler',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ isReadOnly: true }),
+            makeListboxSceneLive(sceneView({ isReadOnly: true })),
             Scene.given({ listbox: openModel() }),
             Scene.expect(item(0)).not.toHaveHandler('click'),
             Scene.expect(item(0)).toHaveHandler('pointerleave'),
@@ -1977,8 +1973,7 @@ describe('Listbox', () => {
 
       it.effect('does not commit the active item on Enter', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true }),
+          makeListboxSceneLive(sceneView({ isReadOnly: true })),
           Scene.given({ listbox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -1991,8 +1986,7 @@ describe('Listbox', () => {
 
       it.effect('does not commit the active item on Space', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true }),
+          makeListboxSceneLive(sceneView({ isReadOnly: true })),
           Scene.given({ listbox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -2005,11 +1999,12 @@ describe('Listbox', () => {
 
       it.effect('runs typeahead on Space while a search query is pending', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({
-            isReadOnly: true,
-            items: ['Apple', 'Banana', 'B Team'],
-          }),
+          makeListboxSceneLive(
+            sceneView({
+              isReadOnly: true,
+              items: ['Apple', 'Banana', 'B Team'],
+            }),
+          ),
           Scene.given({ listbox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -2036,8 +2031,7 @@ describe('Listbox', () => {
 
       it.effect('keeps arrow, Home, and End navigation live', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true }),
+          makeListboxSceneLive(sceneView({ isReadOnly: true })),
           Scene.given({ listbox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -2067,11 +2061,12 @@ describe('Listbox', () => {
         'moves the active item off the selection without changing it',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({
-              isReadOnly: true,
-              maybeSelectedValue: Option.some('Apple'),
-            }),
+            makeListboxSceneLive(
+              sceneView({
+                isReadOnly: true,
+                maybeSelectedValue: Option.some('Apple'),
+              }),
+            ),
             Scene.given({ listbox: openModel() }),
             acknowledgeAnchor,
             acknowledgeBackdrop,
@@ -2096,8 +2091,7 @@ describe('Listbox', () => {
 
       it.effect('consumes Enter on the active item without committing', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true }),
+          makeListboxSceneLive(sceneView({ isReadOnly: true })),
           Scene.given({ listbox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -2110,8 +2104,7 @@ describe('Listbox', () => {
 
       it.effect('consumes Space on the active item without committing', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true }),
+          makeListboxSceneLive(sceneView({ isReadOnly: true })),
           Scene.given({ listbox: openModel() }),
           acknowledgeAnchor,
           acknowledgeBackdrop,
@@ -2124,8 +2117,7 @@ describe('Listbox', () => {
 
       it.effect('still opens from the button and closes on Escape', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isReadOnly: true }),
+          makeListboxSceneLive(sceneView({ isReadOnly: true })),
           Scene.given({ listbox: closedModel() }),
           Scene.click(button),
           Scene.Command.resolve(
@@ -2149,8 +2141,7 @@ describe('Listbox', () => {
     describe('form integration', () => {
       it.effect('renders hidden input when name is provided', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ name: 'fruit' }),
+          makeListboxSceneLive(sceneView({ name: 'fruit' })),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             const hiddenInput = Scene.find(html, 'input[type="hidden"]')
@@ -2162,11 +2153,12 @@ describe('Listbox', () => {
 
       it.effect('hidden input value matches selected item', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({
-            name: 'fruit',
-            maybeSelectedValue: Option.some('Apple'),
-          }),
+          makeListboxSceneLive(
+            sceneView({
+              name: 'fruit',
+              maybeSelectedValue: Option.some('Apple'),
+            }),
+          ),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, 'input[type="hidden"]')).toHaveAttr(
@@ -2179,8 +2171,7 @@ describe('Listbox', () => {
 
       it.effect('no hidden input when name is not provided', () =>
         scene(
-          ListboxSceneLive,
-          sceneView(),
+          makeListboxSceneLive(sceneView()),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, 'input[type="hidden"]')).toBeAbsent()
@@ -2192,8 +2183,7 @@ describe('Listbox', () => {
         'no value attribute on hidden input when nothing selected',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ name: 'fruit' }),
+            makeListboxSceneLive(sceneView({ name: 'fruit' })),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               expect(Scene.find(html, 'input[type="hidden"]')).not.toHaveAttr(
@@ -2209,8 +2199,7 @@ describe('Listbox', () => {
         'no aria-label or aria-labelledby on the trigger by default',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView(),
+            makeListboxSceneLive(sceneView()),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               const button = Scene.find(html, '[key="test-button"]')
@@ -2224,8 +2213,7 @@ describe('Listbox', () => {
         'applies aria-label to the trigger when ariaLabel is provided',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ ariaLabel: 'Fruit' }),
+            makeListboxSceneLive(sceneView({ ariaLabel: 'Fruit' })),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               const button = Scene.find(html, '[key="test-button"]')
@@ -2239,8 +2227,7 @@ describe('Listbox', () => {
         'applies aria-labelledby to the trigger when ariaLabelledBy is provided',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ ariaLabelledBy: 'fruit-label' }),
+            makeListboxSceneLive(sceneView({ ariaLabelledBy: 'fruit-label' })),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               const button = Scene.find(html, '[key="test-button"]')
@@ -2254,11 +2241,12 @@ describe('Listbox', () => {
         'prefers aria-label over aria-labelledby when both are provided',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({
-              ariaLabel: 'Fruit',
-              ariaLabelledBy: 'fruit-label',
-            }),
+            makeListboxSceneLive(
+              sceneView({
+                ariaLabel: 'Fruit',
+                ariaLabelledBy: 'fruit-label',
+              }),
+            ),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               const button = Scene.find(html, '[key="test-button"]')
@@ -2281,14 +2269,15 @@ describe('Listbox', () => {
             Parameters<ViewInputs<string>['itemToConfig']>[1]
           > = []
           return scene(
-            ListboxSceneLive,
-            sceneView({
-              maybeSelectedValue: Option.some('Apple'),
-              itemToConfig: (_item, context) => {
-                contexts.push(context)
-                return { content: null }
-              },
-            }),
+            makeListboxSceneLive(
+              sceneView({
+                maybeSelectedValue: Option.some('Apple'),
+                itemToConfig: (_item, context) => {
+                  contexts.push(context)
+                  return { content: null }
+                },
+              }),
+            ),
             Scene.given({ listbox: openModel() }),
             Scene.tap(() => {
               expect(contexts[0]?.isSelected).toBe(true)
@@ -2306,14 +2295,15 @@ describe('Listbox', () => {
             Parameters<ViewInputs<string>['itemToConfig']>[1]
           > = []
           return scene(
-            ListboxSceneLive,
-            sceneView({
-              maybeSelectedValue: Option.some('Apple'),
-              itemToConfig: (_item, context) => {
-                contexts.push(context)
-                return { content: null }
-              },
-            }),
+            makeListboxSceneLive(
+              sceneView({
+                maybeSelectedValue: Option.some('Apple'),
+                itemToConfig: (_item, context) => {
+                  contexts.push(context)
+                  return { content: null }
+                },
+              }),
+            ),
             Scene.given({ listbox: openModel() }),
             Scene.tap(() => {
               expect(contexts[1]?.isSelected).toBe(false)
@@ -2330,10 +2320,11 @@ describe('Listbox', () => {
         'adds absolute positioning, initial visibility hidden, and hooks when anchor is provided',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({
-              anchor: { placement: 'bottom-start' as const },
-            }),
+            makeListboxSceneLive(
+              sceneView({
+                anchor: { placement: 'bottom-start' as const },
+              }),
+            ),
             Scene.given({ listbox: openModel() }),
             Scene.tap(({ html }) => {
               const itemsContainer = Scene.find(
@@ -2355,8 +2346,7 @@ describe('Listbox', () => {
         'applies anchor positioning by default when anchor is absent',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView(),
+            makeListboxSceneLive(sceneView()),
             Scene.given({ listbox: openModel() }),
             Scene.tap(({ html }) => {
               const itemsContainer = Scene.find(
@@ -2380,8 +2370,7 @@ describe('Listbox', () => {
         'items container has aria-orientation="vertical" by default',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView(),
+            makeListboxSceneLive(sceneView()),
             Scene.given({ listbox: openModel() }),
             Scene.tap(({ html }) => {
               expect(
@@ -2400,8 +2389,7 @@ describe('Listbox', () => {
             orientation: () => 'Horizontal',
           })
           return scene(
-            ListboxSceneLive,
-            sceneView(),
+            makeListboxSceneLive(sceneView()),
             Scene.given({ listbox: model }),
             Scene.tap(({ html }) => {
               expect(
@@ -2418,8 +2406,7 @@ describe('Listbox', () => {
     describe('whole-listbox disabled', () => {
       it.effect('wrapper has data-disabled when isDisabled is true', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isDisabled: true }),
+          makeListboxSceneLive(sceneView({ isDisabled: true })),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(html.data?.attrs?.['data-disabled']).toBe('')
@@ -2431,8 +2418,7 @@ describe('Listbox', () => {
         'wrapper does not have data-disabled when isDisabled is false',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView(),
+            makeListboxSceneLive(sceneView()),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               expect(html.data?.attrs?.['data-disabled']).toBeUndefined()
@@ -2442,8 +2428,7 @@ describe('Listbox', () => {
 
       it.effect('button has aria-disabled when isDisabled is true', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isDisabled: true }),
+          makeListboxSceneLive(sceneView({ isDisabled: true })),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-button"]')).toHaveAttr(
@@ -2460,8 +2445,7 @@ describe('Listbox', () => {
 
       it.effect('button has no event handlers when isDisabled is true', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isDisabled: true }),
+          makeListboxSceneLive(sceneView({ isDisabled: true })),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             const button = Scene.find(html, '[key="test-button"]')
@@ -2475,8 +2459,7 @@ describe('Listbox', () => {
     describe('invalid state', () => {
       it.effect('wrapper has data-invalid when isInvalid is true', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isInvalid: true }),
+          makeListboxSceneLive(sceneView({ isInvalid: true })),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(html.data?.attrs?.['data-invalid']).toBe('')
@@ -2488,8 +2471,7 @@ describe('Listbox', () => {
         'wrapper does not have data-invalid when isInvalid is false',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView(),
+            makeListboxSceneLive(sceneView()),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               expect(html.data?.attrs?.['data-invalid']).toBeUndefined()
@@ -2499,8 +2481,7 @@ describe('Listbox', () => {
 
       it.effect('button has data-invalid when isInvalid is true', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ isInvalid: true }),
+          makeListboxSceneLive(sceneView({ isInvalid: true })),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-button"]')).toHaveAttr(
@@ -2515,8 +2496,7 @@ describe('Listbox', () => {
     describe('form prop', () => {
       it.effect('hidden input has form attribute when form is provided', () =>
         scene(
-          ListboxSceneLive,
-          sceneView({ name: 'fruit', form: 'my-form' }),
+          makeListboxSceneLive(sceneView({ name: 'fruit', form: 'my-form' })),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, 'input[type="hidden"]')).toHaveAttr(
@@ -2531,8 +2511,7 @@ describe('Listbox', () => {
         'hidden input has no form attribute when form is not provided',
         () =>
           scene(
-            ListboxSceneLive,
-            sceneView({ name: 'fruit' }),
+            makeListboxSceneLive(sceneView({ name: 'fruit' })),
             Scene.given({ listbox: closedModel() }),
             Scene.tap(({ html }) => {
               expect(Scene.find(html, 'input[type="hidden"]')).not.toHaveAttr(
@@ -2551,7 +2530,7 @@ describe('Listbox', () => {
         { id: '3', name: 'Charlie' },
       ]
 
-      const PersonListboxSceneLive =
+      const makePersonListboxSceneLive =
         makeListboxScene(makeBlock<Person, string>())
 
       const personSceneView = (
@@ -2570,8 +2549,7 @@ describe('Listbox', () => {
 
       it.effect('items have click handlers with object items', () =>
         scene(
-          PersonListboxSceneLive,
-          personSceneView(),
+          makePersonListboxSceneLive(personSceneView()),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-item-0"]')).toHaveHandler(
@@ -2585,8 +2563,9 @@ describe('Listbox', () => {
 
       it.effect('selected item matches by itemToValue', () =>
         scene(
-          PersonListboxSceneLive,
-          personSceneView({ maybeSelectedValue: Option.some('2') }),
+          makePersonListboxSceneLive(
+            personSceneView({ maybeSelectedValue: Option.some('2') }),
+          ),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-item-1"]')).toHaveAttr(
@@ -2605,8 +2584,9 @@ describe('Listbox', () => {
 
       it.effect('non-selected item has aria-selected false', () =>
         scene(
-          PersonListboxSceneLive,
-          personSceneView({ maybeSelectedValue: Option.some('2') }),
+          makePersonListboxSceneLive(
+            personSceneView({ maybeSelectedValue: Option.some('2') }),
+          ),
           Scene.given({ listbox: openModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, '[key="test-item-0"]')).toHaveAttr(
@@ -2624,11 +2604,12 @@ describe('Listbox', () => {
 
       it.effect('hidden input uses itemToValue for value', () =>
         scene(
-          PersonListboxSceneLive,
-          personSceneView({
-            name: 'person',
-            maybeSelectedValue: Option.some('1'),
-          }),
+          makePersonListboxSceneLive(
+            personSceneView({
+              name: 'person',
+              maybeSelectedValue: Option.some('1'),
+            }),
+          ),
           Scene.given({ listbox: closedModel() }),
           Scene.tap(({ html }) => {
             expect(Scene.find(html, 'input[type="hidden"]')).toHaveAttr(

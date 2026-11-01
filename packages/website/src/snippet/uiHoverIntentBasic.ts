@@ -14,16 +14,16 @@ export class MoreInformation extends Block<MoreInformation>()(
   },
 ) {}
 
-export const MoreInformationLive = MoreInformation.make(
-  Effect.fn(function* () {
-    // This behavior primitive owns no DOM id
-    const hoverIntent = yield* new HoverIntent.HoverIntent('hoverIntent', {
-      openDelay: 200,
-      closeDelay: 300,
-    })
-
+export const MoreInformationLive = MoreInformation.layer(
+  Effect.gen(function* () {
     return {
-      model: { hoverIntent },
+      init: () => ({
+        // This behavior primitive owns no DOM id
+        hoverIntent: new HoverIntent.HoverIntent('hoverIntent', {
+          openDelay: 200,
+          closeDelay: 300,
+        }),
+      }),
 
       // Spread each attribute bundle onto the element it names. HoverIntent
       // owns the interaction; this view owns the markup, semantics,

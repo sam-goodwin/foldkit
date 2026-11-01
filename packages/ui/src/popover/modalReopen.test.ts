@@ -14,15 +14,15 @@ class PopoverModalReopenTest extends Block<PopoverModalReopenTest>()(
   },
 ) {}
 
-const PopoverModalReopenTestLive = PopoverModalReopenTest.make(
-  Effect.fn(function* () {
-    const popover = yield* new Popover('popover', {
-      id: POPOVER_ID,
-      isModal: true,
-    })
-
+const PopoverModalReopenTestLive = PopoverModalReopenTest.layer(
+  Effect.gen(function* () {
     return {
-      model: { popover },
+      init: () => ({
+        popover: new Popover('popover', {
+          id: POPOVER_ID,
+          isModal: true,
+        }),
+      }),
       view: (model, h) =>
         h.main(
           [h.Id('page')],

@@ -21,16 +21,17 @@ export class PlanPicker extends Block<PlanPicker>()('PlanPicker', {
   }),
 }) {}
 
-export const PlanPickerLive = PlanPicker.make(
-  Effect.fn(function* () {
-    const listbox = yield* new PlanListbox('listbox', { id: 'plan' })
-
+export const PlanPickerLive = PlanPicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { listbox, maybePlan: Option.none() },
+      init: () => ({
+        listbox: new PlanListbox('listbox', { id: 'plan' }),
+        maybePlan: Option.none(),
+      }),
 
       update: {
         // The parent owns the selection: store the committed value
-        ...listbox.on({
+        ...PlanListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { maybePlan: () => Option.some(value) }),
           }),

@@ -34,76 +34,11 @@ export class ExampleDetail extends Block<
   Mount: [ObserveExampleUrlMessages],
 }) {}
 
-export const ExampleDetailLive = ExampleDetail.make(
-  Effect.fn(function* (_id, { maybeInitialSlug, maybeExampleSources }) {
-    const sourceFileTab = yield* SourceFileTabs.each('sourceFileTabs', {
-      id: SOURCE_FILE_TABS_ID,
-    })
-
-    const maybeAvailableSlug = Option.filter(
-      maybeInitialSlug,
-      isSourceAvailable,
-    )
-
-    const initialFields = {
-      sourceFileTabs: sourceFileTab(
-        Option.getOrElse(maybeAvailableSlug, () => NO_EXAMPLE_KEY),
-      ),
-      maybeActiveSourceFilePath: Option.none(),
-      maybeExampleUrl: Option.none(),
-      isLivePreviewOpen: true,
-      currentSources: CurrentSourcesAsyncData.Idle(),
-    }
-
-    const initialModel = Option.match(maybeAvailableSlug, {
-      onNone: () => initialFields,
-      onSome: () =>
-        Option.match(maybeExampleSources, {
-          onNone: () => ({
-            ...initialFields,
-            currentSources: CurrentSourcesAsyncData.Loading(),
-          }),
-          onSome: sources => ({
-            ...initialFields,
-            maybeActiveSourceFilePath: maybeFirstSourceFilePath(sources),
-            currentSources: CurrentSourcesAsyncData.Success({ data: sources }),
-          }),
-        }),
-    })
-
-    const initialCommands = pipe(
-      maybeAvailableSlug,
-      Option.filter(() => Option.isNone(maybeExampleSources)),
-      Option.map(slug => LoadExampleSources({ slug })),
-      Option.toArray,
-    )
-
-    const changeExampleRoute = (model: Model, slug: string) => {
-      const resetModel = modifyFields(model, {
-        sourceFileTabs: () => sourceFileTab(slug),
-        maybeActiveSourceFilePath: () => Option.none(),
-        maybeExampleUrl: () => Option.none(),
-      })
-
-      if (isSourceAvailable(slug)) {
-        return {
-          model: modifyFields(resetModel, {
-            currentSources: () => CurrentSourcesAsyncData.Loading(),
-          }),
-          commands: [LoadExampleSources({ slug })],
-        }
-      } else {
-        return {
-          model: modifyFields(resetModel, {
-            currentSources: () => CurrentSourcesAsyncData.Idle(),
-          }),
-        }
-      }
-    }
-
+export const ExampleDetailLive = ExampleDetail.layer(
+  Effect.gen(function* () {
     return {
-      model: initialModel,
-      start: initialCommands,
+      init: initModel,
+      start: (_model, args) => initialCommands(args),
 
       update: {
         InformedOfRouteChange: (model, { slug }) =>
@@ -128,7 +63,7 @@ export const ExampleDetailLive = ExampleDetail.make(
             currentSources: () => CurrentSourcesAsyncData.Failure({ error }),
           }),
         }),
-        ...sourceFileTab.on({
+        ...SourceFileTabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeActiveSourceFilePath: () => Option.some(value),
@@ -164,3 +99,76 @@ export const ExampleDetailLive = ExampleDetail.make(
     }
   }),
 ).pipe(Layer.provide(SourceFileTabs.Live))
+
+const sourceFileTabsFor = (slug: string) =>
+  new SourceFileTabs(slug, { id: SOURCE_FILE_TABS_ID })
+
+const maybeAvailableSlugOf = (maybeInitialSlug: Option.Option<string>) =>
+  Option.filter(maybeInitialSlug, isSourceAvailable)
+
+const initModel = ({
+  maybeInitialSlug,
+  maybeExampleSources,
+}: ExampleDetailArgs): Model => {
+  const maybeAvailableSlug = maybeAvailableSlugOf(maybeInitialSlug)
+
+  const initialFields = {
+    sourceFileTabs: sourceFileTabsFor(
+      Option.getOrElse(maybeAvailableSlug, () => NO_EXAMPLE_KEY),
+    ),
+    maybeActiveSourceFilePath: Option.none(),
+    maybeExampleUrl: Option.none(),
+    isLivePreviewOpen: true,
+    currentSources: CurrentSourcesAsyncData.Idle(),
+  }
+
+  return Option.match(maybeAvailableSlug, {
+    onNone: () => initialFields,
+    onSome: () =>
+      Option.match(maybeExampleSources, {
+        onNone: () => ({
+          ...initialFields,
+          currentSources: CurrentSourcesAsyncData.Loading(),
+        }),
+        onSome: sources => ({
+          ...initialFields,
+          maybeActiveSourceFilePath: maybeFirstSourceFilePath(sources),
+          currentSources: CurrentSourcesAsyncData.Success({ data: sources }),
+        }),
+      }),
+  })
+}
+
+const initialCommands = ({
+  maybeInitialSlug,
+  maybeExampleSources,
+}: ExampleDetailArgs) =>
+  pipe(
+    maybeAvailableSlugOf(maybeInitialSlug),
+    Option.filter(() => Option.isNone(maybeExampleSources)),
+    Option.map(slug => LoadExampleSources({ slug })),
+    Option.toArray,
+  )
+
+const changeExampleRoute = (model: Model, slug: string) => {
+  const resetModel = modifyFields(model, {
+    sourceFileTabs: () => sourceFileTabsFor(slug),
+    maybeActiveSourceFilePath: () => Option.none(),
+    maybeExampleUrl: () => Option.none(),
+  })
+
+  if (isSourceAvailable(slug)) {
+    return {
+      model: modifyFields(resetModel, {
+        currentSources: () => CurrentSourcesAsyncData.Loading(),
+      }),
+      commands: [LoadExampleSources({ slug })],
+    }
+  } else {
+    return {
+      model: modifyFields(resetModel, {
+        currentSources: () => CurrentSourcesAsyncData.Idle(),
+      }),
+    }
+  }
+}

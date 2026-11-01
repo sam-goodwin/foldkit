@@ -43,10 +43,10 @@ export class Search extends Block<Search>()('Search', {
   Message,
 }) {}
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     return {
-      model: { searchState: SearchState.Closed() },
+      init: () => ({ searchState: SearchState.Closed() }),
 
       update: {
         PressedSearchShortcut: model => ({

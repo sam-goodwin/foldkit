@@ -12,17 +12,18 @@ export class Scoreboard extends Block<Scoreboard>()('Scoreboard', {
   Message: defineMessageUnion({ JoinedPlayer: { playerId: Schema.String } }),
 }) {}
 
-export const ScoreboardLive = Scoreboard.make(
-  Effect.fn(function* () {
-    const score = yield* Counter.each('scoresByPlayerId', { max: 21 })
-
+export const ScoreboardLive = Scoreboard.layer(
+  Effect.gen(function* () {
     return {
-      model: { scoresByPlayerId: {} },
+      init: () => ({ scoresByPlayerId: {} }),
 
       update: {
         JoinedPlayer: (model, { playerId }) => ({
           model: modifyFields(model, {
-            scoresByPlayerId: Record.set(playerId, score(playerId)),
+            scoresByPlayerId: Record.set(
+              playerId,
+              new Counter(playerId, { max: 21 }),
+            ),
           }),
         }),
       },

@@ -28,13 +28,13 @@ export class Application extends Block<Application>()('Application', {
   Command: [LoadUser],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const apiClient = yield* ApiClient
 
     return {
-      model: { user: UserState.Loading() },
-      start: [LoadUser({ userId: 'user-1' })],
+      init: () => ({ user: UserState.Loading() }),
+      start: () => [LoadUser({ userId: 'user-1' })],
 
       update: {
         SucceededLoadUser: (model, { user }) => ({

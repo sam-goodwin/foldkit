@@ -68,7 +68,7 @@ Omit `handler` when a host supplies the fetch implementation. The class then has
 
 ### Store the Query in Its Parent
 
-The parent puts the class in its Model Schema, creates an instance in its constructor with `yield* new PostsQuery('posts', args)`, and stores that instance in the Model. Its update handlers change the Query only by sending it Messages:
+The parent puts the class in its Model Schema, creates an instance with `new PostsQuery('posts', args)`, and stores that instance in the Model, usually from its `init`. Its update handlers change the Query only by sending it Messages:
 
 ::Snippet{name="queryParent" label="Storing a Query in its parent"}
 
@@ -89,7 +89,7 @@ A parent handler returns the Query's Messages in `messages`, addressed with `mod
 
 #### Optional Queries
 
-A Query field can be `Schema.Option(PostsQuery)` when the resource exists only in some parent states. The instance is live while it is in the Model. Removing it closes its scope, and putting the same yielded instance back creates a fresh `Idle` Query (or a loading one with `isLoadingOnStart`). A parent can only send Messages to an instance it holds, so a handler matches the `Option` before it sends.
+A Query field can be `Schema.Option(PostsQuery)` when the resource exists only in some parent states. The instance runs while it is in the Model. Removing it interrupts its in-flight Fetch, and putting a new `PostsQuery` instance in the field later creates a fresh `Idle` Query (or a loading one with `isLoadingOnStart`). A parent can only send Messages to an instance it holds, so a handler matches the `Option` before it sends.
 
 ### Read and Render Query Data
 
@@ -140,11 +140,11 @@ Query accepts a completion only when it belongs to the currently pending request
 
 Set `notifyOnCompletion: true` when the parent needs to react after Query accepts and settles a fetch. The Query then has a `CompletedFetch` OutMessage. A KeyedQuery's carries `{ args, generation, result, completedAtMillis? }`; an unkeyed Query's omits `args`. The result carries success or failure. The completion time is optional because a Story or Scene test can resolve a Fetch Command manually without it.
 
-The parent handles the OutMessage with `.on` on the yielded instance. The handler can update parent-owned state, such as a failure notice, without writing inside the Query Model. This example uses the `PostQuery` defined in [Keyed Definition](#keyed-definition) below:
+The parent handles the OutMessage by spreading `PostQuery.on({ ... })` into its update record. The handler can update parent-owned state, such as a failure notice, without writing inside the Query Model. This example uses the `PostQuery` defined in [Keyed Definition](#keyed-definition) below:
 
 ::Snippet{name="queryCompletionPolicy" label="Handling an accepted Query completion"}
 
-The handler runs only for a completion the Query accepted. Canceled, superseded, and duplicate completions emit no OutMessage. `Requested*` Messages emit no OutMessage either. Without `notifyOnCompletion`, the Query has no OutMessage and the parent writes no `.on` handler for it.
+The handler runs only for a completion the Query accepted. Canceled, superseded, and duplicate completions emit no OutMessage. `Requested*` Messages emit no OutMessage either. Without `notifyOnCompletion`, the Query has no OutMessage and the parent writes no `on` handler for it.
 
 #### Development Reloads
 
@@ -184,7 +184,7 @@ Add a non-empty `args` record to `Query.define` when one definition should retai
 
 ### Per-Key Messages
 
-Adding `args` makes `Query.define` return a KeyedQuery class. Each distinct argument key has its own `AsyncData` entry. Create the instance with `yield* new PostQuery('postDetails', {})`, or pass `{ loadOnStart: [{ postId: '1' }] }` to start fetches for those args when the instance enters the Model. Its Messages carry the arguments they act on:
+Adding `args` makes `Query.define` return a KeyedQuery class. Each distinct argument key has its own `AsyncData` entry. Create the instance with `new PostQuery('postDetails', {})`, or pass `{ loadOnStart: [{ postId: '1' }] }` to start fetches for those args when the instance enters the Model. Its Messages carry the arguments they act on:
 
 - `PostQuery.read(model.postDetails.model, { postId })` returns that entry's `AsyncData`, or `Idle` when the entry does not exist.
 - `PostQuery.Message.RequestedLoadIfMissing({ args: { postId } })` changes a missing entry to `Loading` and returns its Fetch Command. An entry that already has data is unchanged.

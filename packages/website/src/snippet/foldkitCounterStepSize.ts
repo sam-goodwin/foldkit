@@ -25,10 +25,10 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0, step: 1, isAutoCounting: false },
+      init: () => ({ count: 0, step: 1, isAutoCounting: false }),
 
       update: {
         ClickedIncrement: model => ({

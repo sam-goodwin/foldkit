@@ -11,15 +11,14 @@ export class Table extends Block<Table>()('Table', {
   Message,
 }) {}
 
-export const TableLive = Table.make(
-  Effect.fn(function* () {
-    const row = yield* Row.each('rows')
+export const TableLive = Table.layer(
+  Effect.gen(function* () {
     return {
-      model: { rows: [] },
+      init: () => ({ rows: [] }),
       update: {
         ClickedAddRow: model => ({
           model: {
-            rows: [...model.rows, ...['a', 'b'].map((_label, index) => row(`row-${index}`))],
+            rows: [...model.rows, ...['a', 'b'].map((_label, index) => new Row(`row-${index}`))],
           },
         }),
       },

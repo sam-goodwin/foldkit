@@ -28,14 +28,14 @@ class ToastFixtureParent extends Block<ToastFixtureParent>()(
   },
 ) {}
 
-const ToastFixtureParentLive = ToastFixtureParent.make(
-  Effect.fn(function* () {
-    const left = yield* new FirstToast('left', { id: 'toast' })
-    const right = yield* new FirstToast('right', { id: 'toast' })
-    const other = yield* new SecondToast('other', { id: 'toast' })
-
+const ToastFixtureParentLive = ToastFixtureParent.layer(
+  Effect.gen(function* () {
     return {
-      model: { left, right, other },
+      init: () => ({
+        left: new FirstToast('left', { id: 'toast' }),
+        right: new FirstToast('right', { id: 'toast' }),
+        other: new SecondToast('other', { id: 'toast' }),
+      }),
       update: {
         RequestedShowAll: model => ({
           model,
@@ -73,12 +73,10 @@ class KeyedToastFixtureParent extends Block<KeyedToastFixtureParent>()(
   },
 ) {}
 
-const KeyedToastFixtureParentLive = KeyedToastFixtureParent.make(
-  Effect.fn(function* () {
-    const slot = yield* FirstToast.each('slots', { id: 'toast' })
-
+const KeyedToastFixtureParentLive = KeyedToastFixtureParent.layer(
+  Effect.gen(function* () {
     return {
-      model: { slots: [slot('selected')] },
+      init: () => ({ slots: [new FirstToast('selected', { id: 'toast' })] }),
       update: {
         RequestedShow: model => ({
           model,
@@ -151,7 +149,7 @@ describe('Toast.test.drainEntry', () => {
       KeyedToastFixtureParentLive,
       Story.message(KeyedToastFixtureParent.Message.RequestedShow()),
       FirstToast.test.drainEntry({
-        path: ['slots', 'selected'],
+        path: 'selected',
         entryId: 'toast-entry-0',
       }),
       Story.model(model => {
@@ -172,7 +170,7 @@ describe('Toast.test.drainEntry', () => {
           Story.message(KeyedToastFixtureParent.Message.RequestedShow()),
           Story.message(KeyedToastFixtureParent.Message.RemovedSlots()),
           FirstToast.test.drainEntry({
-            path: ['slots', 'selected'],
+            path: 'selected',
             entryId: 'toast-entry-0',
           }),
         ),

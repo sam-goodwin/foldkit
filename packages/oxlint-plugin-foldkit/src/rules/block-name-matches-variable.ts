@@ -64,7 +64,7 @@ const isClassNode = (node: unknown): node is ESTree.Class =>
   'type' in node &&
   (node.type === 'ClassDeclaration' || node.type === 'ClassExpression')
 
-const makeCallOfInitializer = (
+const layerCallOfInitializer = (
   node: ESTree.Node,
   references: WeakMap<ESTree.Node, Reference> | undefined,
 ): Option.Option<ESTree.CallExpression> => {
@@ -73,18 +73,18 @@ const makeCallOfInitializer = (
     return Option.none()
   }
 
-  if (isBlockClassMethodCall(expression, 'make', references)) {
+  if (isBlockClassMethodCall(expression, 'layer', references)) {
     return Option.some(expression)
   }
 
   const callee = unwrapExpression(expression.callee)
   return isMemberExpression(callee) &&
     Option.contains(staticMemberName(callee), 'pipe')
-    ? makeCallOfInitializer(callee.object, references)
+    ? layerCallOfInitializer(callee.object, references)
     : Option.none()
 }
 
-const blockDeclarationOfMakeCall = (
+const blockDeclarationOfLayerCall = (
   call: ESTree.CallExpression,
   references: WeakMap<ESTree.Node, Reference> | undefined,
 ): Option.Option<ESTree.Node> => {
@@ -103,7 +103,7 @@ const selfTypeMessage = (actualName: string, className: string): string =>
 const layerNameMessage = (actualName: string, expectedName: string): string =>
   `Block Layer identifier "${actualName}" must be "${expectedName}".`
 
-/** Requires a Block class to carry its Block id as its name and its `make`
+/** Requires a Block class to carry its Block id as its name and its `layer`
  *  Layer to be named `<BlockId>Live`. */
 export const blockNameMatchesVariable = Rule.define({
   name: 'block-name-matches-variable',
@@ -170,10 +170,10 @@ export const blockNameMatchesVariable = Rule.define({
 
         const declaredName = node.id.name
         const maybeId = Option.flatMap(
-          makeCallOfInitializer(node.init, references),
+          layerCallOfInitializer(node.init, references),
           call =>
             Option.flatMap(
-              blockDeclarationOfMakeCall(call, references),
+              blockDeclarationOfLayerCall(call, references),
               declaration => blockId(declaration, references),
             ),
         )

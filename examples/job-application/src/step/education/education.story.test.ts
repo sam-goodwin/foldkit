@@ -53,7 +53,7 @@ describe('education', () => {
       message(
         Block.deliver(
           EducationEntry,
-          ['entries', 'education-entry-1'],
+          'education-entry-1',
           EducationEntry.Message.ClickedRemoveSelf(),
         ),
       ),
@@ -70,7 +70,7 @@ describe('education', () => {
       message(
         Block.deliver(
           EducationEntry,
-          ['entries', 'education-entry-1'],
+          'education-entry-1',
           EducationEntry.Message.UpdatedSchool({ value: 'MIT' }),
         ),
       ),

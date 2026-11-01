@@ -24,23 +24,23 @@ const removeRow = (model: Model, rowId: string): Model =>
     rows: Array.filter(counter => counter.id !== rowId),
   })
 
-export const CounterListLive = CounterList.make(
-  Effect.fn(function* () {
-    const row = yield* Counter.each('rows', { max: 5 })
-
+export const CounterListLive = CounterList.layer(
+  Effect.gen(function* () {
     return {
-      model: { rows: [], nextRowId: 0 },
+      init: () => ({ rows: [], nextRowId: 0 }),
 
       update: {
         ClickedAddRow: model => ({
           model: modifyFields(model, {
-            rows: Array.append(row(`row-${model.nextRowId}`)),
+            rows: Array.append(
+              new Counter(`row-${model.nextRowId}`, { max: 5 }),
+            ),
             nextRowId: Number.increment,
           }),
         }),
         ClickedRemoveRow: (model, { id }) => ({ model: removeRow(model, id) }),
 
-        ...row.on({
+        ...Counter.on({
           ReachedMax: (model, _outMessage, counter) => ({
             model: removeRow(model, counter.id),
           }),

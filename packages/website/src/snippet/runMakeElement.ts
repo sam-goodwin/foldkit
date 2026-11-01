@@ -8,10 +8,10 @@ class Widget extends Block<Widget>()('Widget', {
   Message: defineMessageUnion({ ClickedLike: {} }),
 }) {}
 
-const WidgetLive = Widget.make(
-  Effect.fn(function* () {
+const WidgetLive = Widget.layer(
+  Effect.gen(function* () {
     return {
-      model: { likes: 0 },
+      init: () => ({ likes: 0 }),
 
       update: {
         ClickedLike: model => ({

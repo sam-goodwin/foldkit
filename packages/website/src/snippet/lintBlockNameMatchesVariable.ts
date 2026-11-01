@@ -17,10 +17,10 @@ export class SearchBox extends Block<SearchBox>()('Search', {
   Message,
 }) {}
 
-export const searchLayer = SearchBox.make(
-  Effect.fn(function* () {
+export const searchLayer = SearchBox.layer(
+  Effect.gen(function* () {
     return {
-      model: { query: '' },
+      init: () => ({ query: '' }),
       update: {
         UpdatedQuery: (_model, { value }) => ({ model: { query: value } }),
       },
@@ -32,10 +32,10 @@ export const searchLayer = SearchBox.make(
 // The class carries the Block id, and its Layer adds Live.
 export class Search extends Block<Search>()('Search', { Model, Message }) {}
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     return {
-      model: { query: '' },
+      init: () => ({ query: '' }),
       update: {
         UpdatedQuery: (_model, { value }) => ({ model: { query: value } }),
       },

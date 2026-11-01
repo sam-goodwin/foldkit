@@ -22,16 +22,14 @@ class ProjectSettingsScene extends Block<ProjectSettingsScene>()(
 
 const project = Option.getOrThrow(Array.head(initialWorkspace.projects))
 
-const ProjectSettingsSceneLive = ProjectSettingsScene.make(
-  Effect.fn(function* () {
-    const projectSettings = yield* new ProjectSettings('projectSettings', {
-      project,
-    })
-
+const ProjectSettingsSceneLive = ProjectSettingsScene.layer(
+  Effect.gen(function* () {
     return {
-      model: { projectSettings },
+      init: () => ({
+        projectSettings: new ProjectSettings('projectSettings', { project }),
+      }),
       update: {
-        ...projectSettings.on({
+        ...ProjectSettings.on({
           Saved: (model, outMessage) => ({ model, outMessage }),
         }),
       },

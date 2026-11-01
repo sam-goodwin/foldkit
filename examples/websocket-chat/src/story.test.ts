@@ -15,13 +15,13 @@ import {
   deliverToChatSocket,
   zonedAt,
 } from './application.fixture'
-import { ChatSocket, WaitForOpen } from './chatSocket'
+import { ChatSocket } from './chatSocket'
 
 const zonedNow = zonedAt(0)
 
 const connect = [
   message(Message.ClickedConnect()),
-  Command.resolve(WaitForOpen, ChatSocket.Message.SucceededWaitForOpen()),
+  message(deliverToChatSocket(ChatSocket.Message.OpenedSocket())),
 ]
 
 describe('update', () => {
@@ -34,8 +34,8 @@ describe('update', () => {
           expect(model.connection._tag).toBe('Connecting')
           expect(Option.isSome(model.maybeChatSocket)).toBe(true)
         }),
-        Command.expectExact(WaitForOpen),
-        Command.resolve(WaitForOpen, ChatSocket.Message.SucceededWaitForOpen()),
+        Command.expectNone(),
+        message(deliverToChatSocket(ChatSocket.Message.OpenedSocket())),
       ),
     )
 
@@ -43,7 +43,7 @@ describe('update', () => {
       story(
         application,
         message(Message.ClickedConnect()),
-        Command.resolve(WaitForOpen, ChatSocket.Message.SucceededWaitForOpen()),
+        message(deliverToChatSocket(ChatSocket.Message.OpenedSocket())),
         model(model => {
           expect(model.connection._tag).toBe('Connected')
         }),
@@ -76,9 +76,10 @@ describe('update', () => {
       story(
         application,
         message(Message.ClickedConnect()),
-        Command.resolve(
-          WaitForOpen,
-          ChatSocket.Message.FailedWaitForOpen({ error: 'Timeout' }),
+        message(
+          deliverToChatSocket(
+            ChatSocket.Message.FailedOpenSocket({ error: 'Timeout' }),
+          ),
         ),
         model(model => {
           expect(model.connection).toEqual(

@@ -19,13 +19,13 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    // The Query starts loading when its instance enters the Model.
-    const posts = yield* new PostsQuery('posts', { isLoadingOnStart: true })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { posts },
+      // The Query starts loading when its instance enters the Model.
+      init: () => ({
+        posts: new PostsQuery('posts', { isLoadingOnStart: true }),
+      }),
       update: {
         // The Query loads or refreshes depending on its current AsyncData.
         ClickedRefreshPosts: model => ({

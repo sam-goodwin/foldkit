@@ -21,17 +21,9 @@ import { SkillsEntry } from './step/skills/skillsEntry'
 import { WorkHistory } from './step/workHistory/workHistory'
 import { WorkHistoryEntry } from './step/workHistory/workHistoryEntry'
 
-const workHistoryEntryPath = (entryId: string) => [
-  'workHistory',
-  'entries',
-  entryId,
-]
-const educationEntryPath = (entryId: string) => [
-  'education',
-  'entries',
-  entryId,
-]
-const skillsEntryPath = (entryId: string) => ['skills', 'entries', entryId]
+const workHistoryEntryPath = (entryId: string) => ['workHistory', entryId]
+const educationEntryPath = (entryId: string) => ['education', entryId]
+const skillsEntryPath = (entryId: string) => ['skills', entryId]
 
 const goToStep = (step: Step.Step) =>
   Array.makeBy(Step.indexOf(step), () => message(Message.ClickedNext()))

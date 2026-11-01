@@ -10,10 +10,10 @@ export class SearchDialog extends Block<SearchDialog>()('SearchDialog', {
   Message: defineMessageUnion({ ClickedOpenDialog: {} }),
 }) {}
 
-export const SearchDialogLive = SearchDialog.make(
-  Effect.fn(function* () {
+export const SearchDialogLive = SearchDialog.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialogState: 'Closed' },
+      init: () => ({ dialogState: 'Closed' }),
 
       update: {
         ClickedOpenDialog: model => {

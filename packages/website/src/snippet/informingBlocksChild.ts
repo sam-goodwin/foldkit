@@ -18,19 +18,22 @@ export class People extends Block<People, Readonly<{ route: PeopleRoute }>>()(
   { Model, Message, Command: [FetchPeople] },
 ) {}
 
-export const PeopleLive = People.make(
-  Effect.fn(function* (_id, { route }) {
+export const PeopleLive = People.layer(
+  Effect.gen(function* () {
     const directory = yield* PeopleDirectory
-    const searchText = routeSearchText(route.searchText)
 
     return {
-      model: {
-        searchInput: searchText,
-        searchHistory: addSearchToHistory([], searchText),
-        results: SearchResults.Loading(),
+      init: ({ route }) => {
+        const searchText = routeSearchText(route.searchText)
+
+        return {
+          searchInput: searchText,
+          searchHistory: addSearchToHistory([], searchText),
+          results: SearchResults.Loading(),
+        }
       },
 
-      start: [FetchPeople({ searchText })],
+      start: model => [FetchPeople({ searchText: model.searchInput })],
 
       update: {
         InformedOfRouteChange: (model, { route: nextRoute }) => {

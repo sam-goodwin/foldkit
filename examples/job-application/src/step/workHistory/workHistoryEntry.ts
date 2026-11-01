@@ -55,29 +55,26 @@ export class WorkHistoryEntry extends Block<
   WorkHistoryEntryArgs
 >()('WorkHistoryEntry', { Model, Message, OutMessage }) {}
 
-export const WorkHistoryEntryLive = WorkHistoryEntry.make(
-  Effect.fn(function* (entryId, { today }) {
-    const startDate = yield* new DatePicker.DatePicker('startDate', {
-      id: `${entryId}-start`,
-      today,
-    })
-    const endDate = yield* new DatePicker.DatePicker('endDate', {
-      id: `${entryId}-end`,
-      today,
-    })
-
+export const WorkHistoryEntryLive = WorkHistoryEntry.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        id: entryId,
+      init: ({ today }, { id }) => ({
+        id,
         company: NotValidated({ value: '' }),
         title: NotValidated({ value: '' }),
-        startDate,
+        startDate: new DatePicker.DatePicker('startDate', {
+          id: `${id}-start`,
+          today,
+        }),
         maybeStartDate: Option.none(),
-        endDate,
+        endDate: new DatePicker.DatePicker('endDate', {
+          id: `${id}-end`,
+          today,
+        }),
         maybeEndDate: Option.none(),
         isCurrentlyEmployed: false,
         description: '',
-      },
+      }),
 
       update: {
         UpdatedCompany: (model, { value }) => ({
@@ -108,56 +105,60 @@ export const WorkHistoryEntryLive = WorkHistoryEntry.make(
           outMessage: OutMessage.Removed(),
         }),
 
-        ...startDate.on({
+        ...DatePicker.DatePicker.on({
           ChangedViewMonth: model => ({ model }),
-          SelectedDate: (model, { date }) => ({
-            model: modifyFields(model, {
-              maybeStartDate: () => Option.some(date),
-            }),
-            messages: [
-              model.endDate.send(
-                DatePicker.DatePicker.Message.InformedOfMinDateChange({
-                  maybeMinDate: Option.some(date),
-                }),
-              ),
-            ],
-          }),
-          ClearedDate: model => ({
-            model: modifyFields(model, { maybeStartDate: () => Option.none() }),
-            messages: [
-              model.endDate.send(
-                DatePicker.DatePicker.Message.InformedOfMinDateChange({
-                  maybeMinDate: Option.none(),
-                }),
-              ),
-            ],
-          }),
-        }),
-
-        ...endDate.on({
-          ChangedViewMonth: model => ({ model }),
-          SelectedDate: (model, { date }) => ({
-            model: modifyFields(model, {
-              maybeEndDate: () => Option.some(date),
-            }),
-            messages: [
-              model.startDate.send(
-                DatePicker.DatePicker.Message.InformedOfMaxDateChange({
-                  maybeMaxDate: Option.some(date),
-                }),
-              ),
-            ],
-          }),
-          ClearedDate: model => ({
-            model: modifyFields(model, { maybeEndDate: () => Option.none() }),
-            messages: [
-              model.startDate.send(
-                DatePicker.DatePicker.Message.InformedOfMaxDateChange({
-                  maybeMaxDate: Option.none(),
-                }),
-              ),
-            ],
-          }),
+          SelectedDate: (model, { date }, { id }) =>
+            id === 'startDate'
+              ? {
+                  model: modifyFields(model, {
+                    maybeStartDate: () => Option.some(date),
+                  }),
+                  messages: [
+                    model.endDate.send(
+                      DatePicker.DatePicker.Message.InformedOfMinDateChange({
+                        maybeMinDate: Option.some(date),
+                      }),
+                    ),
+                  ],
+                }
+              : {
+                  model: modifyFields(model, {
+                    maybeEndDate: () => Option.some(date),
+                  }),
+                  messages: [
+                    model.startDate.send(
+                      DatePicker.DatePicker.Message.InformedOfMaxDateChange({
+                        maybeMaxDate: Option.some(date),
+                      }),
+                    ),
+                  ],
+                },
+          ClearedDate: (model, _, { id }) =>
+            id === 'startDate'
+              ? {
+                  model: modifyFields(model, {
+                    maybeStartDate: () => Option.none(),
+                  }),
+                  messages: [
+                    model.endDate.send(
+                      DatePicker.DatePicker.Message.InformedOfMinDateChange({
+                        maybeMinDate: Option.none(),
+                      }),
+                    ),
+                  ],
+                }
+              : {
+                  model: modifyFields(model, {
+                    maybeEndDate: () => Option.none(),
+                  }),
+                  messages: [
+                    model.startDate.send(
+                      DatePicker.DatePicker.Message.InformedOfMaxDateChange({
+                        maybeMaxDate: Option.none(),
+                      }),
+                    ),
+                  ],
+                },
         }),
       },
 

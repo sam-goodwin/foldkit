@@ -17,53 +17,52 @@ type Overrides = Omit<
   'options' | 'selectedValue' | 'ariaLabel' | 'toView'
 >
 
-class RadioGroupScene extends Block<RadioGroupScene, Overrides>()(
-  'RadioGroupScene',
-  {
-    Model: Schema.Struct({
-      radioGroup: TestRadioGroup,
-      maybeSelectedValue: Schema.Option(Schema.String),
-    }),
-  },
-) {}
+class RadioGroupScene extends Block<RadioGroupScene>()('RadioGroupScene', {
+  Model: Schema.Struct({
+    radioGroup: TestRadioGroup,
+    maybeSelectedValue: Schema.Option(Schema.String),
+  }),
+}) {}
 
-const RadioGroupSceneLive = RadioGroupScene.make(
-  Effect.fn(function* (_id, overrides) {
-    const radioGroup = yield* new TestRadioGroup('radioGroup', {
-      id: RADIO_ID,
-    })
-
-    return {
-      model: { radioGroup, maybeSelectedValue: Option.none() },
-      update: {
-        ...radioGroup.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeSelectedValue: () => Option.some(value),
+const makeRadioGroupSceneLive = (overrides: Overrides) =>
+  RadioGroupScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({
+          radioGroup: new TestRadioGroup('radioGroup', {
+            id: RADIO_ID,
+          }),
+          maybeSelectedValue: Option.none(),
+        }),
+        update: {
+          ...TestRadioGroup.on({
+            Selected: (model, { value }) => ({
+              model: modifyFields(model, {
+                maybeSelectedValue: () => Option.some(value),
+              }),
             }),
           }),
-        }),
-      },
-      view: (model, h) =>
-        model.radioGroup.view({
-          options,
-          selectedValue: model.maybeSelectedValue,
-          ariaLabel: 'Tool',
-          ...overrides,
-          toView: ({ group, options: optionInfos }) =>
-            h.div(
-              [...group],
-              optionInfos.map(option =>
-                h.button(
-                  [...option.option],
-                  [h.span([...option.label], [option.value])],
+        },
+        view: (model, h) =>
+          model.radioGroup.view({
+            options,
+            selectedValue: model.maybeSelectedValue,
+            ariaLabel: 'Tool',
+            ...overrides,
+            toView: ({ group, options: optionInfos }) =>
+              h.div(
+                [...group],
+                optionInfos.map(option =>
+                  h.button(
+                    [...option.option],
+                    [h.span([...option.label], [option.value])],
+                  ),
                 ),
               ),
-            ),
-        }),
-    }
-  }),
-).pipe(Layer.provide(TestRadioGroup.Live))
+          }),
+      }
+    }),
+  ).pipe(Layer.provide(TestRadioGroup.Live))
 
 const modelWith = (maybeSelectedValue: Option.Option<string>) => ({
   radioGroup: { id: RADIO_ID, maybeFocusedIndex: Option.none() },
@@ -84,8 +83,7 @@ describe('RadioGroup', () => {
   describe('descriptions', () => {
     it.effect('omits aria-describedby by default', () =>
       Scene.scene(
-        RadioGroupSceneLive,
-        {},
+        makeRadioGroupSceneLive({}),
         Scene.given(nothingSelected),
         Scene.expect(option(0)).not.toHaveAttr('aria-describedby'),
         Scene.expect(option(1)).not.toHaveAttr('aria-describedby'),
@@ -94,10 +92,9 @@ describe('RadioGroup', () => {
 
     it.effect('references descriptions only for matching options', () =>
       Scene.scene(
-        RadioGroupSceneLive,
-        {
+        makeRadioGroupSceneLive({
           hasOptionDescription: (_value, index) => index === 1,
-        },
+        }),
         Scene.given(nothingSelected),
         Scene.expect(option(0)).not.toHaveAttr('aria-describedby'),
         Scene.expect(option(1)).toHaveAttr(
@@ -114,8 +111,7 @@ describe('RadioGroup', () => {
       'gives the first option a roving tabindex when nothing is selected',
       () =>
         Scene.scene(
-          RadioGroupSceneLive,
-          {},
+          makeRadioGroupSceneLive({}),
           Scene.given(nothingSelected),
           Scene.expect(option(0)).toHaveAttr('tabIndex', '0'),
           Scene.expect(option(0)).toHaveAttr('data-active', ''),
@@ -128,8 +124,7 @@ describe('RadioGroup', () => {
       'checks the clicked option and moves the roving tabindex onto it',
       () =>
         Scene.scene(
-          RadioGroupSceneLive,
-          {},
+          makeRadioGroupSceneLive({}),
           Scene.given(nothingSelected),
           Scene.expect(option(1)).toHaveHandler('click'),
           Scene.click(option(1)),
@@ -143,8 +138,7 @@ describe('RadioGroup', () => {
 
     it.effect('moves the selection with the arrow keys', () =>
       Scene.scene(
-        RadioGroupSceneLive,
-        {},
+        makeRadioGroupSceneLive({}),
         Scene.given(modelWith(Option.some('Brush'))),
         Scene.keydown(option(0), 'ArrowDown'),
         resolveFocusOption,
@@ -155,8 +149,7 @@ describe('RadioGroup', () => {
 
     it.effect('selects the focused option on Space', () =>
       Scene.scene(
-        RadioGroupSceneLive,
-        {},
+        makeRadioGroupSceneLive({}),
         Scene.given(nothingSelected),
         Scene.keydown(option(0), ' '),
         resolveFocusOption,
@@ -166,8 +159,9 @@ describe('RadioGroup', () => {
 
     it.effect('skips a disabled option when navigating', () =>
       Scene.scene(
-        RadioGroupSceneLive,
-        { isOptionDisabled: value => value === 'Eraser' },
+        makeRadioGroupSceneLive({
+          isOptionDisabled: value => value === 'Eraser',
+        }),
         Scene.given(modelWith(Option.some('Fill'))),
         Scene.expect(option(2)).toHaveAttr('aria-disabled', 'true'),
         Scene.keydown(option(1), 'ArrowDown'),
@@ -180,8 +174,9 @@ describe('RadioGroup', () => {
       'keeps the tab stop on an enabled option when the selection is disabled',
       () =>
         Scene.scene(
-          RadioGroupSceneLive,
-          { isOptionDisabled: value => value === 'Brush' },
+          makeRadioGroupSceneLive({
+            isOptionDisabled: value => value === 'Brush',
+          }),
           Scene.given(modelWith(Option.some('Brush'))),
           Scene.expect(option(0)).toHaveAttr('aria-disabled', 'true'),
           Scene.expect(option(0)).toHaveAttr('tabIndex', '-1'),
@@ -193,8 +188,7 @@ describe('RadioGroup', () => {
       'sets type button so a button option does not submit a form',
       () =>
         Scene.scene(
-          RadioGroupSceneLive,
-          {},
+          makeRadioGroupSceneLive({}),
           Scene.given(nothingSelected),
           Scene.expect(option(0)).toHaveAttr('type', 'button'),
           Scene.expect(option(1)).toHaveAttr('type', 'button'),
@@ -203,8 +197,9 @@ describe('RadioGroup', () => {
 
     it.effect('keeps type button on a disabled option', () =>
       Scene.scene(
-        RadioGroupSceneLive,
-        { isOptionDisabled: value => value === 'Brush' },
+        makeRadioGroupSceneLive({
+          isOptionDisabled: value => value === 'Brush',
+        }),
         Scene.given(nothingSelected),
         Scene.expect(option(0)).toHaveAttr('type', 'button'),
       ),
@@ -216,8 +211,7 @@ describe('RadioGroup', () => {
       'announces itself with aria-readonly and marks the group and every option',
       () =>
         Scene.scene(
-          RadioGroupSceneLive,
-          { isReadOnly: true },
+          makeRadioGroupSceneLive({ isReadOnly: true }),
           Scene.given(modelWith(Option.some('Brush'))),
           Scene.expect(group).toHaveAttr('aria-readonly', 'true'),
           Scene.expect(group).toHaveAttr('data-readonly', ''),
@@ -231,8 +225,7 @@ describe('RadioGroup', () => {
       'moves focus with the arrow keys without changing the selection',
       () =>
         Scene.scene(
-          RadioGroupSceneLive,
-          { isReadOnly: true },
+          makeRadioGroupSceneLive({ isReadOnly: true }),
           Scene.given(modelWith(Option.some('Brush'))),
           Scene.keydown(option(0), 'ArrowDown'),
           resolveFocusOption,
@@ -249,8 +242,7 @@ describe('RadioGroup', () => {
       'jumps to the last option on End and back to the first on Home',
       () =>
         Scene.scene(
-          RadioGroupSceneLive,
-          { isReadOnly: true },
+          makeRadioGroupSceneLive({ isReadOnly: true }),
           Scene.given(modelWith(Option.some('Brush'))),
           Scene.keydown(option(0), 'End'),
           resolveFocusOption,
@@ -264,8 +256,7 @@ describe('RadioGroup', () => {
 
     it.effect('ignores Space', () =>
       Scene.scene(
-        RadioGroupSceneLive,
-        { isReadOnly: true },
+        makeRadioGroupSceneLive({ isReadOnly: true }),
         Scene.given(nothingSelected),
         Scene.keydown(option(1), ' '),
         Scene.expectIgnored(),
@@ -276,8 +267,7 @@ describe('RadioGroup', () => {
 
     it.effect('drops the click handler while keeping the keydown handler', () =>
       Scene.scene(
-        RadioGroupSceneLive,
-        { isReadOnly: true },
+        makeRadioGroupSceneLive({ isReadOnly: true }),
         Scene.given(nothingSelected),
         Scene.expect(option(1)).not.toHaveHandler('click'),
         Scene.expect(option(1)).toHaveHandler('keydown'),
@@ -290,8 +280,7 @@ describe('RadioGroup', () => {
       'carries both markers and stays inert when the group is also disabled',
       () =>
         Scene.scene(
-          RadioGroupSceneLive,
-          { isReadOnly: true, isDisabled: true },
+          makeRadioGroupSceneLive({ isReadOnly: true, isDisabled: true }),
           Scene.given(modelWith(Option.some('Brush'))),
           Scene.expect(group).toHaveAttr('aria-readonly', 'true'),
           Scene.expect(option(0)).toHaveAttr('aria-disabled', 'true'),

@@ -26,14 +26,14 @@ export class ThemePreference extends Block<ThemePreference>()(
   },
 ) {}
 
-export const ThemePreferenceLive = ThemePreference.make(
-  Effect.fn(function* () {
+export const ThemePreferenceLive = ThemePreference.layer(
+  Effect.gen(function* () {
     const themeStore = yield* ThemeStore
 
     return {
-      model: { theme: 'System' },
+      init: () => ({ theme: 'System' }),
 
-      start: [LoadTheme()],
+      start: () => [LoadTheme()],
 
       update: {
         SucceededLoadTheme: (model, { theme }) => ({

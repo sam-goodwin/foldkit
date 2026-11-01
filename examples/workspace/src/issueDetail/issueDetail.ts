@@ -139,39 +139,31 @@ export class IssueDetail extends Block<
 
 // LIVE
 
-export const IssueDetailLive = IssueDetail.make(
-  Effect.fn(function* (issueId, { issue }) {
+export const IssueDetailLive = IssueDetail.layer(
+  Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 
-    const commentComposer = yield* new CommentComposer('commentComposer', {
-      issueId: issueId,
-    })
-    const statusListbox = yield* new StatusListbox('statusListbox', {
-      id: `issue-${issueId}-status`,
-    })
-    const priorityListbox = yield* new PriorityListbox('priorityListbox', {
-      id: `issue-${issueId}-priority`,
-    })
-    const projectListbox = yield* new WorkspaceListbox('projectListbox', {
-      id: `issue-${issueId}-project`,
-    })
-    const assigneeListbox = yield* new WorkspaceListbox('assigneeListbox', {
-      id: `issue-${issueId}-assignee`,
-    })
-
     return {
-      model: {
+      init: ({ issue }, { id: issueId }) => ({
         issueId,
         baseline: revisionFromIssue(issue),
         draft: draftFromIssue(issue),
         maybeIncomingRevision: Option.none(),
         saveState: SaveState.Idle(),
-        commentComposer,
-        statusListbox,
-        priorityListbox,
-        projectListbox,
-        assigneeListbox,
-      },
+        commentComposer: new CommentComposer('commentComposer', { issueId }),
+        statusListbox: new StatusListbox('statusListbox', {
+          id: `issue-${issueId}-status`,
+        }),
+        priorityListbox: new PriorityListbox('priorityListbox', {
+          id: `issue-${issueId}-priority`,
+        }),
+        projectListbox: new WorkspaceListbox('projectListbox', {
+          id: `issue-${issueId}-project`,
+        }),
+        assigneeListbox: new WorkspaceListbox('assigneeListbox', {
+          id: `issue-${issueId}-assignee`,
+        }),
+      }),
 
       update: {
         UpdatedTitle: (model, { value }) =>
@@ -243,7 +235,7 @@ export const IssueDetailLive = IssueDetail.make(
             }),
           )
         },
-        ...commentComposer.on({
+        ...CommentComposer.on({
           AddedComment: (model, { comment }) => ({
             model,
             outMessage: OutMessage.AddedComment({
@@ -252,35 +244,33 @@ export const IssueDetailLive = IssueDetail.make(
             }),
           }),
         }),
-        ...statusListbox.on({
+        ...StatusListbox.on({
           Selected: (model, { value }) =>
             editDraftStep(draft =>
               modifyFields(draft, { status: () => value }),
             )(model),
         }),
-        ...priorityListbox.on({
+        ...PriorityListbox.on({
           Selected: (model, { value }) =>
             editDraftStep(draft =>
               modifyFields(draft, { priority: () => value }),
             )(model),
         }),
-        ...projectListbox.on({
-          Selected: (model, { value }) =>
-            editDraftStep(draft =>
-              modifyFields(draft, { projectId: () => value }),
-            )(model),
-        }),
-        ...assigneeListbox.on({
-          Selected: (model, { value }) =>
-            Option.match(decodeAssigneeSelection(value), {
-              onNone: () => ({ model }),
-              onSome: maybeAssigneeId =>
-                editDraftStep(draft =>
-                  modifyFields(draft, {
-                    maybeAssigneeId: () => maybeAssigneeId,
-                  }),
+        ...WorkspaceListbox.on({
+          Selected: (model, { value }, listbox) =>
+            listbox.id === 'assigneeListbox'
+              ? Option.match(decodeAssigneeSelection(value), {
+                  onNone: () => ({ model }),
+                  onSome: maybeAssigneeId =>
+                    editDraftStep(draft =>
+                      modifyFields(draft, {
+                        maybeAssigneeId: () => maybeAssigneeId,
+                      }),
+                    )(model),
+                })
+              : editDraftStep(draft =>
+                  modifyFields(draft, { projectId: () => value }),
                 )(model),
-            }),
         }),
       },
 

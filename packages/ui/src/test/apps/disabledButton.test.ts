@@ -7,6 +7,7 @@ import { describe, it } from '@effect/vitest'
 import { type DisabledButton, DisabledButtonLive } from './disabledButton.js'
 
 const openDialogModel: Resolved<typeof DisabledButton.Model.Type> = {
+  isInDialog: true,
   isEnabled: false,
   dialog: {
     id: 'test-dialog',
@@ -39,7 +40,11 @@ describe('disabled button cleanup', () => {
       Scene.scene(
         DisabledButtonLive,
         { isInDialog: false },
-        Scene.given({ ...openDialogModel, isEnabled: true }),
+        Scene.given({
+          ...openDialogModel,
+          isInDialog: false,
+          isEnabled: true,
+        }),
         Scene.expect(Scene.text('Submit')).not.toBeDisabled(),
         Scene.click(Scene.text('Submit')),
       ),

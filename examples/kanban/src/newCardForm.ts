@@ -37,10 +37,10 @@ export class NewCardForm extends Block<NewCardForm>()('NewCardForm', {
   Command: [FocusAddCardInput],
 }) {}
 
-export const NewCardFormLive = NewCardForm.make(
-  Effect.fn(function* () {
+export const NewCardFormLive = NewCardForm.layer(
+  Effect.gen(function* () {
     return {
-      model: closedModel,
+      init: () => closedModel,
 
       update: {
         RequestedOpen: (_model, { columnId }) => ({

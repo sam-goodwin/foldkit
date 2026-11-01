@@ -62,7 +62,7 @@ const gotAnimationMessage = ({
 }: Readonly<{
   entryId: string
   message: Animation.Message
-}>) => Block.deliver(Animation.Animation, ['entries', entryId], message)
+}>) => Block.deliver(Animation.Animation, entryId, message)
 
 const makeSettledEntry = (overrides: Partial<Entry> = {}): Entry => ({
   id: 'test-entry-0',

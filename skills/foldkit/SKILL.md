@@ -58,8 +58,10 @@ of a release tag. After an upgrade, use the same command with `pull` in place of
   libraries. Check `create-foldkit-app` and current examples first.
 - Every feature with state is a Block class. The class declares the contract
   (`class Search extends Block<Search, Args>()('Search', { Model, Message })`),
-  and `Search.make(Effect.fn(...))` implements it and returns the `SearchLive`
-  Layer that provides it.
+  and `SearchLive = Search.layer(Effect.gen(...))` implements it. The Layer
+  constructor runs once per Block and returns a module every instance shares.
+  An instance is plain data created with `new Search('search', args)`;
+  Foldkit runs its `start` Commands and Subscriptions while a Model holds it.
 - One file, one Block. A Block's file, named for it in camelCase
   (`search.ts`, `issueBoard.ts`, `application.ts` for the root), holds its
   Message and OutMessage unions, Model Schema, Command and Mount definitions,
@@ -70,10 +72,10 @@ of a release tag. After an upgrade, use the same command with `pull` in place of
   its own file; render-only markup stays in the parent as view functions. The other source files are
   entries, `services.ts`, `route.ts`, and `domain/` modules shared by several
   Blocks.
-- Use a stateful `@foldkit/ui` component as a child Block. Declare the
-  instance in the parent constructor with
-  `yield* new Dialog.Dialog('dialog', args)`, store it in the parent Model,
-  and provide `Dialog.DialogLive` to the parent's Layer.
+- Use a stateful `@foldkit/ui` component as a child Block. Create the
+  instance with `new Dialog.Dialog('dialog', args)` in the parent's `init` or
+  an update handler, store it in the parent Model, and provide
+  `Dialog.DialogLive` to the parent's Layer.
 - Call a generic component factory once at module scope, such as
   `const ResultListbox = Listbox.makeBlock<Result>()`. It returns a class
   with its Layer attached as `ResultListbox.Live`. Never call the factory
@@ -84,7 +86,7 @@ of a release tag. After an upgrade, use the same command with `pull` in place of
   current value. Use `() => value` for replacement from a Message payload,
   Command result, or another Model field.
 
-For any Block, child instance, OutMessage, view input, exposed handle,
+For any Block, child instance, OutMessage, view input, per-instance resource,
 Program, or Service Layer work, read
 [references/composition.md](references/composition.md). It covers the
 ownership model, the canonical class shape, children and their lifecycle,
@@ -97,11 +99,12 @@ version instead of reconstructing an API from memory.
 Push back on mutation, two-way binding, imperative event handlers, Messages
 named as instructions, effects performed by update or view, and workflow state
 hidden in services. Propose the Foldkit form that keeps state transitions in
-update and effects behind Commands, Subscriptions, Mounts, or a child Block
-that owns a resource.
+update and effects behind Commands, Subscriptions, Mounts, or a keyed
+resource Service.
 
 Errors from Commands become Messages. Model absence with `Option`, remote data
 with `AsyncData`, and multi-state domain behavior with discriminated unions.
 Use Schema types for Models, Messages, Routes, and domain unions. A parent
 reads a child's state through `model.child.model`, changes it only by sending
-the child a Message, and learns child facts through `.on` OutMessage handlers.
+the child a Message, and learns child facts through `Child.on` OutMessage
+handlers.

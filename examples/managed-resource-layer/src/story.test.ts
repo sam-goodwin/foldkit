@@ -1,17 +1,21 @@
 import { Option } from 'effect'
+import { Block } from 'foldkit'
 import { Command, message, model, story } from 'foldkit/story'
 
 import { describe, expect, it } from '@effect/vitest'
 
 import { Compute, EngineState, Message } from './application'
 import { application } from './application.fixture'
-import { BootEngine, Engine } from './engine'
+import { Engine } from './engine'
 
 const startEngine = [
   message(Message.ClickedStartEngine()),
-  Command.resolve(
-    BootEngine,
-    Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+  message(
+    Block.deliver(
+      Engine,
+      'computeEngine',
+      Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+    ),
   ),
 ]
 
@@ -27,10 +31,12 @@ describe('update', () => {
             expect(model.engine._tag).toBe('Booting')
             expect(Option.isSome(model.maybeComputeEngine)).toBe(true)
           }),
-          Command.expectExact(BootEngine),
-          Command.resolve(
-            BootEngine,
-            Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+          message(
+            Block.deliver(
+              Engine,
+              'computeEngine',
+              Engine.Message.SucceededBootEngine({ engineId: 'engine-1' }),
+            ),
           ),
         ),
     )
@@ -39,9 +45,12 @@ describe('update', () => {
       story(
         application,
         message(Message.ClickedStartEngine()),
-        Command.resolve(
-          BootEngine,
-          Engine.Message.SucceededBootEngine({ engineId: 'engine-7' }),
+        message(
+          Block.deliver(
+            Engine,
+            'computeEngine',
+            Engine.Message.SucceededBootEngine({ engineId: 'engine-7' }),
+          ),
         ),
         model(model => {
           expect(model.engine).toStrictEqual(
@@ -67,9 +76,12 @@ describe('update', () => {
       story(
         application,
         message(Message.ClickedStartEngine()),
-        Command.resolve(
-          BootEngine,
-          Engine.Message.FailedBootEngine({ reason: 'boot timeout' }),
+        message(
+          Block.deliver(
+            Engine,
+            'computeEngine',
+            Engine.Message.FailedBootEngine({ reason: 'boot timeout' }),
+          ),
         ),
         model(model => {
           expect(model.engine).toStrictEqual(
@@ -92,7 +104,9 @@ describe('update', () => {
           model(model => {
             expect(model.computeCount).toBe(1)
           }),
-          Command.expectExact(Compute({ value: 1 })),
+          Command.expectExact(
+            Compute({ engineKey: 'computeEngine', value: 1 }),
+          ),
           Command.resolve(Compute, Message.SucceededCompute({ result: 1 })),
           model(model => {
             expect(model.maybeSquareResult).toStrictEqual(Option.some(1))

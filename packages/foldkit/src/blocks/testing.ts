@@ -24,12 +24,13 @@ import {
   type BlockMessage,
   type RuntimeBlock,
   type RuntimeInstance,
-  constructSync,
+  constructRoot,
   disposeGraph,
   hydrate,
   makeGraph,
   renderRoot,
   resolve,
+  settle,
   takeStarted,
   update,
 } from './engine.js'
@@ -164,11 +165,11 @@ const makeSimulation = <E, R>(
     yield* Effect.addFinalizer(() => disposeGraph(graph))
 
     /* eslint-disable @typescript-eslint/consistent-type-assertions */
-    let current = constructSync(graph, block, [], block.id, args, context)
+    let current = constructRoot(graph, block, args, context)
     takeStarted(graph)
 
     const toInstance = (model: unknown): RuntimeInstance => {
-      current = hydrate(model, current) as RuntimeInstance
+      current = settle(graph, hydrate(model, current) as RuntimeInstance)
       return current
     }
 

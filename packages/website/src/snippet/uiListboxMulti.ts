@@ -26,19 +26,20 @@ export class PeoplePicker extends Block<PeoplePicker>()('PeoplePicker', {
   }),
 }) {}
 
-export const PeoplePickerLive = PeoplePicker.make(
-  Effect.fn(function* () {
-    const listboxMulti = yield* new PeopleListbox('listboxMulti', {
-      id: 'people',
-    })
-
+export const PeoplePickerLive = PeoplePicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { listboxMulti, selectedPeople: [] },
+      init: () => ({
+        listboxMulti: new PeopleListbox('listboxMulti', {
+          id: 'people',
+        }),
+        selectedPeople: [],
+      }),
 
       update: {
         // `Selected` carries the activated value. For multi-select, toggle it
         // in and out of the parent's array.
-        ...listboxMulti.on({
+        ...PeopleListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               selectedPeople: selectedPeople =>

@@ -8,10 +8,10 @@ export class Application extends Block<Application>()('Application', {
   Message: defineMessageUnion({ ClickedIncrement: {} }),
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: () => ({ count: 0 }),
 
       update: {
         ClickedIncrement: model => ({

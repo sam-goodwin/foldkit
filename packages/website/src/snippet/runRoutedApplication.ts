@@ -30,10 +30,10 @@ export class Application extends Block<
   Command: [NavigateInternal, LoadExternal],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { path: url.pathname },
+      init: ({ url }) => ({ path: url.pathname }),
 
       update: {
         ClickedLink: (model, { request }) =>

@@ -25,18 +25,19 @@ export class CitiesPicker extends Block<CitiesPicker>()('CitiesPicker', {
   }),
 }) {}
 
-export const CitiesPickerLive = CitiesPicker.make(
-  Effect.fn(function* () {
-    const comboboxMulti = yield* new CitiesCombobox('comboboxMulti', {
-      id: 'cities-multi',
-    })
-
+export const CitiesPickerLive = CitiesPicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { comboboxMulti, selectedCities: [] },
+      init: () => ({
+        comboboxMulti: new CitiesCombobox('comboboxMulti', {
+          id: 'cities-multi',
+        }),
+        selectedCities: [],
+      }),
 
       update: {
         // The parent toggles the committed value in the selection it owns
-        ...comboboxMulti.on({
+        ...CitiesCombobox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               selectedCities: selectedCities =>

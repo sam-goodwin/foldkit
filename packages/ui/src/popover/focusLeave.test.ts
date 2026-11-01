@@ -13,12 +13,10 @@ class PopoverFocusLeaveTest extends Block<PopoverFocusLeaveTest>()(
   },
 ) {}
 
-const PopoverFocusLeaveTestLive = PopoverFocusLeaveTest.make(
-  Effect.fn(function* () {
-    const popover = yield* new Popover('popover', { id: 'sort' })
-
+const PopoverFocusLeaveTestLive = PopoverFocusLeaveTest.layer(
+  Effect.gen(function* () {
     return {
-      model: { popover },
+      init: () => ({ popover: new Popover('popover', { id: 'sort' }) }),
       view: (model, h) =>
         h.div(
           [],

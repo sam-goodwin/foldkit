@@ -71,12 +71,12 @@ export class Application extends Block<Application>()('Application', {
   Command: [FetchWeather],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 
     return {
-      model: { zipCode: '', weatherAsyncData: WeatherAsyncData.Idle() },
+      init: () => ({ zipCode: '', weatherAsyncData: WeatherAsyncData.Idle() }),
 
       update: {
         UpdatedZipCode: (model, { value }) => ({

@@ -45,12 +45,12 @@ export class StatsTab extends Block<StatsTab>()('StatsTab', {
   Command: [FetchStats],
 }) {}
 
-export const StatsTabLive = StatsTab.make(
-  Effect.fn(function* () {
+export const StatsTabLive = StatsTab.layer(
+  Effect.gen(function* () {
     const clock = yield* Clock.Clock
 
     return {
-      model: { stats: StatsData.Idle() },
+      init: () => ({ stats: StatsData.Idle() }),
 
       update: {
         RequestedLoadIfMissing: model =>

@@ -132,12 +132,10 @@ export class Application extends Block<Application>()('Application', {
   Model,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const counter = yield* new Counter('counter')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { counter },
+      init: () => ({ counter: new Counter('counter') }),
       view: (model, h) =>
         Markdown.view(post, {
           islands: Markdown.islandsFor(islandAttributes, {

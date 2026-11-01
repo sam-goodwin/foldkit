@@ -15,15 +15,15 @@ class ListboxTriggerClickTest extends Block<ListboxTriggerClickTest>()(
   },
 ) {}
 
-const ListboxTriggerClickTestLive = ListboxTriggerClickTest.make(
-  Effect.fn(function* () {
-    const listbox = yield* new TestListbox('listbox', {
-      id: 'sort',
-      isModal: true,
-    })
-
+const ListboxTriggerClickTestLive = ListboxTriggerClickTest.layer(
+  Effect.gen(function* () {
     return {
-      model: { listbox },
+      init: () => ({
+        listbox: new TestListbox('listbox', {
+          id: 'sort',
+          isModal: true,
+        }),
+      }),
       view: (model, h) =>
         h.div(
           [],

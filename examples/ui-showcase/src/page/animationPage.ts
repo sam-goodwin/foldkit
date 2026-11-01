@@ -20,14 +20,14 @@ export class AnimationPage extends Block<AnimationPage>()('AnimationPage', {
   Message,
 }) {}
 
-export const AnimationPageLive = AnimationPage.make(
-  Effect.fn(function* () {
-    const animationDemo = yield* new Animation.Animation('animationDemo', {
-      id: 'animation-demo',
-    })
-
+export const AnimationPageLive = AnimationPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { animationDemo },
+      init: () => ({
+        animationDemo: new Animation.Animation('animationDemo', {
+          id: 'animation-demo',
+        }),
+      }),
 
       update: {
         ToggledAnimationDemo: model => ({
@@ -41,7 +41,7 @@ export const AnimationPageLive = AnimationPage.make(
           ],
         }),
 
-        ...animationDemo.on({
+        ...Animation.Animation.on({
           StartedLeaveAnimating: model => ({
             model,
             messages: [

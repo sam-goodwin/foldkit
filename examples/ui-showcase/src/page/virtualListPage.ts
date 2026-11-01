@@ -38,19 +38,19 @@ export class VirtualListPage extends Block<VirtualListPage>()(
   { Model, Message },
 ) {}
 
-export const VirtualListPageLive = VirtualListPage.make(
-  Effect.fn(function* () {
-    const virtualListDemo = yield* new ActivityVirtualList('virtualListDemo', {
-      id: 'virtual-list-demo',
-      rowHeightPx: 56,
-    })
-    const virtualListVariableDemo = yield* new ActivityVirtualList(
-      'virtualListVariableDemo',
-      { id: 'virtual-list-variable-demo', rowHeightPx: 56 },
-    )
-
+export const VirtualListPageLive = VirtualListPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { virtualListDemo, virtualListVariableDemo },
+      init: () => ({
+        virtualListDemo: new ActivityVirtualList('virtualListDemo', {
+          id: 'virtual-list-demo',
+          rowHeightPx: 56,
+        }),
+        virtualListVariableDemo: new ActivityVirtualList(
+          'virtualListVariableDemo',
+          { id: 'virtual-list-variable-demo', rowHeightPx: 56 },
+        ),
+      }),
 
       update: {
         ClickedVirtualListScrollToMiddle: model => ({

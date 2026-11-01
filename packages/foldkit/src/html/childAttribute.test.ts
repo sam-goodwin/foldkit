@@ -4,12 +4,7 @@ import { afterEach, beforeEach, expect, vi } from 'vitest'
 import { describe, it } from '@effect/vitest'
 
 import { Block, deliver, runtimeBlockOf } from '../blocks/block.js'
-import {
-  constructSync,
-  makeGraph,
-  reconcile,
-  renderRoot,
-} from '../blocks/engine.js'
+import { constructRoot, makeGraph, renderRoot } from '../blocks/engine.js'
 import { defineMessageUnion } from '../message/index.js'
 import { MountTracker } from '../mount/index.js'
 import { Dispatch } from '../runtime/index.js'
@@ -53,15 +48,7 @@ const renderRootBlock = <Self>(
       const context = yield* Layer.build(layer)
       const block = runtimeBlockOf(root)
       const graph = makeGraph({ isSimulation: false })
-      const instance = constructSync(
-        graph,
-        block,
-        [],
-        block.id,
-        undefined,
-        context,
-      )
-      reconcile(graph, instance)
+      const instance = constructRoot(graph, block, undefined, context)
       /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
       return renderRoot(graph, instance) as Html
     }),
@@ -92,8 +79,8 @@ class Checkbox extends Block<Checkbox, void, CheckboxViewInput>()('Checkbox', {
   Message: ChildMessage,
 }) {}
 
-const CheckboxLive = Checkbox.make(
-  Effect.fn(function* () {
+const CheckboxLive = Checkbox.layer(
+  Effect.gen(function* () {
     return {
       update: { ClickedChild: model => ({ model }) },
       view: (_model, h, { toView }) =>
@@ -164,8 +151,8 @@ describe('childAttributes', () => {
           { Message: ChildMessage },
         ) {}
 
-        const ObserverLive = Observer.make(
-          Effect.fn(function* () {
+        const ObserverLive = Observer.layer(
+          Effect.gen(function* () {
             return {
               update: { ClickedChild: model => ({ model }) },
               view: (_model, h, { toView }) =>
@@ -189,11 +176,10 @@ describe('childAttributes', () => {
           Model: Schema.Struct({ observer: Observer }),
         }) {}
 
-        const ParentLive = Parent.make(
-          Effect.fn(function* () {
-            const observer = yield* new Observer('observer')
+        const ParentLive = Parent.layer(
+          Effect.gen(function* () {
             return {
-              model: { observer },
+              init: () => ({ observer: new Observer('observer') }),
               update: {},
               view: (model, h) =>
                 model.observer.view({
@@ -229,11 +215,10 @@ describe('childAttributes', () => {
           Model: Schema.Struct({ checkbox: Checkbox }),
         }) {}
 
-        const ParentLive = Parent.make(
-          Effect.fn(function* () {
-            const checkbox = yield* new Checkbox('checkbox')
+        const ParentLive = Parent.layer(
+          Effect.gen(function* () {
             return {
-              model: { checkbox },
+              init: () => ({ checkbox: new Checkbox('checkbox') }),
               update: {},
               view: (model, h) =>
                 model.checkbox.view({
@@ -271,8 +256,8 @@ describe('childAttributes', () => {
           { Message: ChildMessage },
         ) {}
 
-        const ProducerLive = Producer.make(
-          Effect.fn(function* () {
+        const ProducerLive = Producer.layer(
+          Effect.gen(function* () {
             return {
               update: { ClickedChild: model => ({ model }) },
               view: (_model, h, { toView }) => {
@@ -296,11 +281,10 @@ describe('childAttributes', () => {
           Model: Schema.Struct({ producer: Producer }),
         }) {}
 
-        const ParentLive = Parent.make(
-          Effect.fn(function* () {
-            const producer = yield* new Producer('producer')
+        const ParentLive = Parent.layer(
+          Effect.gen(function* () {
             return {
-              model: { producer },
+              init: () => ({ producer: new Producer('producer') }),
               update: {},
               view: (model, h) =>
                 model.producer.view({
@@ -335,11 +319,10 @@ describe('childAttributes', () => {
           Message: ParentMessage,
         }) {}
 
-        const ParentLive = Parent.make(
-          Effect.fn(function* () {
-            const checkbox = yield* new Checkbox('checkbox')
+        const ParentLive = Parent.layer(
+          Effect.gen(function* () {
             return {
-              model: { checkbox },
+              init: () => ({ checkbox: new Checkbox('checkbox') }),
               update: {
                 ClickedParent: model => ({ model }),
                 PressedParentKey: model => ({ model }),
@@ -396,8 +379,8 @@ describe('childAttributes', () => {
         Message: ChildMessage,
       }) {}
 
-      const FirstLive = First.make(
-        Effect.fn(function* () {
+      const FirstLive = First.layer(
+        Effect.gen(function* () {
           return {
             update: { ClickedChild: model => ({ model }) },
             view: (_model, h, { capture }) => {
@@ -410,8 +393,8 @@ describe('childAttributes', () => {
         }),
       )
 
-      const SecondLive = Second.make(
-        Effect.fn(function* () {
+      const SecondLive = Second.layer(
+        Effect.gen(function* () {
           return {
             update: { ClickedChild: model => ({ model }) },
             view: (_model, h, { capture }) => {
@@ -428,12 +411,13 @@ describe('childAttributes', () => {
         Model: Schema.Struct({ first: First, second: Second }),
       }) {}
 
-      const ParentLive = Parent.make(
-        Effect.fn(function* () {
-          const first = yield* new First('first')
-          const second = yield* new Second('second')
+      const ParentLive = Parent.layer(
+        Effect.gen(function* () {
           return {
-            model: { first, second },
+            init: () => ({
+              first: new First('first'),
+              second: new Second('second'),
+            }),
             update: {},
             view: (model, h) => {
               let firstAttributes: ReadonlyArray<ChildAttribute> = []

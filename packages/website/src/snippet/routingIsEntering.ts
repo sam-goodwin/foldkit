@@ -59,16 +59,15 @@ class Application extends Block<Application, Readonly<{ url: Url.Url }>>()(
   { Model, Message, Command: [FetchPeopleFilters] },
 ) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
-    const route = urlToApplicationRoute(url)
 
     return {
-      model: { route, filters: [] },
+      init: ({ url }) => ({ route: urlToApplicationRoute(url), filters: [] }),
 
-      // ...the constructor builds the cold load transition, which counts as an entry...
-      start: commandsForTransition(Transition.coldLoad(route)),
+      // ...start builds the cold load transition, which counts as an entry...
+      start: model => commandsForTransition(Transition.coldLoad(model.route)),
 
       update: {
         // ...and the ChangedUrl handler transitions from the route the Model holds

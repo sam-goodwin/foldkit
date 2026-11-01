@@ -46,13 +46,13 @@ Four sources report through the Runtime: Commands, the Browser, Mounts, and Subs
 - **Browser:** interactions with the rendered view, such as clicks and keypresses, produce Messages directly.
 - **Commands:** one-shot side effects such as HTTP requests, focus operations, `localStorage` writes, and navigation calls. The runtime executes each Command and sends its declared result back as a Message. Every Command has a name that appears in [DevTools](/core/devtools), [tests](/testing), and tracing.
 - **Mount:** imperative work scoped to the lifetime of an element in the live DOM. For example: portaling an overlay, attaching an observer, or handing an element to a third-party library. A Mount declared with `Mount.define` runs an Effect that emits one Message when the element appears. One declared with `Mount.defineStream` runs a Stream of Messages from listeners or observers. The runtime dispatches those results and runs the paired cleanup when the element unmounts.
-- **Subscriptions:** Streams that run while a Block instance exists. A Block's `stream` runs for the instance's whole life. A `subscriptions` entry runs while a value derived from the Model stays the same, and restarts when that value changes. A Subscription often turns an external source, such as timer ticks, `WebSocket` frames, or system theme changes, into Messages. It can also emit no Messages and maintain DOM state for its lifetime, such as setting `user-select: none` while a drag is active.
+- **Subscriptions:** Streams that run while a Block instance is in the Model. Each `subscriptions` entry runs while a value derived from the instance's Model stays the same, and restarts when that value changes. An entry whose value never changes runs for the instance's whole life. A Subscription often turns an external source, such as timer ticks, `WebSocket` frames, or system theme changes, into Messages. It can also emit no Messages and maintain DOM state for its lifetime, such as setting `user-select: none` while a drag is active.
 
-A stateful handle such as a `WebSocket` connection or a camera stream is a child Block that acquires the handle in its constructor and releases it when the parent removes it from the Model. Its Messages reach the Runtime through its `stream`, like any other Subscription. [Resources](/core/managed-resources) covers the pattern.
+A stateful handle such as a `WebSocket` connection belongs to a Subscription that acquires it when its Block instance appears in the Model and releases it when the instance leaves. When Commands also use the handle, the Block keeps it in an Effect `RcMap` keyed by a value in the Model. [Resources](/core/managed-resources) covers both forms.
 
 ### Shared Services
 
-Shared services sit beneath the loop instead of feeding it directly. They are app-lifetime dependencies such as an `RpcClient`, an analytics client, or a background compute worker. Block constructors yield them, and the Command handlers, Mount handlers, and Streams those constructors return close over them. Services do not produce Messages themselves.
+Shared services sit beneath the loop instead of feeding it directly. They are app-lifetime dependencies such as an `RpcClient`, an analytics client, or a background compute worker. Each Block's Layer yields them once, and the Command handlers, Mount handlers, and Subscriptions it returns close over them. Services do not produce Messages themselves.
 
 ### Model Ownership
 
@@ -60,13 +60,13 @@ Commands, browser events, Mounts, and Subscriptions never mutate the Model. They
 
 ## Blocks and Layers {#application-assembly}
 
-The loop above describes one Block. An application is a tree of them. Each Block is a class that declares its Model, Messages, and Commands, and an implementation, built with `make`, that returns its update handlers, Command handlers, and view. A parent creates child instances in its constructor and holds them in its own Model, so the root Block's Model is the state of the whole application.
+The loop above describes one Block. An application is a tree of them. Each Block is a class that declares its Model, Messages, and Commands, and one implementation, built with `layer`, that returns its module: `init`, update handlers, Command handlers, Subscriptions, and view. Every instance of the Block shares that module, the way every use of an Elm module shares its `init`, `update`, and `view`. A parent creates a child instance with `new Child(id, args)`, a plain value, and holds it in its own Model, so the root Block's Model is the state of the whole application.
 
 A Message belongs to one instance. A click inside a child's view goes to the child's update. The child reports facts upward with OutMessages, and the parent changes a child only by sending it a Message.
 
-Each implementation is an Effect Layer. A Block's constructor yields the services it needs, such as an `RpcClient`, and its Command handlers close over them. A parent's Layer requires the Layers of the children it creates. The program receives one Layer that provides the root Block, every Block below it, and every service they yield, and TypeScript rejects a program whose Layer is missing any of them.
+Each implementation is an Effect Layer. Its constructor runs once, when the program's Layer is built, yields the services the Block needs, such as an `RpcClient`, and returns handlers that close over them. A parent's Layer requires the Layers of the Blocks its Model holds. The program receives one Layer that provides the root Block, every Block below it, and every service they yield, and TypeScript rejects a program whose Layer is missing any of them.
 
-`Program.make(Application, { layer, container })` describes the program. `Runtime.run(program)` builds the Layer, constructs the root instance, and starts the loop. The [Block guide](/core/block) builds a parent and child step by step, and the [Layers guide](/core/layers) explains how implementations and services are supplied.
+`Program.make(Application, { layer, container })` describes the program. `Runtime.run(program)` builds the Layer, creates the root instance from its `init`, and starts the loop. The [Block guide](/core/block) builds a parent and child step by step, and the [Layers guide](/core/layers) explains how implementations and services are supplied.
 
 ## Definitions
 
@@ -80,7 +80,7 @@ Use this table as a reference after you understand the loop:
 | view         | A pure function that renders the Model as HTML. Its event handlers construct Messages.                                                                                                                 |
 | Command      | A description of a one-shot side effect. The runtime executes it and sends the result back as one of its declared Messages.                                                                            |
 | Mount        | Imperative work scoped to a live DOM element. It emits Messages through an Effect or Stream and cleans up when the element unmounts.                                                                   |
-| Subscription | A Stream of Messages that runs while a Block instance exists, either always or while a value derived from its Model stays the same.                                                                    |
+| Subscription | A Stream of Messages that runs while a Block instance is in the Model and a value derived from its Model stays the same.                                                                               |
 | Layer        | A recipe for constructing services and Block implementations. The Runtime builds the program's Layer once per start and releases its scoped resources on stop.                                         |
 | Runtime      | The Foldkit engine that executes Commands, runs Subscriptions, manages Mount and instance lifecycles, and routes Messages back into update.                                                            |
 | Block        | A class that declares a Model, Messages, and Commands, plus a Layer that implements them. A parent holds Block instances in its Model, and each child reports facts to its parent through OutMessages. |

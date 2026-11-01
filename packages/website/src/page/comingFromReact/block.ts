@@ -11,14 +11,15 @@ export class ComingFromReact extends Block<ComingFromReact, void, ViewInputs>()(
   { Model, Message },
 ) {}
 
-export const ComingFromReactLive = ComingFromReact.make(
-  Effect.fn(function* () {
+export const ComingFromReactLive = ComingFromReact.layer(
+  Effect.gen(function* () {
     return {
-      model: pipe(
-        FAQ_IDS,
-        Array.map(id => [id, false] as const),
-        Record.fromEntries,
-      ),
+      init: () =>
+        pipe(
+          FAQ_IDS,
+          Array.map(id => [id, false] as const),
+          Record.fromEntries,
+        ),
 
       update: {
         ToggledFaq: (model, { id, isOpen }) => ({

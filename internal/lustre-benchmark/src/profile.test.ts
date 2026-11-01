@@ -121,10 +121,10 @@ const runProfile = async (
     Model,
     Message,
   }) {}
-  const ApplicationLive = Application.make(
-    Effect.fn(function* () {
+  const ApplicationLive = Application.layer(
+    Effect.gen(function* () {
       return {
-        model: init_().model,
+        init: () => init_().model,
         update: {
           UpdatedNewTodo: wrappedUpdate.fn,
           UpdatedEditingTodo: wrappedUpdate.fn,

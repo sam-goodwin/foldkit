@@ -22,7 +22,7 @@ import {
   type ViewInput,
 } from './memberDirectory'
 
-class MemberDirectoryScene extends Block<MemberDirectoryScene, ViewInput>()(
+class MemberDirectoryScene extends Block<MemberDirectoryScene>()(
   'MemberDirectoryScene',
   {
     Model: Schema.Struct({ memberDirectory: MemberDirectory }),
@@ -30,17 +30,18 @@ class MemberDirectoryScene extends Block<MemberDirectoryScene, ViewInput>()(
   },
 ) {}
 
-const MemberDirectorySceneLive = MemberDirectoryScene.make(
-  Effect.fn(function* (_id, viewInput) {
-    const memberDirectory = yield* new MemberDirectory('memberDirectory')
-
-    return {
-      model: { memberDirectory },
-      update: {},
-      view: model => model.memberDirectory.view(viewInput),
-    }
-  }),
-).pipe(Layer.provide(MemberDirectoryLive))
+const makeMemberDirectorySceneLive = (viewInput: ViewInput) =>
+  MemberDirectoryScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({
+          memberDirectory: new MemberDirectory('memberDirectory'),
+        }),
+        update: {},
+        view: model => model.memberDirectory.view(viewInput),
+      }
+    }),
+  ).pipe(Layer.provide(MemberDirectoryLive))
 
 const sceneInputs = (overrides: Partial<ViewInput> = {}): ViewInput => ({
   members: initialWorkspace.members,
@@ -56,8 +57,7 @@ const withMayaSelected = given({
 describe('member directory', () => {
   it.effect('filters members by name and reports an empty search', () =>
     scene(
-      MemberDirectorySceneLive,
-      sceneInputs(),
+      makeMemberDirectorySceneLive(sceneInputs()),
       expect(text('3 members')).toExist(),
       type(label('Search members'), 'maya'),
       expect(role('button', { name: 'View Maya Chen' })).toExist(),
@@ -73,8 +73,7 @@ describe('member directory', () => {
       const issue = Option.getOrThrow(Array.head(initialWorkspace.issues))
 
       return scene(
-        MemberDirectorySceneLive,
-        sceneInputs(),
+        makeMemberDirectorySceneLive(sceneInputs()),
         click(role('button', { name: 'View Maya Chen' })),
         expect(role('heading', { name: 'Maya Chen' })).toExist(),
         expect(
@@ -90,8 +89,7 @@ describe('member directory', () => {
       const issue = Option.getOrThrow(Array.head(initialWorkspace.issues))
 
       return scene(
-        MemberDirectorySceneLive,
-        sceneInputs({ issueHrefs: {} }),
+        makeMemberDirectorySceneLive(sceneInputs({ issueHrefs: {} })),
         withMayaSelected,
         expect(
           role('link', { name: `${issue.identifier} ${issue.title}` }),
@@ -107,8 +105,7 @@ describe('member directory', () => {
     )
 
     return scene(
-      MemberDirectorySceneLive,
-      sceneInputs({ issues: nextIssues }),
+      makeMemberDirectorySceneLive(sceneInputs({ issues: nextIssues })),
       withMayaSelected,
       expect(role('heading', { name: 'Maya Chen' })).toExist(),
       expect(text('No assigned issues.')).toExist(),

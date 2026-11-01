@@ -65,16 +65,16 @@ export class ProjectSettings extends Block<
   Command: [SaveProject],
 }) {}
 
-export const ProjectSettingsLive = ProjectSettings.make(
-  Effect.fn(function* (_id, { project }) {
+export const ProjectSettingsLive = ProjectSettings.layer(
+  Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 
     return {
-      model: {
+      init: ({ project }) => ({
         baseline: project,
         draft: { name: project.name, description: project.description },
         saveState: SaveState.Idle(),
-      },
+      }),
       update: {
         UpdatedProjectName: (model, { value }) =>
           editDraftStep(draft => modifyFields(draft, { name: () => value }))(

@@ -93,35 +93,31 @@ export class CreateIssue extends Block<CreateIssue, void, ViewInput>()(
   { Model, Message, OutMessage, Command: [CreateNewIssue] },
 ) {}
 
-export const CreateIssueLive = CreateIssue.make(
-  Effect.fn(function* () {
+export const CreateIssueLive = CreateIssue.layer(
+  Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
-    const dialog = yield* new Dialog.Dialog('dialog', {
-      id: 'workspace-create-issue-dialog',
-    })
-    const projectListbox = yield* new WorkspaceListbox('projectListbox', {
-      id: 'create-issue-project',
-    })
-    const statusListbox = yield* new StatusListbox('statusListbox', {
-      id: 'create-issue-status',
-    })
-    const priorityListbox = yield* new PriorityListbox('priorityListbox', {
-      id: 'create-issue-priority',
-    })
 
     return {
-      model: {
+      init: () => ({
         title: '',
         description: '',
         projectId: 'platform',
         status: 'Todo',
         priority: 'Medium',
         createState: CreateState.Idle(),
-        dialog,
-        projectListbox,
-        statusListbox,
-        priorityListbox,
-      },
+        dialog: new Dialog.Dialog('dialog', {
+          id: 'workspace-create-issue-dialog',
+        }),
+        projectListbox: new WorkspaceListbox('projectListbox', {
+          id: 'create-issue-project',
+        }),
+        statusListbox: new StatusListbox('statusListbox', {
+          id: 'create-issue-status',
+        }),
+        priorityListbox: new PriorityListbox('priorityListbox', {
+          id: 'create-issue-priority',
+        }),
+      }),
 
       update: {
         RequestedOpen: (model, { projectId, status = 'Todo' }) => {
@@ -162,13 +158,13 @@ export const CreateIssueLive = CreateIssue.make(
           }),
           messages: [openDialog(model)],
         }),
-        ...projectListbox.on({
+        ...WorkspaceListbox.on({
           Selected: (model, { value }) =>
             editDraftStep((draft: Model) =>
               modifyFields(draft, { projectId: () => value }),
             )(model),
         }),
-        ...statusListbox.on({
+        ...StatusListbox.on({
           Selected: (model, { value }) =>
             Schema.is(IssueStatus)(value)
               ? editDraftStep((draft: Model) =>
@@ -176,7 +172,7 @@ export const CreateIssueLive = CreateIssue.make(
                 )(model)
               : { model },
         }),
-        ...priorityListbox.on({
+        ...PriorityListbox.on({
           Selected: (model, { value }) =>
             Schema.is(IssuePriority)(value)
               ? editDraftStep((draft: Model) =>

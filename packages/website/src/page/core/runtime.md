@@ -2,16 +2,16 @@
 
 ## Overview
 
-A compact Foldkit application can start in two files. `src/application.ts` declares the root Block, `Application`, and implements it as `ApplicationLive`. `src/entry.ts` passes both to `Program.make` or `Program.makeElement` and starts the Runtime. When the root's constructors yield services, `src/services.ts` builds them as `ApplicationLayer`. Importing application modules in a test does not start anything.
+A compact Foldkit application can start in two files. `src/application.ts` declares the root Block, `Application`, and implements it as `ApplicationLive`. `src/entry.ts` passes both to `Program.make` or `Program.makeElement` and starts the Runtime. When the Blocks' Layers yield services, `src/services.ts` builds them as `ApplicationLayer`. Importing application modules in a test does not start anything.
 
 The Runtime API makes two independent choices:
 
 - `Program.make` or `Program.makeElement` decides what the app owns. A program made with `make` owns the page; one made with `makeElement` owns only its container.
 - `Runtime.run` or `Runtime.embed` decides who owns the runtime lifetime. `run` starts it for the page lifetime; `embed` returns a handle the host disposes.
 
-Both program constructors take the root class and an options object. The `layer` option provides the root Block, every Block it creates, and every service their constructors yield. Its type must have no remaining requirements, so a program with a missing Block or service does not compile. [Layers](/core/layers) covers how to build that Layer.
+Both program constructors take the root class and an options object. The `layer` option provides the root Block, every Block its Model can hold, and every service their Layers yield. Its type must have no remaining requirements, so a program with a missing Block or service does not compile. [Layers](/core/layers) covers how to build that Layer.
 
-`Program.make` and `Program.makeElement` only describe the program. The Runtime builds the Layer when it starts the program, constructs the root instance, and releases everything when it stops.
+`Program.make` and `Program.makeElement` only describe the program. The Runtime builds the Layer when it starts the program, creates the root instance from its `init`, and releases everything when it stops.
 
 ## Program.make {#to-application}
 

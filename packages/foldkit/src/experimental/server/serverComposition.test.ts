@@ -35,8 +35,8 @@ class Child extends Block<Child, { readonly title: string }>()('Child', {
 
 const events: Array<string> = []
 
-const ChildLive = Child.make(
-  Effect.fn(function* (_id, { title }) {
+const ChildLive = Child.layer(
+  Effect.gen(function* () {
     yield* Effect.acquireRelease(
       Effect.sync(() => {
         events.push('acquired')
@@ -48,12 +48,18 @@ const ChildLive = Child.make(
     )
 
     return {
-      model: { title },
-      start: [Prepare()],
-      stream: Stream.sync(() => {
-        events.push('streamed')
-        return Child.Message.Ticked()
-      }),
+      init: ({ title }) => ({ title }),
+      start: () => [Prepare()],
+      subscriptions: {
+        ticks: {
+          dependencies: () => null,
+          stream: () =>
+            Stream.sync(() => {
+              events.push('streamed')
+              return Child.Message.Ticked()
+            }),
+        },
+      },
       update: {
         ClickedPrepare: model => ({ model }),
         CompletedPrepare: model => ({ model }),
@@ -87,11 +93,12 @@ class Root extends Block<Root>()('Root', {
   Model: Schema.Struct({ child: Child }),
 }) {}
 
-const RootLive = Root.make(
-  Effect.fn(function* () {
-    const child = yield* new Child('child', { title: 'Server-rendered child' })
+const RootLive = Root.layer(
+  Effect.gen(function* () {
     return {
-      model: { child },
+      init: () => ({
+        child: new Child('child', { title: 'Server-rendered child' }),
+      }),
       view: (model, h) => ({
         title: model.child.model.title,
         body: h.div([], [model.child.view()]),
@@ -108,10 +115,10 @@ class FlagsRoot extends Block<FlagsRoot, { readonly flags: ServerFlags }>()(
   { Model: Schema.Struct({ title: Schema.String }) },
 ) {}
 
-const FlagsRootLive = FlagsRoot.make(
-  Effect.fn(function* (_id, { flags }) {
+const FlagsRootLive = FlagsRoot.layer(
+  Effect.gen(function* () {
     return {
-      model: { title: flags.title },
+      init: ({ flags }) => ({ title: flags.title }),
       view: (model, h) => ({
         title: model.title,
         body: h.main([], [model.title]),
@@ -125,10 +132,10 @@ class RoutingRoot extends Block<RoutingRoot, { readonly url: Url }>()(
   { Model: Schema.Struct({ title: Schema.String }) },
 ) {}
 
-const RoutingRootLive = RoutingRoot.make(
-  Effect.fn(function* (_id, { url }) {
+const RoutingRootLive = RoutingRoot.layer(
+  Effect.gen(function* () {
     return {
-      model: { title: url.pathname },
+      init: ({ url }) => ({ title: url.pathname }),
       view: (model, h) => ({
         title: model.title,
         body: h.main([], [model.title]),
@@ -142,10 +149,10 @@ class RoutingFlagsRoot extends Block<
   { readonly flags: ServerFlags; readonly url: Url }
 >()('RoutingFlagsRoot', { Model: Schema.Struct({ title: Schema.String }) }) {}
 
-const RoutingFlagsRootLive = RoutingFlagsRoot.make(
-  Effect.fn(function* (_id, { flags, url }) {
+const RoutingFlagsRootLive = RoutingFlagsRoot.layer(
+  Effect.gen(function* () {
     return {
-      model: { title: `${flags.title}${url.pathname}` },
+      init: ({ flags, url }) => ({ title: `${flags.title}${url.pathname}` }),
       view: (model, h) => ({
         title: model.title,
         body: h.main([], [model.title]),
@@ -158,10 +165,10 @@ class HtmlRoot extends Block<HtmlRoot>()('HtmlRoot', {
   Model: Schema.Struct({ title: Schema.String }),
 }) {}
 
-const HtmlRootLive = HtmlRoot.make(
-  Effect.fn(function* () {
+const HtmlRootLive = HtmlRoot.layer(
+  Effect.gen(function* () {
     return {
-      model: { title: 'html' },
+      init: () => ({ title: 'html' }),
       view: (model, h) => h.main([], [model.title]),
     }
   }),
@@ -305,7 +312,7 @@ describe('root Block server rendering', () => {
     expect(rendered.html).toBe('<main>html</main>')
   })
 
-  it('renders child instances without running Commands, Mounts, or Streams, and releases them afterwards', async () => {
+  it('renders child instances without running Commands, Mounts, or Subscriptions, and releases Block resources afterwards', async () => {
     events.length = 0
     const rendered = await Effect.runPromise(
       renderToString(Root, { layer: RootLive }, { buildId: BUILD_ID }),

@@ -408,20 +408,18 @@ export class Dialog extends Block<Dialog, InitConfig, ViewInputs>()('Dialog', {
 
 /** Implements {@link Dialog}. Includes the Animation implementation, so a
  *  parent provides only this Layer. */
-export const DialogLive = Dialog.make(
-  Effect.fn(function* (_instanceId, config) {
-    const animation = yield* new Animation.Animation('animation', {
-      id: `${config.id}-panel`,
-    })
-
+export const DialogLive = Dialog.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: config => ({
         id: config.id,
         isOpen: false,
         isAnimated: config.isAnimated ?? false,
-        animation,
+        animation: new Animation.Animation('animation', {
+          id: `${config.id}-panel`,
+        }),
         maybeFocusSelector: Option.fromNullishOr(config.focusSelector),
-      },
+      }),
 
       update: {
         RequestedOpen: openDialog,
@@ -485,7 +483,7 @@ export const DialogLive = Dialog.make(
 
         CompletedReleaseDialogResources: model => ({ model }),
 
-        ...animation.on({
+        ...Animation.Animation.on({
           StartedLeaveAnimating: model => ({
             model,
             messages: [

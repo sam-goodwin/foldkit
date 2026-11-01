@@ -10,7 +10,7 @@ import { Counter, CounterLive } from './counter'
 const TestLive = ApplicationLive.pipe(Layer.provide(CounterLive))
 
 const counterMessage = (id: string, message: typeof Counter.Message.Type) =>
-  Block.deliver(Counter, ['counters', id], message)
+  Block.deliver(Counter, id, message)
 
 describe('init', () => {
   it.effect('creates distinct parent-owned instances with Counter state', () =>

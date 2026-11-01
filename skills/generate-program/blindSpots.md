@@ -58,28 +58,32 @@ The fix is a truthful Message on the child: `RequestedClear`, `RequestedReset`, 
 
 ### `parent-wrapped-child-messages`
 
-A parent Message that wraps a child's Message (`GotSearchMessage: { message: SearchMessage }`) and calls the child's logic from the parent's update, or a parent union that copies the child's Message tags. Instances route their own Messages: the child's view dispatches to the child, its Command results return to it, and the parent sends with `send` and listens with `.on`. Delete the wrapper and the forwarding branch.
+A parent Message that wraps a child's Message (`GotSearchMessage: { message: SearchMessage }`) and calls the child's logic from the parent's update, or a parent union that copies the child's Message tags. Instances route their own Messages: the child's view dispatches to the child, its Command results return to it, and the parent sends with `send` and listens with `Child.on`. Delete the wrapper and the forwarding branch.
 
 The analogous test smell is a Story that dispatches a parent wrapper to reach a child. Deliver the child's Message directly with `message(Block.deliver(Search, 'search', Search.Message.SubmittedQuery({ query })))`.
 
 ### `missing-child-layer`
 
-Every Block the graph creates needs its Live Layer provided to the parent Layer that creates it. A missing Layer usually fails typecheck at `Program.make` or `story`, but two variants slip through review:
+Every Block a Model holds needs its Live Layer provided to the Layer of the parent whose Model holds it. A missing Layer usually fails typecheck at `Program.make` or `story`, but two variants slip through review:
 
 - The Layer is provided in `entry.ts` but not in the test Layer, so the test file reaches for `Layer.merge`, casts, or skips the child. Tests provide children with `Layer.provide`, exactly as the entry does.
-- A component's dependencies are provided twice: `Layer.mergeAll(Dialog.DialogLive, AnimationLive)` when `DialogLive` already provides Animation. Provide only the components you construct.
+- A component's dependencies are provided twice: `Layer.mergeAll(Dialog.DialogLive, AnimationLive)` when `DialogLive` already provides Animation. Provide only the components your Models hold.
 
-When a feature always creates the same children, provide them inside its own Live (`EditorLive = Editor.make(...).pipe(Layer.provide(DatePicker.DatePickerLive))`) so every parent and test provides only `EditorLive`. Flag a graph where each parent repeats the same child Layer list.
+When a feature always holds the same children, provide them inside its own Live (`EditorLive = Editor.layer(...).pipe(Layer.provide(DatePicker.DatePickerLive))`) so every parent and test provides only `EditorLive`. Flag a graph where each parent repeats the same child Layer list.
 
-### `async-constructor-work`
+### `startup-work-outside-start`
 
-A constructor that fetches, reads storage, reads the clock, or waits on anything. Constructors run synchronously when the instance enters the Model; asynchronous work there is wrong in kind. Startup work goes in a Command listed in `start`, whose result Message update handles. Values the root needs before its first render come from Flags.
+A Layer constructor or `init` that fetches, reads storage, reads the clock, or waits on anything. The Layer constructor runs once when the program's Layer is built, and `init` is a pure function from args to a starting Model; neither is per-instance startup. Startup work goes in a Command returned from `start`, whose result Message update handles. Values the root needs before its first render come from Flags.
 
-The subtler version captures per-invocation values in the constructor: `const now = yield* clock.currentTimeMillis` at the top of the constructor, then used inside a Command handler. Constructor-yielded values last as long as the instance. Read time, randomness, and UUIDs inside the handler Effect.
+The subtler version captures per-invocation values in the Layer constructor: `const now = yield* clock.currentTimeMillis` at the top of the constructor, then used inside a Command handler. That value is read once for the whole program. Read time, randomness, and UUIDs inside the handler Effect.
+
+### `per-instance-state-in-the-layer`
+
+A Block's module is shared by every instance. Flag a Layer constructor that holds state for one instance: a `Ref`, a mutable variable, or a resource that belongs to one id, and a handler that closes over a value only one instance should see. Per-instance data lives in the Model through `init` and reaches Commands as Command args. A per-instance resource is a Subscription that acquires it, or an `RcMap` created once in the Layer constructor and keyed by a value in the Model.
 
 ### `unstable-instance-keys`
 
-`Child.each(collection, args)` factories must be called with a stable domain key: `row(todo.id)`, `editor(issueId)`. Flag a key built from an array index, a counter that can be reused after removal, displayed text, or a value generated during update without being stored. A key that changes for the same conceptual item constructs a fresh instance and discards its state; a key reused for a different item hands one item's state to another. Render the collection keyed by `instance.id`.
+Collection instances must be created with a stable domain id: `new Row(todo.id, args)`, `new Editor(issueId, args)`. Flag an id built from an array index, a counter that can be reused after removal, displayed text, or a value generated during update without being stored. Ids must also be unique among one parent's children across all of its Model fields; a duplicate throws at runtime. An id that changes for the same conceptual item starts a fresh instance and discards its state; an id reused for a different item hands one item's state to another. Render the collection keyed by `instance.id`.
 
 ### `instances-outside-the-model`
 
@@ -99,13 +103,13 @@ One Block spread across `message.ts`, `model.ts`, `update.ts`, `command.ts`, `vi
 
 Three or four handlers sharing the same 5-line scaffold (`Match.tag` + `Match.orElse`, `Option.match` + fallback) want a named helper. Genuinely duplicated decision logic, not coincidentally similar shape.
 
-Specific cases: the same `.on` handler body repeated across several OutMessage tags, which wants one named Step; several handlers that each rebuild the same `messages` array for a child collection, which wants a named helper returning `ReadonlyArray<Send>`; and an `UpdateRecord` type written out in more than one place for the same Block, which wants one alias.
+Specific cases: the same `Child.on` handler body repeated across several OutMessage tags, which wants one named Step; several handlers that each rebuild the same `messages` array for a child collection, which wants a named helper returning `ReadonlyArray<Send>`; and an `UpdateRecord` type written out in more than one place for the same Block, which wants one alias.
 
 ### `manual-update-return-unpacking`
 
 Do not destructure or rename `model`, `commands`, or `outMessage` from an update-like result that already contains those fields. Bind the whole result to an operation-named value and access its fields through that value, so the operation and all of its returned fields stay visible together.
 
-Flag a parent that calls a child's update logic directly and unpacks its result. A parent never runs a child's handlers: it sends the child a Message under `messages`, and the child's result, including its Commands and OutMessage, stays inside the child. Flag an `.on` handler that drops a Command or OutMessage it should have returned because it rebuilt the result field by field.
+Flag a parent that calls a child's update logic directly and unpacks its result. A parent never runs a child's handlers: it sends the child a Message under `messages`, and the child's result, including its Commands and OutMessage, stays inside the child. Flag a `Child.on` handler that drops a Command or OutMessage it should have returned because it rebuilt the result field by field.
 
 When the OutMessage is already known while constructing a new result, include it directly. Use `Update.withOutMessage` when attaching an OutMessage to an existing result or when the value has the type `OutMessage | undefined`. Flag local attachment helpers and conditional object spreads that duplicate it.
 
@@ -135,7 +139,7 @@ A Message named `Incremented` describes the resulting state change, not the user
 
 ### `view-named-after-namespace`
 
-Name a Block's primary view function `view`, rather than repeating its feature name as `searchView`, `homeView`, or `roomView`, and pass it as `view` in the constructor return. Parents render the child with `model.search.view()`; do not export a parallel loose view function for parents to call with the child's Model.
+Name a Block's primary view function `view`, rather than repeating its feature name as `searchView`, `homeView`, or `roomView`, and pass it as `view` in the module the Layer returns. Parents render the child with `model.search.view()`; do not export a parallel loose view function for parents to call with the child's Model.
 
 ### `schema-type-aliases`
 
@@ -211,4 +215,4 @@ Present but with no `expect(...)` and no interactive resolution in a block is th
 
 ### `test-layer-wiring`
 
-A Story or Scene receives exactly one root Block's Layer, with children attached through `Layer.provide` and constructor Services through `.pipe(Effect.provide(TestLayer))` on the returned Effect. Flag `Layer.merge` or `Layer.mergeAll` of a parent and its children at the top level, a test that stubs a child Block instead of providing its Live, and a test that uses `given` to add or remove instances (it can only set state; send the Message that creates or removes the instance). Flag a test that asserts `start` Commands of the starting Model; they are not in the ledger.
+A Story or Scene receives exactly one root Block's Layer, with children attached through `Layer.provide` and Layer constructor Services through `.pipe(Effect.provide(TestLayer))` on the returned Effect. Flag `Layer.merge` or `Layer.mergeAll` of a parent and its children at the top level, and a test that stubs a child Block instead of providing its Live. Flag a test that asserts `start` Commands of the starting Model; they are not in the ledger.

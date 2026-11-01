@@ -1,13 +1,14 @@
 import { deliver, Block as makeBlockClass } from './block.js'
-import { InstancePath, NotConnected, isBlockMessage } from './engine.js'
+import { isBlockMessage } from './engine.js'
 
 export type {
   AllOutMessageHandlers,
   BlockClass,
   BlockMessage,
+  ChildBlocksOf,
   Contract,
-  Factory,
   Implementation,
+  InitContext,
   InstanceMembers as Instance,
   MessageOf,
   ModelOf,
@@ -21,47 +22,50 @@ export type {
   UpdateRecord,
 } from './block.js'
 export type { MissingBlockLayer, Resolved } from './testing.js'
-export type { BlockParent } from './engine.js'
 export { OnSlotTypeId } from './block.js'
-export { NotConnected } from './engine.js'
 
 /**
  * Declares a Block class. The class is the Block's contract: its Model,
- * Message, OutMessage, Command, and Mount lists. Implement it with `make`,
- * create instances with `new` inside a parent constructor, and connect them by
- * putting them in the parent's Model.
+ * Message, OutMessage, Command, and Mount lists. Implement it with `layer`,
+ * create instances with `new` anywhere, and connect them by putting them in
+ * a parent's Model.
  *
  * ```ts
  * export class Counter extends Block<Counter, { readonly max: number }>()('Counter', {
- *   Model: Schema.Struct({ count: Schema.Number }),
+ *   Model: Schema.Struct({ count: Schema.Number, max: Schema.Number }),
  *   Message: defineMessageUnion({ ClickedIncrement: {} }),
  * }) {}
  *
- * export const CounterLive = Counter.make(
- *   Effect.fn(function* (id, { max }) {
+ * export const CounterLive = Counter.layer(
+ *   Effect.gen(function* () {
  *     return {
- *       model: { count: 0 },
- *       update: { ClickedIncrement: model => ({ model: { count: model.count + 1 } }) },
- *       view: (model, h) => h.button([h.OnClick(Counter.Message.ClickedIncrement())], [`${model.count}`]),
+ *       init: ({ max }) => ({ count: 0, max }),
+ *       update: {
+ *         ClickedIncrement: model => ({
+ *           model: { ...model, count: Math.min(model.count + 1, model.max) },
+ *         }),
+ *       },
+ *       view: (model, h) =>
+ *         h.button(
+ *           [h.OnClick(Counter.Message.ClickedIncrement())],
+ *           [`${model.count}`],
+ *         ),
  *     }
  *   }),
  * )
+ *
+ * // in a parent's Model
+ * left: new Counter('left', { max: 10 })
  * ```
  *
  * `Block.deliver` addresses a Message to an instance by its path for tests,
- * `Block.isBlockMessage` recognizes such a Message, `Block.NotConnected` is
- * the error `instance.use` fails with, and `Block.Path` is the service a
- * constructor yields to read its instance's path from the root.
+ * and `Block.isBlockMessage` recognizes such a Message.
  */
 export const Block: typeof makeBlockClass &
   Readonly<{
     deliver: typeof deliver
     isBlockMessage: typeof isBlockMessage
-    NotConnected: typeof NotConnected
-    Path: typeof InstancePath
   }> = Object.assign(makeBlockClass, {
   deliver,
   isBlockMessage,
-  NotConnected,
-  Path: InstancePath,
 })

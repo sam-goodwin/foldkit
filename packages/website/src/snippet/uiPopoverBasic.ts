@@ -9,12 +9,10 @@ export class Solutions extends Block<Solutions>()('Solutions', {
   Model: Schema.Struct({ popover: Popover.Popover }),
 }) {}
 
-export const SolutionsLive = Solutions.make(
-  Effect.fn(function* () {
-    const popover = yield* new Popover.Popover('popover', { id: 'info' })
-
+export const SolutionsLive = Solutions.layer(
+  Effect.gen(function* () {
     return {
-      model: { popover },
+      init: () => ({ popover: new Popover.Popover('popover', { id: 'info' }) }),
 
       // Name the trigger with a native `<label for>` that targets
       // `buttonId('info')`, and pass `ariaLabelledBy` to the view

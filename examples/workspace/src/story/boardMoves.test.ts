@@ -195,7 +195,7 @@ describe('Board moves', () => {
         comments: Array.append(teammateComment),
       })
       const itemId = draggableId(issue.id)
-      const dragAndDropPath = ['issueBoards', issue.projectId, 'dragAndDrop']
+      const dragAndDropPath = [issue.projectId, 'dragAndDrop']
 
       const dragMessage = (childMessage: DragAndDropMessage) =>
         Block.deliver(DragAndDrop.DragAndDrop, dragAndDropPath, childMessage)

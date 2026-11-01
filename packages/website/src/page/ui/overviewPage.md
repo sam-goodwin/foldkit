@@ -16,7 +16,7 @@ Components are either stateful Blocks or stateless render helpers.
 
 ### Stateful Blocks
 
-Stateful [Blocks](/core/block), including Menu, Listbox, Combobox, Calendar, Dialog, and Popover, have their own Model, Message union, update, and OutMessage. Create an instance in the parent's constructor, hold it in the parent Model, render it with its `view`, send it Messages, and handle its OutMessages with `.on`.
+Stateful [Blocks](/core/block), including Menu, Listbox, Combobox, Calendar, Dialog, and Popover, have their own Model, Message union, update, and OutMessage. Create an instance with `new` in the parent's `init` or update, hold it in the parent Model, render it with its `view`, send it Messages, and handle its OutMessages by spreading the class's `.on` into the parent's update record.
 
 ### Stateless Render Helpers
 
@@ -26,7 +26,7 @@ The Kind column below identifies each component category.
 
 ## Application Wiring
 
-Some components use Commands, Subscriptions, or Mounts for focus, positioning, animation, and other effects. Each component's Layer carries those handlers, and each instance runs its own Subscriptions while it is in the parent Model. The parent's only wiring is to provide the component's Layer to its own Layer.
+Some components use Commands, Subscriptions, or Mounts for focus, positioning, animation, and other effects. Each component's Layer carries those handlers once for every instance. Foldkit starts an instance's Subscriptions when it appears in the parent Model and stops them when it leaves. The parent's only wiring is to provide the component's Layer to its own Layer.
 
 Each component module exports its class and its Layer: `Dialog.Dialog` and `Dialog.DialogLive`. A generic factory such as `Menu.makeBlock<Item>()` returns a class with its Layer attached as `Live`. A component that holds other components, such as Dialog holding an Animation, provides their Layers inside its own, so you only provide the components you create.
 

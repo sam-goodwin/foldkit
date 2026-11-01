@@ -60,9 +60,9 @@ const messageRoutingUnderHoodDemo = (
                     h.p(
                       [h.Class('leading-relaxed')],
                       [
-                        'When an instance renders, the Runtime records its path from the root, such as ',
+                        'Every instance has a path from the root: its parent’s path plus its own id, such as ',
                         inlineCode("['profile', 'settings']"),
-                        '. A handler built in that view dispatches a ',
+                        '. A handler built in the instance’s view dispatches a ',
                         inlineCode('BlockMessage'),
                         ' carrying the path and the child Message. The Runtime walks the Model from the root, following the path through each instance, and applies the Message to the instance at the end with that instance’s own update.',
                       ],
@@ -71,8 +71,8 @@ const messageRoutingUnderHoodDemo = (
                       [h.Class('leading-relaxed')],
                       [
                         'On the way back up, each parent receives the next Model of the child it passed through. When the child returns an OutMessage, the parent’s ',
-                        inlineCode('.on'),
-                        ' handler for that instance runs with the parent’s Model. Commands returned at any level keep the path of the instance that returned them, so their result Messages travel back down the same way. ',
+                        inlineCode('Child.on'),
+                        ' handler runs with the parent’s Model and the reporting instance. Commands returned at any level keep the path of the instance that returned them, so their result Messages travel back down the same way. ',
                         inlineCode('Block.deliver'),
                         ' builds the same ',
                         inlineCode('BlockMessage'),

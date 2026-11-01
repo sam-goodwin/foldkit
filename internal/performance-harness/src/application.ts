@@ -187,14 +187,14 @@ const view = (model: Model, h: HtmlBuilder<Message>): Document => {
   }
 }
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         tickCount: 0,
         lastReceivedPayloadSize: 0,
         largeArray: [],
-      },
+      }),
       update: {
         ClickedTick: model => ({
           model: modifyFields(model, { tickCount: Number.increment }),

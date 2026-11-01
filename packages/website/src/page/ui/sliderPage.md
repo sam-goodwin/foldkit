@@ -4,7 +4,7 @@
 
 A numeric range input for values that sit on a continuous or stepped scale. Common uses include rating scales, volume controls, filter thresholds, and brightness settings. Follows the WAI-ARIA slider pattern with `role="slider"`, full keyboard navigation, and pointer drag.
 
-Create a `Slider.Slider` instance in the parent's constructor with `min`, `max`, and `step`, and hold it in the parent Model. The parent owns the value: it passes the value to `model.slider.view({ value, ... })` and stores each `ChangedValue` OutMessage it receives through `...slider.on({ ... })`. Provide `Slider.SliderLive` to the parent's Layer.
+Create an instance with `new Slider.Slider('slider', { id, min, max, step })` in the parent's `init` and hold it in the parent Model. The parent owns the value: it passes the value to `model.slider.view({ value, ... })` and stores each `ChangedValue` OutMessage it receives through `...Slider.Slider.on({ ... })`. Provide `Slider.SliderLive` to the parent's Layer.
 
 :::Info{label="See it in an app"}
 Check out how Slider is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/sliderPage.ts).
@@ -143,8 +143,8 @@ Attribute groups provided to the `toView` callback.
 
 ### OutMessage {#out-message}
 
-Facts the component reports to its parent. Handle them by spreading the instance's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
+Facts the component reports to its parent. Handle them by spreading `...Slider.Slider.on({ ... })` into the parent's update record. Variants without a handler are ignored.
 
-| Name           | Type                | Default | Description                                                                                                                                                                                                         |
-| -------------- | ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ChangedValue` | `{ value: number }` | —       | Emitted whenever the Slider value changes via drag, click-to-jump, or keyboard navigation. Handle it with the instance's `.on` to react, for example: persist the value, validate, or trigger a downstream Command. |
+| Name           | Type                | Default | Description                                                                                                                                                                                                      |
+| -------------- | ------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ChangedValue` | `{ value: number }` | —       | Emitted whenever the Slider value changes via drag, click-to-jump, or keyboard navigation. Handle it with the class's `.on` to react, for example: persist the value, validate, or trigger a downstream Command. |

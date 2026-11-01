@@ -28,54 +28,53 @@ type TabsHarnessArgs = Readonly<{
   panelMount: PanelMount
 }>
 
-class TabsHarness extends Block<TabsHarness, TabsHarnessArgs>()('TabsHarness', {
+class TabsHarness extends Block<TabsHarness>()('TabsHarness', {
   Model: Schema.Struct({ tabs: TestTabs }),
   OutMessage: TestTabs.OutMessage,
 }) {}
 
-const TabsHarnessLive = TabsHarness.make(
-  Effect.fn(function* (_id, { config, panelMount }) {
-    const tabs = yield* new TestTabs('tabs', config)
-
-    return {
-      model: { tabs },
-      update: {
-        ...tabs.on({
-          Selected: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-      view: (model, h) =>
-        model.tabs.view({
-          tabs: ['First', 'Second'],
-          selectedValue: 'First',
-          ariaLabel: 'Test tabs',
-          panelMount,
-          toView: ({ tablist, tabs: tabInfos, activeIndex }) =>
-            h.div(
-              [],
-              [
-                h.div(
-                  tablist,
-                  Array.map(tabInfos, tab => h.button(tab.tab, [tab.value])),
-                ),
-                ...(panelMount === 'All'
-                  ? Array.map(tabInfos, tab => h.div(tab.panel))
-                  : [
-                      pipe(
-                        tabInfos,
-                        Array.get(activeIndex),
-                        Option.match({
-                          onNone: () => h.empty,
-                          onSome: tab => h.div(tab.panel),
-                        }),
-                      ),
-                    ]),
-              ],
-            ),
-        }),
-    }
-  }),
-).pipe(Layer.provide(TestTabs.Live))
+const makeTabsHarnessLive = ({ config, panelMount }: TabsHarnessArgs) =>
+  TabsHarness.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ tabs: new TestTabs('tabs', config) }),
+        update: {
+          ...TestTabs.on({
+            Selected: (model, outMessage) => ({ model, outMessage }),
+          }),
+        },
+        view: (model, h) =>
+          model.tabs.view({
+            tabs: ['First', 'Second'],
+            selectedValue: 'First',
+            ariaLabel: 'Test tabs',
+            panelMount,
+            toView: ({ tablist, tabs: tabInfos, activeIndex }) =>
+              h.div(
+                [],
+                [
+                  h.div(
+                    tablist,
+                    Array.map(tabInfos, tab => h.button(tab.tab, [tab.value])),
+                  ),
+                  ...(panelMount === 'All'
+                    ? Array.map(tabInfos, tab => h.div(tab.panel))
+                    : [
+                        pipe(
+                          tabInfos,
+                          Array.get(activeIndex),
+                          Option.match({
+                            onNone: () => h.empty,
+                            onSome: tab => h.div(tab.panel),
+                          }),
+                        ),
+                      ]),
+                ],
+              ),
+          }),
+      }
+    }),
+  ).pipe(Layer.provide(TestTabs.Live))
 
 const automatic: TabsHarnessArgs = {
   config: { id: 'test' },
@@ -101,8 +100,7 @@ describe('Tabs', () => {
       'only gives the mounted panel relationship to the active tab',
       () =>
         Scene.scene(
-          TabsHarnessLive,
-          automatic,
+          makeTabsHarnessLive(automatic),
           Scene.expect(Scene.selector('#test-tab-0')).toHaveAttr(
             'aria-controls',
             'test-panel-0',
@@ -117,8 +115,7 @@ describe('Tabs', () => {
       'keeps every panel relationship when all panels remain mounted',
       () =>
         Scene.scene(
-          TabsHarnessLive,
-          { ...automatic, panelMount: 'All' },
+          makeTabsHarnessLive({ ...automatic, panelMount: 'All' }),
           Scene.expect(Scene.selector('#test-tab-0')).toHaveAttr(
             'aria-controls',
             'test-panel-0',
@@ -137,8 +134,7 @@ describe('Tabs', () => {
       'defaults to automatic activation with focus following the selection',
       () =>
         Story.story(
-          TabsHarnessLive,
-          automatic,
+          makeTabsHarnessLive(automatic),
           Story.model(model => {
             expect(model.tabs).toStrictEqual({
               id: 'test',
@@ -151,8 +147,7 @@ describe('Tabs', () => {
 
     it.effect('accepts a custom activationMode', () =>
       Story.story(
-        TabsHarnessLive,
-        manual,
+        makeTabsHarnessLive(manual),
         Story.model(model => {
           expect(model.tabs).toStrictEqual({
             id: 'test',
@@ -167,8 +162,7 @@ describe('Tabs', () => {
   describe('update', () => {
     it.effect('clears focus divergence on SelectedTab and emits Selected', () =>
       Story.story(
-        TabsHarnessLive,
-        automatic,
+        makeTabsHarnessLive(automatic),
         deliverToTabs(
           TestTabs.Message.SelectedTab({ index: 3, value: 'tab-3' }),
         ),
@@ -186,8 +180,7 @@ describe('Tabs', () => {
       'emits Selected with the committed value on a subsequent SelectedTab',
       () =>
         Story.story(
-          TabsHarnessLive,
-          automatic,
+          makeTabsHarnessLive(automatic),
           Story.given({
             tabs: {
               id: 'test',
@@ -210,8 +203,7 @@ describe('Tabs', () => {
 
     it.effect('sets focus divergence on FocusedTab without an OutMessage', () =>
       Story.story(
-        TabsHarnessLive,
-        manual,
+        makeTabsHarnessLive(manual),
         deliverToTabs(TestTabs.Message.FocusedTab({ index: 2 })),
         resolveFocusTab,
         Story.model(model => {
@@ -224,8 +216,7 @@ describe('Tabs', () => {
       'SelectedTab in manual mode emits Selected and clears divergence',
       () =>
         Story.story(
-          TabsHarnessLive,
-          manual,
+          makeTabsHarnessLive(manual),
           Story.given({
             tabs: {
               id: 'test',

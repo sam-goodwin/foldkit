@@ -60,7 +60,7 @@ The primitives:
 
 ## Parsing URLs
 
-Combine routers with `Route.oneOf` and create a parser with a fallback for unmatched URLs. The root Block's constructor parses the starting URL, and the `ChangedUrl` handler parses each later one.
+Combine routers with `Route.oneOf` and create a parser with a fallback for unmatched URLs. The root Block's `init` parses the starting URL, and the `ChangedUrl` handler parses each later one.
 
 ::Snippet{name="routingParsing" label="URL parsing"}
 
@@ -166,13 +166,13 @@ When a link is clicked in your application, the `routing.onUrlRequest` handler r
 
 After `pushUrl` or `replaceUrl` changes the URL, Foldkit automatically calls your `routing.onUrlChange` handler with the new URL. Pass `Application.Message.ChangedUrl` directly when the Message has the canonical `{ url }` payload. The `ChangedUrl` handler parses that URL into a Route and stores it in the Model.
 
-With `routing` set, the root Block's constructor receives the starting URL as `{ url }`. Declare that argument type on the class, as in `Block<Application, Readonly<{ url: Url }>>()`.
+With `routing` set, the root Block's `init` receives the starting URL as its args, `{ url }`. Declare that argument type on the class, as in `Block<Application, Readonly<{ url: Url }>>()`.
 
 ## Cold Loads and the Initial Route {#cold-loads}
 
 ### Seed the Initial Route
 
-`onUrlChange` fires when the URL changes after boot. On a cold load (a direct visit, a bookmark, a reload) there is no change to report: the root constructor receives the initial URL, parses it, and seeds the Model with the starting route. Foldkit does not synthesize a `ChangedUrl` for it, because the initial route is starting state, not a transition.
+`onUrlChange` fires when the URL changes after boot. On a cold load (a direct visit, a bookmark, a reload) there is no change to report: the root's `init` receives the initial URL, parses it, and seeds the Model with the starting route. Foldkit does not synthesize a `ChangedUrl` for it, because the initial route is starting state, not a transition.
 
 :::Warning{label="Don’t wire route fetches into navigation alone."}
 A fetch Command returned only from the `ChangedUrl` handler fires on every in-app navigation and never on a cold load. During development you reach every route by clicking from the home page, so everything works. Then a user reloads on a sub-route or follows a bookmark and lands on a Model stuck in its initial state, with no fetch in flight.
@@ -180,13 +180,13 @@ A fetch Command returned only from the `ChangedUrl` handler fires on every in-ap
 
 ### Share Route-Driven Commands
 
-Both code paths resolve a URL into a route, and both should produce the same route-driven Commands. Factor those Commands into one helper. The constructor returns them under `start`, which the Runtime runs when the instance appears, and the `ChangedUrl` handler returns them under `commands`:
+Both code paths resolve a URL into a route, and both should produce the same route-driven Commands. Factor those Commands into one helper. `start` returns them for the route in the starting Model, and the Runtime performs them when the instance appears. The `ChangedUrl` handler returns them under `commands`:
 
 ::Snippet{name="routingColdLoad" label="Cold load"}
 
 ### Preserve the Block Boundary
 
-When the route-driven state lives in a child Block, the same factoring follows the Block boundary instead of a shared helper. The child's constructor takes the starting route as an argument, seeds its Model, and returns the cold-load Commands under `start`. For later navigations, the parent's `ChangedUrl` handler sends the child an `InformedOfRouteChange` Message with `model.child.send(...)`. The child's update owns both the Model change and any Commands. [Informing Blocks](/patterns/informing-blocks) shows that shape, and the [Routing example](/example-apps/routing) runs on it.
+When the route-driven state lives in a child Block, the same factoring follows the Block boundary instead of a shared helper. The child takes the starting route as its args: its `init` seeds its Model from the route, and its `start` returns the cold-load Commands. For later navigations, the parent's `ChangedUrl` handler sends the child an `InformedOfRouteChange` Message with `model.child.send(...)`. The child's update owns both the Model change and any Commands. [Informing Blocks](/patterns/informing-blocks) shows that shape, and the [Routing example](/example-apps/routing) runs on it.
 
 ## Route Transitions
 
@@ -196,7 +196,7 @@ The shared helper above answers what a route needs, so its Commands fire on ever
 
 The `Transition` namespace in `foldkit/route` identifies route entries. A `Transition.Transition` carries both halves of the question: the route the application was on and the route it is on now. `Transition.make(previousRoute, nextRoute)` builds the navigation case, `Transition.coldLoad(nextRoute)` builds the cold load, where there is no previous route, and `Transition.isEntering` asks the question: a transition enters a route when the next route carries the tag and the previous route did not, and a cold load counts as an entry. Navigating within a route, between two ids of one detail route or two search texts of one list route, is not an entry.
 
-The route union is inferred from the transition argument and the tag is checked against it, so a misspelled route name fails to compile. Build the transition in the same two places that resolve a URL into a route: the constructor holds no route yet, so it builds the cold load, and the `ChangedUrl` handler transitions from the route the Model still holds:
+The route union is inferred from the transition argument and the tag is checked against it, so a misspelled route name fails to compile. Build the transition in the same two places that resolve a URL into a route: `start` has no previous route, so it builds the cold load, and the `ChangedUrl` handler transitions from the route the Model still holds:
 
 ::Snippet{name="routingIsEntering" label="Using isEntering"}
 
@@ -230,6 +230,6 @@ Every helper that takes a tag answers for one named route. When several routes h
 
 ::Snippet{name="routingExitedStayed" label="Exited and stayed"}
 
-Because a cold load counts as an entry, the constructor and the `ChangedUrl` handler share one load-on-entry policy: reloading on `/people` runs the same entry Commands as clicking there from the home page.
+Because a cold load counts as an entry, `start` and the `ChangedUrl` handler share one load-on-entry policy: reloading on `/people` runs the same entry Commands as clicking there from the home page.
 
 The [Route Transition API reference](/api-reference/route-transition) lists every helper with its full signature.

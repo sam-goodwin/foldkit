@@ -9,10 +9,10 @@ export class ContextualView extends Block<ContextualView>()('ContextualView', {
   Message,
 }) {}
 
-export const ContextualViewLive = ContextualView.make(
-  Effect.fn(function* () {
+export const ContextualViewLive = ContextualView.layer(
+  Effect.gen(function* () {
     return {
-      model: {},
+      init: () => ({}),
       update: { Rendered: model => ({ model }) },
       view: (_model, h) => h.div([], []),
     }
@@ -26,8 +26,8 @@ export class LabelledView extends Block<LabelledView, void, LabelInput>()(
   {},
 ) {}
 
-export const LabelledViewLive = LabelledView.make(
-  Effect.fn(function* () {
+export const LabelledViewLive = LabelledView.layer(
+  Effect.gen(function* () {
     return {
       view: (_model, h, { label }) => h.span([h.Title(label)], []),
     }

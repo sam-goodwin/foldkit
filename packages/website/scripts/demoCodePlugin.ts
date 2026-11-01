@@ -158,10 +158,10 @@ class Counter extends Block<Counter>()('Counter', {
   Command: [DelayReset],
 }) {}
 
-const CounterLive = Counter.make(
-  Effect.fn(function* () {
+const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0, isResetting: false, resetDuration: 2 },
+      init: () => ({ count: 0, isResetting: false, resetDuration: 2 }),
 
       update: {
         ClickedIncrement: model => ({
@@ -312,19 +312,19 @@ class NotePlayer extends Block<NotePlayer>()('NotePlayer', {
   Command: [PlayNote],
 }) {}
 
-const NotePlayerLive = NotePlayer.make(
-  Effect.fn(function* () {
+const NotePlayerLive = NotePlayer.layer(
+  Effect.gen(function* () {
     const audioContext = yield* Effect.acquireRelease(
       Effect.sync(() => new AudioContext()),
       audioContext => Effect.promise(() => audioContext.close()),
     )
 
     return {
-      model: {
+      init: () => ({
         noteSequence: ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'],
         noteDuration: 0.4,
         playbackState: PlaybackState.Idle(),
-      },
+      }),
 
       update: {
         ClickedPlay: model =>

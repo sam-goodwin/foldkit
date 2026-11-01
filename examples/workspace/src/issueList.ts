@@ -86,25 +86,21 @@ export class IssueList extends Block<IssueList, void, ViewInputs>()(
   { Model, Message, OutMessage },
 ) {}
 
-export const IssueListLive = IssueList.make(
-  Effect.fn(function* () {
-    const statusListbox = yield* new StatusFilterListbox('statusListbox', {
-      id: 'issue-list-filter-by-status',
-    })
-    const sortListbox = yield* new SortListbox('sortListbox', {
-      id: 'issue-list-sort-issues',
-    })
-    const groupListbox = yield* new GroupListbox('groupListbox', {
-      id: 'issue-list-group-issues',
-    })
-
+export const IssueListLive = IssueList.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         savedViewName: '',
-        statusListbox,
-        sortListbox,
-        groupListbox,
-      },
+        statusListbox: new StatusFilterListbox('statusListbox', {
+          id: 'issue-list-filter-by-status',
+        }),
+        sortListbox: new SortListbox('sortListbox', {
+          id: 'issue-list-sort-issues',
+        }),
+        groupListbox: new GroupListbox('groupListbox', {
+          id: 'issue-list-group-issues',
+        }),
+      }),
 
       update: {
         UpdatedGrouping: (model, { value }) => ({
@@ -162,13 +158,13 @@ export const IssueListLive = IssueList.make(
           model,
           outMessage: OutMessage.RequestedClearFilters(),
         }),
-        ...statusListbox.on({
+        ...StatusFilterListbox.on({
           Selected: (model, { value }) => selectStatusFilter(model, value),
         }),
-        ...sortListbox.on({
+        ...SortListbox.on({
           Selected: (model, { value }) => selectSort(model, value),
         }),
-        ...groupListbox.on({
+        ...GroupListbox.on({
           Selected: (model, { value }) => selectGrouping(model, value),
         }),
       },

@@ -1,6 +1,9 @@
 import { Array, Crypto, Effect, Layer, Schema } from 'effect'
 import { Block, Command } from 'foldkit'
-import type { CalendarDate } from 'foldkit/calendar'
+import {
+  type CalendarDate,
+  CalendarDate as CalendarDateSchema,
+} from 'foldkit/calendar'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
@@ -14,6 +17,7 @@ import {
 } from './workHistoryEntry'
 
 const Model = Schema.Struct({
+  today: CalendarDateSchema,
   entries: Schema.Array(WorkHistoryEntry),
 })
 type Model = typeof Model.Type
@@ -50,13 +54,15 @@ export class WorkHistory extends Block<WorkHistory, WorkHistoryArgs>()(
   },
 ) {}
 
-export const WorkHistoryLive = WorkHistory.make(
-  Effect.fn(function* (_id, { today, initialEntryId }) {
+export const WorkHistoryLive = WorkHistory.layer(
+  Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
-    const entry = yield* WorkHistoryEntry.each('entries', { today })
 
     return {
-      model: { entries: [entry(initialEntryId)] },
+      init: ({ today, initialEntryId }) => ({
+        today,
+        entries: [new WorkHistoryEntry(initialEntryId, { today })],
+      }),
 
       update: {
         ClickedAddEntry: model => ({
@@ -66,7 +72,9 @@ export const WorkHistoryLive = WorkHistory.make(
 
         SucceededGenerateWorkHistoryEntryId: (model, { entryId }) => ({
           model: modifyFields(model, {
-            entries: Array.append(entry(entryId)),
+            entries: Array.append(
+              new WorkHistoryEntry(entryId, { today: model.today }),
+            ),
           }),
         }),
 
@@ -87,7 +95,7 @@ export const WorkHistoryLive = WorkHistory.make(
           ),
         }),
 
-        ...entry.on({
+        ...WorkHistoryEntry.on({
           Removed: (model, _, removed) => ({
             model: modifyFields(model, {
               entries: Array.filter(({ id }) => id !== removed.id),

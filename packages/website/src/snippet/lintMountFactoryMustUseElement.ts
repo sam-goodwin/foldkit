@@ -22,10 +22,10 @@ class Search extends Block<Search>()('Search', {
   Mount: [TrackView, RevealResults],
 }) {}
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     return {
-      model: { query: '' },
+      init: () => ({ query: '' }),
       update: {
         CompletedTrackView: model => ({ model }),
         CompletedRevealResults: model => ({ model }),

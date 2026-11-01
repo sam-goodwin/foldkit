@@ -230,17 +230,16 @@ export class Browse extends Block<Browse, Readonly<{ fields: BrowseFields }>>()(
   },
 ) {}
 
-export const BrowseLive = Browse.make(
-  Effect.fn(function* (_id, { fields }) {
-    const dietListbox = yield* new DietListbox('dietListbox', {
-      id: 'diet-filter',
-    })
-    const periodListbox = yield* new PeriodListbox('periodListbox', {
-      id: 'period-filter',
-    })
-
+export const BrowseLive = Browse.layer(
+  Effect.gen(function* () {
     return {
-      model: { fields, dietListbox, periodListbox },
+      init: ({ fields }) => ({
+        fields,
+        dietListbox: new DietListbox('dietListbox', { id: 'diet-filter' }),
+        periodListbox: new PeriodListbox('periodListbox', {
+          id: 'period-filter',
+        }),
+      }),
 
       update: {
         InformedOfRouteChange: (model, { fields }) => ({
@@ -269,7 +268,7 @@ export const BrowseLive = Browse.make(
           ],
         }),
 
-        ...dietListbox.on({
+        ...DietListbox.on({
           Selected: (model, { value }) => ({
             model,
             commands: [
@@ -281,7 +280,7 @@ export const BrowseLive = Browse.make(
           }),
         }),
 
-        ...periodListbox.on({
+        ...PeriodListbox.on({
           Selected: (model, { value }) => ({
             model,
             commands: [

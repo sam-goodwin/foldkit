@@ -20,12 +20,14 @@ export class Editor extends Block<Editor>()('Editor', {
   Message,
 }) {}
 
-export const EditorLive = Editor.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', { id: 'project-editor' })
-
+export const EditorLive = Editor.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog, project: { name: '' }, route: '/projects/new' },
+      init: () => ({
+        dialog: new Dialog.Dialog('dialog', { id: 'project-editor' }),
+        project: { name: '' },
+        route: '/projects/new',
+      }),
 
       update: {
         // Saving only asks the Dialog to close
@@ -35,7 +37,7 @@ export const EditorLive = Editor.make(
         }),
 
         // Every close path, including Escape and the close button, ends here
-        ...dialog.on({
+        ...Dialog.Dialog.on({
           Closed: model => ({
             model: modifyFields(model, { route: () => '/projects' }),
           }),

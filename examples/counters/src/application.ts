@@ -27,22 +27,23 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const counter = yield* Counter.each('counters')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        counters: Array.makeBy(INITIAL_COUNTER_COUNT, counterId =>
-          counter(`counter-${counterId}`),
+      init: () => ({
+        counters: Array.makeBy(
+          INITIAL_COUNTER_COUNT,
+          counterId => new Counter(`counter-${counterId}`),
         ),
         nextCounterId: INITIAL_COUNTER_COUNT,
-      },
+      }),
 
       update: {
         ClickedAddCounter: model => ({
           model: modifyFields(model, {
-            counters: Array.append(counter(`counter-${model.nextCounterId}`)),
+            counters: Array.append(
+              new Counter(`counter-${model.nextCounterId}`),
+            ),
             nextCounterId: Number.increment,
           }),
         }),

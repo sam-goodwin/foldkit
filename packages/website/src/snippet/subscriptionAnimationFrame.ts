@@ -20,10 +20,10 @@ const frameTicks = Dom.animationFrameTicks.pipe(
   Stream.map(deltaTime => Message.TickedFrame({ deltaTime })),
 )
 
-export const SpinnerLive = Spinner.make(
-  Effect.fn(function* () {
+export const SpinnerLive = Spinner.layer(
+  Effect.gen(function* () {
     return {
-      model: { isPlaying: false, angle: 0 },
+      init: () => ({ isPlaying: false, angle: 0 }),
 
       update: {
         TickedFrame: (model, { deltaTime }) => ({

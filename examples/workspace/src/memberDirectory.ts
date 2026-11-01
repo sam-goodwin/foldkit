@@ -36,10 +36,10 @@ export class MemberDirectory extends Block<MemberDirectory, void, ViewInput>()(
   { Model, Message },
 ) {}
 
-export const MemberDirectoryLive = MemberDirectory.make(
-  Effect.fn(function* () {
+export const MemberDirectoryLive = MemberDirectory.layer(
+  Effect.gen(function* () {
     return {
-      model: { query: '', maybeSelectedMemberId: Option.none() },
+      init: () => ({ query: '', maybeSelectedMemberId: Option.none() }),
 
       update: {
         UpdatedQuery: (model, { value }) => ({

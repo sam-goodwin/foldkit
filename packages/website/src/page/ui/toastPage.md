@@ -4,7 +4,7 @@
 
 A stack of transient notifications positioned along an edge of the viewport. Each entry has its own enter and leave animation and hover state. Non-sticky entries have independent auto-dismiss timers that pause on hover. Swipe-to-dismiss is opt-in for the container. Keep the container at the app root and add entries by sending it the Message `Toast.requestShow` builds.
 
-Toast is parameterized on a payload Schema that you provide. The component owns entry IDs, variants, animations, optional dismiss timers, hover state, and swipe state. Your payload holds the content rendered by `entryToView`. `Toast.makeBlock(PayloadSchema)` returns a Block class bound to that payload type, with its Layer attached as `Live` and a `requestShow` helper that builds the show Message. Call it once at module scope, create an instance in the parent's constructor, and provide its `Live` to the parent's Layer.
+Toast is parameterized on a payload Schema that you provide. The component owns entry IDs, variants, animations, optional dismiss timers, hover state, and swipe state. Your payload holds the content rendered by `entryToView`. `Toast.makeBlock(PayloadSchema)` returns a Block class bound to that payload type, with its Layer attached as `Live` and a `requestShow` helper that builds the show Message. Call it once at module scope, create an instance with `new` in the parent's `init`, and provide its `Live` to the parent's Layer.
 
 :::Info{label="See it in an app"}
 Check out how Toast is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/toastPage.ts).
@@ -128,8 +128,8 @@ If you render the Toast entries without the instance's `view`, you own the entry
 
 ### OutMessage {#out-message}
 
-Facts the component reports to its parent. Handle them by spreading the instance's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
+Facts the component reports to its parent. Handle them by spreading the class's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
 
-| Name             | Type                   | Default | Description                                                                                                                                                                                                                                                                          |
-| ---------------- | ---------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `DismissedToast` | `{ payload: Payload }` | —       | Emitted when an entry finishes its leave animation and is removed from the Model. It carries the payload from your `Payload` Schema. Handle it with the instance's `.on` to update domain state or return an analytics Command. It reports removal, not the initial dismiss request. |
+| Name             | Type                   | Default | Description                                                                                                                                                                                                                                                                       |
+| ---------------- | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DismissedToast` | `{ payload: Payload }` | —       | Emitted when an entry finishes its leave animation and is removed from the Model. It carries the payload from your `Payload` Schema. Handle it with the class's `.on` to update domain state or return an analytics Command. It reports removal, not the initial dismiss request. |

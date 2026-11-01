@@ -4,12 +4,7 @@ import { expect, vi } from 'vitest'
 import { describe, it } from '@effect/vitest'
 
 import { Block, deliver, runtimeBlockOf } from '../blocks/block.js'
-import {
-  constructSync,
-  makeGraph,
-  reconcile,
-  renderRoot,
-} from '../blocks/engine.js'
+import { constructRoot, makeGraph, renderRoot } from '../blocks/engine.js'
 import { type ChildAttribute, childAttributes } from '../html/childAttribute.js'
 import {
   type Html,
@@ -314,8 +309,8 @@ describe('ElementBuilder ChildAttribute support', () => {
     Message: ControlMessage,
   }) {}
 
-  const ControlLive = Control.make(
-    Effect.fn(function* () {
+  const ControlLive = Control.layer(
+    Effect.gen(function* () {
       return {
         update: { ClickedControl: model => ({ model }) },
         view: (_model, h, { toView }) =>
@@ -333,11 +328,10 @@ describe('ElementBuilder ChildAttribute support', () => {
     Message,
   }) {}
 
-  const ParentLive = Parent.make(
-    Effect.fn(function* () {
-      const control = yield* new Control('control')
+  const ParentLive = Parent.layer(
+    Effect.gen(function* () {
       return {
-        model: { control },
+        init: () => ({ control: new Control('control') }),
         update: {
           RatingChanged: model => ({ model }),
           RatingCleared: model => ({ model }),
@@ -362,15 +356,7 @@ describe('ElementBuilder ChildAttribute support', () => {
           const context = yield* Layer.build(ParentLive)
           const block = runtimeBlockOf(Parent)
           const graph = makeGraph({ isSimulation: false })
-          const instance = constructSync(
-            graph,
-            block,
-            [],
-            block.id,
-            undefined,
-            context,
-          )
-          reconcile(graph, instance)
+          const instance = constructRoot(graph, block, undefined, context)
 
           const { dispatch, dispatched } = createCapturingDispatch()
           const testContext = Context.make(Dispatch, dispatch).pipe(

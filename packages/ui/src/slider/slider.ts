@@ -791,7 +791,6 @@ type SliderBlockClass = BlockTypes.BlockClass<
   'Slider',
   InitConfig,
   ViewInputs,
-  never,
   typeof contract
 >
 
@@ -803,10 +802,10 @@ const implementSlider = (
   SliderClass: SliderBlockClass,
   getTrackRoot: () => Document | ShadowRoot,
 ): Layer.Layer<Slider> =>
-  SliderClass.make(
-    Effect.fn(function* (_instanceId, config) {
+  SliderClass.layer(
+    Effect.gen(function* () {
       return {
-        model: makeInitialModel(config),
+        init: makeInitialModel,
         update,
         subscriptions: {
           dragPointer: {

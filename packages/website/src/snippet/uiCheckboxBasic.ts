@@ -17,10 +17,10 @@ export class TermsForm extends Block<TermsForm>()('TermsForm', {
   Message,
 }) {}
 
-export const TermsFormLive = TermsForm.make(
-  Effect.fn(function* () {
+export const TermsFormLive = TermsForm.layer(
+  Effect.gen(function* () {
     return {
-      model: { acceptedTerms: false },
+      init: () => ({ acceptedTerms: false }),
 
       update: {
         // Store the value. Pure form validation can stay in update; return

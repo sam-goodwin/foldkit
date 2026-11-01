@@ -18,10 +18,10 @@ export class Overlay extends Block<Overlay>()('Overlay', {
   OutMessage: defineMessageUnion({ Closed: {} }),
 }) {}
 
-export const OverlayLive = Overlay.make(
-  Effect.fn(function* () {
+export const OverlayLive = Overlay.layer(
+  Effect.gen(function* () {
     return {
-      model: { isOpen: true },
+      init: () => ({ isOpen: true }),
 
       update: {
         ClickedClose: model => ({

@@ -12,12 +12,17 @@ import {
   activeSectionDependencies,
 } from './activeSection'
 
-export const viewportWidthChanges = Dom.streamFromMediaQuery({
+const viewportWidthChanges = Dom.streamFromMediaQuery({
   query: NARROW_VIEWPORT_QUERY,
   mapMatches: isNarrow => Message.ChangedViewportWidth({ isNarrow }),
 })
 
 export const subscriptions = {
+  viewportWidthChanges: {
+    dependencies: () => NARROW_VIEWPORT_QUERY,
+    stream: () => viewportWidthChanges,
+  },
+
   activeSectionChanges: {
     dependencies: activeSectionDependencies,
     stream: ({ sections }: ActiveSectionDependencies) =>

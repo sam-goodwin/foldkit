@@ -53,13 +53,13 @@ class Parent extends Block<Parent>()('Parent', {
   Message: ParentMessage,
 }) {}
 
-const ParentLive = Parent.make(
-  Effect.fn(function* () {
-    const left = yield* new DragAndDrop('left', {})
-    const right = yield* new DragAndDrop('right', {})
-
+const ParentLive = Parent.layer(
+  Effect.gen(function* () {
     return {
-      model: { left, right },
+      init: () => ({
+        left: new DragAndDrop('left', {}),
+        right: new DragAndDrop('right', {}),
+      }),
       update: {
         RequestedLeftMove: model => ({
           model,
@@ -271,12 +271,10 @@ class NestedParent extends Block<NestedParent>()('NestedParent', {
   Message: NestedMessage,
 }) {}
 
-const NestedParentLive = NestedParent.make(
-  Effect.fn(function* () {
-    const slot = yield* Parent.each('slots')
-
+const NestedParentLive = NestedParent.layer(
+  Effect.gen(function* () {
     return {
-      model: { slots: [slot('first'), slot('second')] },
+      init: () => ({ slots: [new Parent('first'), new Parent('second')] }),
       update: {
         RequestedBothMoves: model => ({
           model,
@@ -306,13 +304,13 @@ describe('DragAndDrop.test nested paths', () => {
       }),
       Story.message(NestedMessage.RequestedBothMoves()),
       resolveKeyboardMove({
-        path: ['slots', 'second', 'left'],
+        path: ['second', 'left'],
         itemId: 'second-item',
         targetContainerId: 'left-target',
         targetIndex: 2,
       }),
       resolveKeyboardMove({
-        path: ['slots', 'first', 'left'],
+        path: ['first', 'left'],
         itemId: 'left-item',
         targetContainerId: 'left-target',
         targetIndex: 1,
@@ -342,7 +340,7 @@ describe('DragAndDrop.test nested paths', () => {
           Story.given(nestedInitialModel),
           Story.message(NestedMessage.RequestedBothMoves()),
           resolveKeyboardMove({
-            path: ['slots', 'first', 'left'],
+            path: ['first', 'left'],
             itemId: 'left-item',
             targetContainerId: 'left-target',
             targetIndex: 2,
@@ -362,12 +360,12 @@ class KeyedParent extends Block<KeyedParent>()('KeyedParent', {
   Message: KeyedParentMessage,
 }) {}
 
-const KeyedParentLive = KeyedParent.make(
-  Effect.fn(function* () {
-    const board = yield* DragAndDrop.each('boards', {})
-
+const KeyedParentLive = KeyedParent.layer(
+  Effect.gen(function* () {
     return {
-      model: { boards: [board('first'), board('second')] },
+      init: () => ({
+        boards: [new DragAndDrop('first', {}), new DragAndDrop('second', {})],
+      }),
       update: {
         RequestedMove: (model, { key }) => ({
           model,
@@ -400,7 +398,7 @@ describe('DragAndDrop.test keyed paths', () => {
       Story.given(keyedInitialModel),
       Story.message(KeyedParentMessage.RequestedMove({ key: 'second' })),
       resolveKeyboardMove({
-        path: ['boards', 'second'],
+        path: 'second',
         itemId: 'second-item',
         targetContainerId: 'second-target',
         targetIndex: 4,
@@ -427,7 +425,7 @@ describe('DragAndDrop.test keyed paths', () => {
         Story.given(keyedInitialModel),
         Story.message(KeyedParentMessage.RequestedMove({ key: 'second' })),
         resolveKeyboardMove({
-          path: ['boards', 'first'],
+          path: 'first',
           itemId: 'second-item',
           targetContainerId: 'second-target',
           targetIndex: 4,

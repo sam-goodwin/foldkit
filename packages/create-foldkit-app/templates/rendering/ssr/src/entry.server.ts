@@ -18,7 +18,7 @@ const flagsForRequest = (cookieHeader: string): Flags => ({
 
 // NOTE: the Flags built from this request are serialized into the rendered
 // HTML and travel to the browser with it. The hydrating client reads them
-// back and constructs the root Block with the exact values this render used;
+// back and initializes the root Block with the exact values this render used;
 // the client computes no Flags of its own.
 // NOTE: a preflight reaches this entry in development and in production alike,
 // so an application's CORS policy goes here rather than in the host: it can

@@ -15,7 +15,7 @@ import * as AsyncData from '../../asyncData/public.js'
 import { Block } from '../../blocks/block.js'
 import type * as BlockTypes from '../../blocks/public.js'
 import * as Command from '../../command/index.js'
-import { __makeRegistry } from '../../command/interruptible/interruptible.js'
+import { __CurrentRegistry } from '../../command/interruptible/interruptible.js'
 import { defineMessageUnion } from '../../message/index.js'
 import { modifyFields } from '../../struct/index.js'
 import {
@@ -24,6 +24,7 @@ import {
   makeFetcher,
   makeFetcherLayer,
   runWhileHoldingKey,
+  withoutChildBlocks,
 } from './internal.js'
 import { cancelData, isFresh, resolveStaleTime } from './policy.js'
 
@@ -322,31 +323,33 @@ export const makeQueryPolicy = <Name extends string, A, AI, E, EI>(
     }
   }
   const makeFetchHandlers = (execute: () => Effect.Effect<A, E>) => {
-    const registry = __makeRegistry()
-
     return {
       fetch: ({ generation }: Readonly<{ generation: number }>) =>
-        runWhileHoldingKey(
-          registry,
-          `${generation}`,
-          pipe(
-            execute(),
-            Effect.result,
-            Effect.flatMap(result =>
-              Effect.map(Clock.currentTimeMillis, completedAtMillis =>
-                Message.CompletedFetch({
-                  generation,
-                  result,
-                  completedAtMillis,
-                }),
+        Effect.flatMap(__CurrentRegistry, registry =>
+          runWhileHoldingKey(
+            registry,
+            `${generation}`,
+            pipe(
+              execute(),
+              Effect.result,
+              Effect.flatMap(result =>
+                Effect.map(Clock.currentTimeMillis, completedAtMillis =>
+                  Message.CompletedFetch({
+                    generation,
+                    result,
+                    completedAtMillis,
+                  }),
+                ),
               ),
             ),
           ),
         ),
       cancelFetch: ({ generation }: Readonly<{ generation: number }>) =>
-        Effect.as(
-          registry.interrupt(`${generation}`),
-          Message.CompletedCancelFetch(),
+        Effect.flatMap(__CurrentRegistry, registry =>
+          Effect.as(
+            registry.interrupt(`${generation}`),
+            Message.CompletedCancelFetch(),
+          ),
         ),
     }
   }
@@ -483,7 +486,6 @@ export interface Query<
   EI,
   Notify extends boolean = false,
 > extends BlockTypes.Instance<
-  Query<Name, A, AI, E, EI, Notify>,
   QueryContract<Name, A, AI, E, EI, Notify>,
   QueryArgs
 > {}
@@ -526,7 +528,7 @@ export type QueryStatics<
 
 /**
  * A Query class. Put it in a parent Model Schema, create instances with
- * `yield* new PostsQuery('posts', {})`, and provide its Layer.
+ * `new PostsQuery('posts', {})` in a parent's Model, and provide its Layer.
  *
  * @experimental Ships from `foldkit/experimental/query`; expect breaking changes while the API settles.
  */
@@ -542,7 +544,6 @@ export type QueryClass<
   Name,
   QueryArgs,
   void,
-  never,
   QueryContract<Name, A, AI, E, EI, Notify>
 > &
   QueryStatics<Name, A, AI, E, EI, Notify>
@@ -568,30 +569,28 @@ export type QueryWithLive<
     >
   }>
 
-const makeConstructor =
-  <Name extends string, A, AI, E, EI, Update>(
-    policy: QueryPolicy<Name, A, AI, E, EI>,
-    update: Update,
-  ) =>
-  (_id: string, args: QueryArgs) =>
-    Effect.gen(function* () {
-      const execute = yield* policy.Fetcher
-      const { model, start } = policy.startModel(args)
-      const { fetch, cancelFetch } = policy.makeFetchHandlers(execute)
+const makeImplementation = <Name extends string, A, AI, E, EI, Update>(
+  policy: QueryPolicy<Name, A, AI, E, EI>,
+  update: Update,
+) =>
+  Effect.gen(function* () {
+    const execute = yield* policy.Fetcher
+    const { fetch, cancelFetch } = policy.makeFetchHandlers(execute)
 
-      return {
-        model,
-        start,
-        update,
-        // NOTE: the engine's handler record is keyed by Command name, which
-        // TypeScript cannot resolve for a generic Query name.
-        /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-        commands: {
-          [policy.Fetch.name]: fetch,
-          [policy.CancelFetch.name]: cancelFetch,
-        } as never,
-      }
-    })
+    return {
+      init: (args: QueryArgs) => policy.startModel(args).model,
+      start: (_model: unknown, args: QueryArgs) =>
+        policy.startModel(args).start,
+      update,
+      // NOTE: the engine's handler record is keyed by Command name, which
+      // TypeScript cannot resolve for a generic Query name.
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      commands: {
+        [policy.Fetch.name]: fetch,
+        [policy.CancelFetch.name]: cancelFetch,
+      } as never,
+    }
+  })
 
 const makePlainQuery = <Name extends string, A, AI, E, EI>(
   policy: QueryPolicy<Name, A, AI, E, EI>,
@@ -608,9 +607,9 @@ const makePlainQuery = <Name extends string, A, AI, E, EI>(
   const toLayer = <R, BuildE = never, BuildR = never>(
     build: FetchBuild<A, E, R, BuildE, BuildR>,
   ) =>
-    QueryBlock.make(makeConstructor(policy, policy.updateHandlers)).pipe(
-      Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)),
-    )
+    withoutChildBlocks<Query<Name, A, AI, E, EI, false>, QueryFetcher<Name>>(
+      QueryBlock.layer(makeImplementation(policy, policy.updateHandlers)),
+    ).pipe(Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)))
 
   return Object.assign(QueryBlock, {
     Fetch: policy.Fetch,
@@ -638,8 +637,10 @@ const makeNotifyingQuery = <Name extends string, A, AI, E, EI>(
   const toLayer = <R, BuildE = never, BuildR = never>(
     build: FetchBuild<A, E, R, BuildE, BuildR>,
   ) =>
-    QueryBlock.make(
-      makeConstructor(policy, policy.notifyingUpdateHandlers),
+    withoutChildBlocks<Query<Name, A, AI, E, EI, true>, QueryFetcher<Name>>(
+      QueryBlock.layer(
+        makeImplementation(policy, policy.notifyingUpdateHandlers),
+      ),
     ).pipe(Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)))
 
   return Object.assign(QueryBlock, {

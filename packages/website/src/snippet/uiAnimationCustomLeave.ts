@@ -23,14 +23,14 @@ export class Drawer extends Block<Drawer>()('Drawer', {
   Command: [WaitForPanelSettled],
 }) {}
 
-export const DrawerLive = Drawer.make(
-  Effect.fn(function* () {
-    const animation = yield* new Animation.Animation('animation', {
-      id: 'drawer',
-    })
-
+export const DrawerLive = Drawer.layer(
+  Effect.gen(function* () {
     return {
-      model: { animation },
+      init: () => ({
+        animation: new Animation.Animation('animation', {
+          id: 'drawer',
+        }),
+      }),
 
       update: {
         // When the panel settles, tell Animation that this leave finished
@@ -44,7 +44,7 @@ export const DrawerLive = Drawer.make(
         }),
 
         // Wait on a child panel instead of the Animation wrapper
-        ...animation.on({
+        ...Animation.Animation.on({
           StartedLeaveAnimating: (model, { generation }) => ({
             model,
             commands: [WaitForPanelSettled({ generation })],

@@ -23,17 +23,18 @@ export class Toolbar extends Block<Toolbar>()('Toolbar', {
   }),
 }) {}
 
-export const ToolbarLive = Toolbar.make(
-  Effect.fn(function* () {
-    const menu = yield* new ActionMenu('menu', { id: 'actions' })
-
+export const ToolbarLive = Toolbar.layer(
+  Effect.gen(function* () {
     return {
-      model: { menu, maybeLastAction: Option.none() },
+      init: () => ({
+        menu: new ActionMenu('menu', { id: 'actions' }),
+        maybeLastAction: Option.none(),
+      }),
 
       update: {
         // `Selected` carries the picked item, typed as `Action`. Menu closes
         // itself after a selection.
-        ...menu.on({
+        ...ActionMenu.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeLastAction: () => Option.some(value),

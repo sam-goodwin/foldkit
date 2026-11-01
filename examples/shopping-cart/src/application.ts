@@ -69,18 +69,16 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
 
 // LIVE
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
-    const productsPage = yield* new Products('productsPage', { products })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ url }) => ({
         route: urlToApplicationRoute(url),
         cart: [],
         deliveryInstructions: '',
         orderPlaced: false,
-        productsPage,
-      },
+        productsPage: new Products('productsPage', { products }),
+      }),
 
       update: {
         CompletedNavigateInternal: model => ({ model }),
@@ -136,7 +134,7 @@ export const ApplicationLive = Application.make(
           }),
         }),
 
-        ...productsPage.on({
+        ...Products.on({
           AddedToCart: (model, { item }) => ({
             model: modifyFields(model, { cart: Cart.addItem(item) }),
           }),

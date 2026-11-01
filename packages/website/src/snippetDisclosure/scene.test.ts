@@ -21,23 +21,20 @@ type HostModel = Readonly<{ snippetDisclosure: SnippetDisclosure }>
 
 type HostView = (model: HostModel, h: HtmlBuilder<never>) => Html
 
-class SnippetDisclosureHost extends Block<
-  SnippetDisclosureHost,
-  Readonly<{ hostView: HostView }>
->()('SnippetDisclosureHost', {
-  Model: Schema.Struct({ snippetDisclosure: SnippetDisclosure }),
-}) {}
+class SnippetDisclosureHost extends Block<SnippetDisclosureHost>()(
+  'SnippetDisclosureHost',
+  { Model: Schema.Struct({ snippetDisclosure: SnippetDisclosure }) },
+) {}
 
-const SnippetDisclosureHostLive = SnippetDisclosureHost.make(
-  Effect.fn(function* (_id, { hostView }) {
-    const snippetDisclosure = yield* new SnippetDisclosure('snippetDisclosure')
-
-    return {
-      model: { snippetDisclosure },
+const snippetDisclosureHostLive = (hostView: HostView) =>
+  SnippetDisclosureHost.layer(
+    Effect.succeed({
+      init: () => ({
+        snippetDisclosure: new SnippetDisclosure('snippetDisclosure'),
+      }),
       view: hostView,
-    }
-  }),
-).pipe(Layer.provide(SnippetDisclosureLive))
+    }),
+  ).pipe(Layer.provide(SnippetDisclosureLive))
 
 const singleView =
   (rawCode: string): HostView =>
@@ -79,8 +76,7 @@ const groupedView: HostView = (model, h) =>
 describe('snippet disclosure', () => {
   it.effect('shows and hides the full code', () =>
     scene(
-      SnippetDisclosureHostLive,
-      { hostView: singleView(longCode) },
+      snippetDisclosureHostLive(singleView(longCode)),
       Mount.resolve(
         MeasureSnippetHeight,
         Message.CompletedMeasureSnippetHeight({
@@ -100,8 +96,7 @@ describe('snippet disclosure', () => {
 
   it.effect('does not offer to expand code that fits', () =>
     scene(
-      SnippetDisclosureHostLive,
-      { hostView: singleView(shortCode) },
+      snippetDisclosureHostLive(singleView(shortCode)),
       Mount.resolve(
         MeasureSnippetHeight,
         Message.CompletedMeasureSnippetHeight({
@@ -116,8 +111,7 @@ describe('snippet disclosure', () => {
 
   it.effect('shares open state across snippets in one disclosure group', () =>
     scene(
-      SnippetDisclosureHostLive,
-      { hostView: groupedView },
+      snippetDisclosureHostLive(groupedView),
       Mount.resolve(
         MeasureSnippetHeight({ snippetId: 'main-source' }),
         Message.CompletedMeasureSnippetHeight({

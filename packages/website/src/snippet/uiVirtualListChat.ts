@@ -100,22 +100,20 @@ const requestHistoryStep = (model: Model) => {
   }
 }
 
-export const ConversationLive = Conversation.make(
-  Effect.fn(function* (_id, { initialMessages }) {
-    const messageList = yield* new MessageList('messageList', {
-      id: 'message-list',
-      rowHeightPx: 64,
-      initialScroll: { target: VirtualList.ScrollTarget.End() },
-      followEnd: { thresholdPx: 8 },
-      history: { reservePx: 800, prefetchViewports: 3 },
-    })
-
+export const ConversationLive = Conversation.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ initialMessages }) => ({
         messages: initialMessages,
-        messageList,
+        messageList: new MessageList('messageList', {
+          id: 'message-list',
+          rowHeightPx: 64,
+          initialScroll: { target: VirtualList.ScrollTarget.End() },
+          followEnd: { thresholdPx: 8 },
+          history: { reservePx: 800, prefetchViewports: 3 },
+        }),
         historyLoad: HistoryLoad.Idle(),
-      },
+      }),
 
       update: {
         // Tell the list which keys it now holds whenever the items change
@@ -168,7 +166,7 @@ export const ConversationLive = Conversation.make(
         }),
 
         // Load older messages when the reader scrolls near the start
-        ...messageList.on({
+        ...MessageList.on({
           ApproachedLoadedStart: requestHistoryStep,
         }),
       },

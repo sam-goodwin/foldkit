@@ -43,31 +43,26 @@ export class ListboxPage extends Block<ListboxPage>()('ListboxPage', {
   Model,
 }) {}
 
-export const ListboxPageLive = ListboxPage.make(
-  Effect.fn(function* () {
-    const listboxDemo = yield* new ItemListbox('listboxDemo', {
-      id: 'listbox-demo',
-    })
-    const listboxMultiDemo = yield* new ItemMultiListbox('listboxMultiDemo', {
-      id: 'listbox-multi-demo',
-    })
-    const listboxGroupedDemo = yield* new CharacterListbox(
-      'listboxGroupedDemo',
-      { id: 'listbox-grouped-demo' },
-    )
-
+export const ListboxPageLive = ListboxPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        listboxDemo,
+      init: () => ({
+        listboxDemo: new ItemListbox('listboxDemo', {
+          id: 'listbox-demo',
+        }),
         maybeListboxDemoSelectedItem: Option.none(),
-        listboxMultiDemo,
+        listboxMultiDemo: new ItemMultiListbox('listboxMultiDemo', {
+          id: 'listbox-multi-demo',
+        }),
         listboxMultiDemoSelectedItems: [],
-        listboxGroupedDemo,
+        listboxGroupedDemo: new CharacterListbox('listboxGroupedDemo', {
+          id: 'listbox-grouped-demo',
+        }),
         maybeListboxGroupedDemoSelectedItem: Option.none(),
-      },
+      }),
 
       update: {
-        ...listboxDemo.on({
+        ...ItemListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeListboxDemoSelectedItem: () => Option.some(value),
@@ -75,7 +70,7 @@ export const ListboxPageLive = ListboxPage.make(
           }),
         }),
 
-        ...listboxMultiDemo.on({
+        ...ItemMultiListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               listboxMultiDemoSelectedItems: listboxMultiDemoSelectedItems =>
@@ -89,7 +84,7 @@ export const ListboxPageLive = ListboxPage.make(
           }),
         }),
 
-        ...listboxGroupedDemo.on({
+        ...CharacterListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeListboxGroupedDemoSelectedItem: () => Option.some(value),

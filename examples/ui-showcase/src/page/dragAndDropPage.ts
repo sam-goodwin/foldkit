@@ -37,16 +37,13 @@ export class DragAndDropPage extends Block<DragAndDropPage>()(
   { Model },
 ) {}
 
-export const DragAndDropPageLive = DragAndDropPage.make(
-  Effect.fn(function* () {
-    const dragAndDropDemo = yield* new DragAndDrop.DragAndDrop(
-      'dragAndDropDemo',
-      { id: 'drag-and-drop-demo' },
-    )
-
+export const DragAndDropPageLive = DragAndDropPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        dragAndDropDemo,
+      init: () => ({
+        dragAndDropDemo: new DragAndDrop.DragAndDrop('dragAndDropDemo', {
+          id: 'drag-and-drop-demo',
+        }),
         dragAndDropDemoColumns: [
           {
             id: 'backlog',
@@ -66,10 +63,10 @@ export const DragAndDropPageLive = DragAndDropPage.make(
             ],
           },
         ],
-      },
+      }),
 
       update: {
-        ...dragAndDropDemo.on({
+        ...DragAndDrop.DragAndDrop.on({
           Reordered: (
             model,
             { itemId, fromContainerId, toContainerId, toIndex },

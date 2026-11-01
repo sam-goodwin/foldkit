@@ -6,7 +6,7 @@ A dropdown menu for actions, like a macOS context menu. Menu is fire-and-forget:
 
 ### Creating and Controlling a Menu
 
-`Menu.makeBlock<Item>()` returns a Block class with its Layer attached as `Live`. Call it once at module scope, create an instance in the parent's constructor with `yield* new ActionMenu('menu', { id })`, and provide `ActionMenu.Live` to the parent's Layer. Use `Menu.makeBlock()` for plain strings.
+`Menu.makeBlock<Item>()` returns a Block class with its Layer attached as `Live`. Call it once at module scope, create an instance with `new ActionMenu('menu', { id })` in the parent's `init`, and provide `ActionMenu.Live` to the parent's Layer. Use `Menu.makeBlock()` for plain strings.
 
 To control the Menu from a parent update handler, send it `ActionMenu.Message.RequestedOpen()`, `RequestedClose()`, or `RequestedSelectItem({ index, item })`. The `item` field has the Menu's `Item` type, so `ActionMenu.Message.RequestedSelectItem` accepts an `Action`.
 
@@ -20,7 +20,7 @@ Check out how Menu is wired up in a [real Foldkit app](https://github.com/foldki
 
 ### Basic
 
-`Menu.makeBlock<Item>()` threads your item union through the view and the OutMessages, so `Selected({ value, index })` carries the picked value directly. Handle it with `...menu.on({ Selected })`. Menu closes automatically after selection. It reports `Closed()` when it closes without a selection, so the parent can coordinate related state without inspecting the Menu's Messages.
+`Menu.makeBlock<Item>()` threads your item union through the view and the OutMessages, so `Selected({ value, index })` carries the picked value directly. Handle it with `...ActionMenu.on({ Selected })`. Menu closes automatically after selection. It reports `Closed()` when it closes without a selection, so the parent can coordinate related state without inspecting the Menu's Messages.
 
 ::Demo{name="basic"}
 
@@ -123,9 +123,9 @@ Pass these fields to the instance's `view`, as in `model.menu.view({ ... })`. Sp
 
 ### OutMessage {#out-message}
 
-Facts the component reports to its parent. Handle them by spreading the instance's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
+Facts the component reports to its parent. Handle them by spreading the class's `.on({ ... })`, such as `...ActionMenu.on({ ... })`, into the parent's update record. Variants without a handler are ignored.
 
-| Name       | Type                             | Default | Description                                                                                                                                                                                                                                                                                                                                             |
-| ---------- | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Selected` | `{ value: Item; index: number }` | —       | Emitted when a menu item is selected. Carries both the value (typed as your `Item` union via `Menu.makeBlock<Item>()`) and its index into the items array supplied at view time. Menu closes itself on selection; the parent does not need to send `RequestedClose()`. Handle it with the instance's `.on` to dispatch the corresponding domain action. |
-| `Closed`   | `{}`                             | —       | Emitted when an open Menu closes without selection, including keyboard, button, backdrop, blur, pointer, and programmatic close paths. It is emitted by the update that changes the Menu Model to closed, before animation and cleanup Commands complete. A close request against an already closed Menu emits nothing.                                 |
+| Name       | Type                             | Default | Description                                                                                                                                                                                                                                                                                                                                          |
+| ---------- | -------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Selected` | `{ value: Item; index: number }` | —       | Emitted when a menu item is selected. Carries both the value (typed as your `Item` union via `Menu.makeBlock<Item>()`) and its index into the items array supplied at view time. Menu closes itself on selection; the parent does not need to send `RequestedClose()`. Handle it with the class's `.on` to dispatch the corresponding domain action. |
+| `Closed`   | `{}`                             | —       | Emitted when an open Menu closes without selection, including keyboard, button, backdrop, blur, pointer, and programmatic close paths. It is emitted by the update that changes the Menu Model to closed, before animation and cleanup Commands complete. A close request against an already closed Menu emits nothing.                              |

@@ -15,7 +15,7 @@ Before writing any code, analyze the description to identify:
 1. **Domain entities**: nouns that become Model fields (e.g., "todos", "user", "score")
 2. **User interactions**: verbs that become Messages (e.g., "add", "delete", "filter", "submit")
 3. **Async operations**: external data that becomes Commands (e.g., "fetch weather", "save to localStorage")
-4. **Real-time needs**: streaming data that becomes a `stream` or `subscriptions` entry (e.g., "live updates", "countdown", "WebSocket")
+4. **Real-time needs**: streaming data that becomes a `subscriptions` entry (e.g., "live updates", "countdown", "WebSocket")
 5. **Pages/navigation**: URL structure that becomes routes (e.g., "home page", "detail page")
 6. **UI component needs**: interactive widgets that map to Foldkit UI components (e.g., "dropdown" → Menu, "modal" → Dialog, "tabs" → Tabs, "autocomplete" → Combobox, "date picker" → DatePicker, "file upload" → FileDrop, "reorderable list" → DragAndDrop, "toast/notification" → Toast, "hover tooltip" → Tooltip, "range/price filter" → Slider, "long scrolling list" → VirtualList)
 7. **Form validation needs**: required fields, format checks, async uniqueness → `foldkit/fieldValidation` module (see Phase 4)
@@ -53,7 +53,7 @@ Read only the references that affect this program:
 - The scaffolded project's `FOLDKIT.md`: the consumer conventions for the installed Foldkit version. It wins over these guides when they disagree
 - [Architecture guide](architecture.md) for the TEA loop, Blocks, and the lifecycle primitives the requested behavior needs
 - [Conventions guide](conventions.md) for naming, Schema, Effect, and update patterns
-- [Block composition and Layers](../foldkit/references/composition.md) when the app has a child Block, a stateful Foldkit UI component, an OutMessage, a view input, an exposed handle, or Service Layers
+- [Block composition and Layers](../foldkit/references/composition.md) when the app has a child Block, a stateful Foldkit UI component, an OutMessage, a view input, a per-instance resource, or Service Layers
 - [Verification checklist](checklist.md) for the gates and quality bar
 - [Blind spots](blindSpots.md) for the failure modes relevant to the planned behavior
 
@@ -65,10 +65,10 @@ When an Effect API is uncertain, verify its current signature from the installed
 
 Two codebases are the _quality bar_ for generated apps, not just patterns to copy but the level of craft to match:
 
-- `${CLAUDE_SKILL_DIR}/../../packages/typing-game/client/src/`: production multi-page app with one file per Block, OutMessage, handler and view decomposition inside a Block file, Streams, and domain modules.
+- `${CLAUDE_SKILL_DIR}/../../packages/typing-game/client/src/`: production multi-page app with one file per Block, OutMessage, handler and view decomposition inside a Block file, Subscriptions, and domain modules.
 - `${CLAUDE_SKILL_DIR}/../../packages/website/src/`: production Foldkit website with page organization, shared view primitives, route-driven rendering, and domain separation.
 
-Before generating, spot-check at least ONE file from each (how a Block's constructor and update record are laid out, how handlers get extracted, how domain files are structured) and match that level of craft. The generated code should be indistinguishable from hand-written exemplar code.
+Before generating, spot-check at least ONE file from each (how a Block's Layer and update record are laid out, how handlers get extracted, how domain files are structured) and match that level of craft. The generated code should be indistinguishable from hand-written exemplar code.
 
 Then read the tier-specific example that matches the app's complexity. **Always read at least one tier-specific example.** Never generate from memory alone. File layouts inside examples move; list the directory before trusting a file name.
 
@@ -90,10 +90,10 @@ Then read the tier-specific example that matches the app's complexity. **Always 
 `${CLAUDE_SKILL_DIR}/../../examples/shopping-cart/src/` (nested domain Schemas) and `${CLAUDE_SKILL_DIR}/../../examples/kanban/src/` (`DragAndDrop`, Flags restoring from localStorage)
 
 **Tier 6: Child Blocks, OutMessage, multi-step forms, auth flows, multi-module apps:**
-`${CLAUDE_SKILL_DIR}/../../examples/auth/src/` (`application.ts` and `page/`: instances held in tagged Model variants, `.on` OutMessage handlers, protected routes) and `${CLAUDE_SKILL_DIR}/../../examples/job-application/src/` (`step/`: nested Blocks with `DatePicker`, `FileDrop`, `Listbox`, and the `Calendar` module)
+`${CLAUDE_SKILL_DIR}/../../examples/auth/src/` (`application.ts` and `page/`: instances held in tagged Model variants, `Child.on` OutMessage handlers, protected routes) and `${CLAUDE_SKILL_DIR}/../../examples/job-application/src/` (`step/`: nested Blocks with `DatePicker`, `FileDrop`, `Listbox`, and the `Calendar` module)
 
 **Tier 7: Real-time, WebSocket, stateful handles, production-grade:**
-`${CLAUDE_SKILL_DIR}/../../examples/websocket-chat/src/` (`chatSocket.ts`: a child Block that acquires a socket and exposes it; `application.ts`: parent Commands reading it with `use`), then `${CLAUDE_SKILL_DIR}/../../packages/typing-game/client/src/` and its `page/` directories.
+`${CLAUDE_SKILL_DIR}/../../examples/websocket-chat/src/` (a socket held while its Block instance is in the Model, with Commands that send on it), then `${CLAUDE_SKILL_DIR}/../../packages/typing-game/client/src/` and its `page/` directories.
 
 Read the nearest tier-specific example plus any focused example for a primitive this app actually uses. Lower tiers are a lookup index, not a mandatory reading sequence.
 
@@ -147,20 +147,15 @@ Components have moved across that split before, so read the component's `public.
 Using a stateful component is the same as using any child Block:
 
 ```ts
-const dialog =
-  yield *
-  new Dialog.Dialog('confirmDelete', {
-    id: 'confirm-delete',
-  })
-
-// model:   { confirmDelete: dialog, ... }    Model field Schema: Dialog.Dialog
+// init:    confirmDelete: new Dialog.Dialog('confirmDelete', { id: 'confirm-delete' })
+// Model field Schema: confirmDelete: Dialog.Dialog
 // update:  messages: [model.confirmDelete.send(Dialog.Dialog.Message.RequestedOpen())]
-//          ...dialog.on({ Closed: model => ({ model }) })
+//          ...Dialog.Dialog.on({ Closed: model => ({ model }) })
 // view:    model.confirmDelete.view({ toView: attributes => ... })
 // Layer:   Layer.provide(Dialog.DialogLive)
 ```
 
-Old init configs are constructor args. Parent requests are Messages the parent sends (`RequestedOpen`, `RequestedClose`, `InformedOf*Change`). Slot callbacks such as `toView` are the view input passed to `model.x.view(...)`. A component that depends on another component provides it inside its own Layer (`DialogLive` already provides Animation), so provide only the components you construct. Check a component's `test` namespace for the Command definitions to resolve in tests (for example, `RadioGroup.test.FocusOption`).
+Configuration is the instance's args. Parent requests are Messages the parent sends (`RequestedOpen`, `RequestedClose`, `InformedOf*Change`). Slot callbacks such as `toView` are the view input passed to `model.x.view(...)`. A component that depends on another component provides it inside its own Layer (`DialogLive` already provides Animation), so provide only the components your Model holds. Check a component's `test` namespace for the Command definitions to resolve in tests (for example, `RadioGroup.test.FocusOption`).
 
 **Always prefer Foldkit UI components over hand-rolling interactive widgets.** They make accessibility the default.
 
@@ -174,7 +169,7 @@ One file, one Block, at every scale. An app grows by adding Blocks, not by split
 
 ### What lives in which file
 
-- **A Block file**, named for the Block in camelCase (`application.ts` for the root, `search.ts` for `Search`, `issueBoard.ts` for `IssueBoard`), holds everything that defines the Block, in this order: Message and OutMessage unions, Model Schema and the Schemas that are fields of it, Command and Mount definitions, the class, view helpers and the view, then the `Live` Layer with update handlers, Command and Mount handlers, `stream`, and `subscriptions`. Steps and pure helpers used by one Block stay in its file. A persistence Schema that a save Command encodes and `flags` decodes lives here too, beside the Command; it often looks like a subset of Model but it isn't part of Model.
+- **A Block file**, named for the Block in camelCase (`application.ts` for the root, `search.ts` for `Search`, `issueBoard.ts` for `IssueBoard`), holds everything that defines the Block, in this order: Message and OutMessage unions, Model Schema and the Schemas that are fields of it, Command and Mount definitions, the class, then the `Live` Layer directly after the class (`init`, `start`, update handlers, Command and Mount handlers, `subscriptions`, view), then the Steps, selectors, and view helpers it uses. Steps and pure helpers used by one Block stay in its file. A persistence Schema that a save Command encodes and `flags` decodes lives here too, beside the Command; it often looks like a subset of Model but it isn't part of Model.
 - **`entry.ts`** builds the Program and starts the Runtime. **`entry.server.ts`** is the SSR/SSG entry.
 - **`services.ts`** holds the root `ApplicationLayer` of ordinary Services and its test alternative `ApplicationTestLayer`.
 - **`route.ts`** holds `ApplicationRoute` and the routers, once a page Block needs them as well as the root. A single routed root can keep them in `application.ts`.
@@ -186,7 +181,7 @@ Never split a Block across `message.ts`, `model.ts`, `update.ts`, `command.ts`, 
 **Single Block** (Tier 1-3):
 
 ```
-src/application.ts  ← Model, Message, Commands, Flags, Streams, view, Application, ApplicationLive
+src/application.ts  ← Model, Message, Commands, Flags, Subscriptions, view, Application, ApplicationLive
 src/entry.ts        ← Program.make and Runtime.run
 src/services.ts     ← ApplicationLayer, when ordinary Services are required
 src/story.test.ts
@@ -223,7 +218,7 @@ For Tier 4+ apps (routing, domain modules, multiple entities, child Blocks) prod
 The sketch has six parts. Emit them inline, get confirmation, THEN scaffold:
 
 1. **File tree**: the exact paths you will create, matching Phase 3.
-2. **Block tree**: every Block class, its constructor args, where its instances live in the parent Model (field, `Option`, array, Record, tagged variant), and its OutMessages.
+2. **Block tree**: every Block class, its instance args, where its instances live in the parent Model (field, `Option`, array, Record, tagged variant), and its OutMessages.
 3. **Model shape**: each Block's `Schema.Struct` fields and their types. Not the full Schema, just the shape.
 4. **Message list**: every Message per Block, grouped by category (clicks, inputs, Command results, Messages a parent sends).
 5. **Route list**: if routing, every `defineRouteUnion` variant with its params and the path it maps to.
@@ -317,7 +312,7 @@ For each Foldkit module you plan to use, read the `.d.ts` at the paths below. Re
 ```text
 # Every app
 <project>/node_modules/foldkit/dist/index.d.ts            # top-level re-exports: Block, Program, Runtime, Command, Mount, Dom, ...
-<project>/node_modules/foldkit/dist/blocks/block.d.ts     # Block class factory, Implementation (constructor return), Result, InstanceMembers (view, send, on, use), Factory (each)
+<project>/node_modules/foldkit/dist/blocks/block.d.ts     # Block class factory and statics (layer, on, onAll, when), Implementation (the module), InitContext, Result, InstanceMembers (id, model, view, send)
 <project>/node_modules/foldkit/dist/blocks/program.d.ts   # Program.make / makeElement options: layer, container, routing, Flags, devTools
 <project>/node_modules/foldkit/dist/blocks/public.d.ts    # `foldkit/block` types: Send, UpdateRecord, Instance, Resolved
 <project>/node_modules/foldkit/dist/html/public.d.ts      # HtmlBuilder<Message>, element signatures, childAttributes, inertHtml
@@ -351,7 +346,7 @@ For each Foldkit module you plan to use, read the `.d.ts` at the paths below. Re
 
 # If using any UI component (SEPARATE PACKAGE)
 <project>/node_modules/@foldkit/ui/dist/<component>/public.d.ts  # a class + `<Name>Live` or a `makeBlock` factory (stateful), or `view` + config type (render helper)
-# For a stateful component, record its constructor args, Message constructors the parent sends (Requested*, InformedOf*), OutMessages, and view input type.
+# For a stateful component, record its instance args, Message constructors the parent sends (Requested*, InformedOf*), OutMessages, and view input type.
 
 # If using dates
 <project>/node_modules/foldkit/dist/calendar/index.d.ts # CalendarDate, today.local (Effect<CalendarDate>)
@@ -364,10 +359,12 @@ If a path above doesn't resolve, list the package's `dist/` and find the module.
 For each symbol you'll call, write one line. For example:
 
 ```text
-class X extends Block<X, Args?, ViewInput?, Exposed?>()('X', { Model?, Message?, OutMessage?, Command?: [...], Mount?: [...] }) {}
-XLive = X.make(Effect.fn(function* (id, args) { ...yield services, yield* new Child(...) ...; return { model, start?, update, commands?, mounts?, stream?, subscriptions?, expose?, view } }))
+class X extends Block<X, Args?, ViewInput?>()('X', { Model?, Message?, OutMessage?, Command?: [...], Mount?: [...] }) {}
+XLive = X.layer(Effect.gen(function* () { ...yield services; return { init: (args, { id, path }) => Model, start?: (model, args) => [Commands], update, commands?, mounts?, subscriptions?, view } }))
 update handler: (model, message) => { model, commands?, outMessage?, messages? }
-instance: .id, .model, .view(input?), .send(Child.Message.X()), .on({ Tag: (model, outMessage, instance) => result }), .use
+instance: new Child(id, args) anywhere; .id, .model, .view(input?), .send(Child.Message.X())
+parent update record: ...Child.on({ Tag: (model, outMessage, instance) => result }), ...Child.onAll({ ... }), ...Child.when((model, message) => boolean)
+subscriptions: { name: { dependencies: model => value, stream: dependencies => Stream<Message> } }
 Command.define(name, { args?, messages, interrupt? }); call site: Fetch({ id }); handler: commands: { Fetch: ({ id }) => Effect<Message> }
 Mount.define(name, { args?, messages }); view: h.OnMount(Measure()); handler: mounts: { Measure: ({ element }) => Effect<Message> }
 h: HtmlBuilder<Message> (view parameter): { div, input (VOID), textarea (VALUE-ONLY), button, Class, Href, For, Id, Role, OnClick(Message), OnInput(value => Message), OnBlur(Message), OnSubmit(Message), OnMount(mount), keyed, empty, ... }
@@ -393,19 +390,19 @@ Record these in the crib and keep them visible while generating:
 - **Attribute helpers are specific**: `Value(...)`, `Type(...)`, `Placeholder(...)`, `Href(...)`, `Target(...)`, `Rel(...)`, `Rows(n)`, `Id(...)`, `For(...)`, `Role(...)`, `AriaLabel(...)`. There is no generic `Attr('...', '...')`.
 - **`Route.mapTo` takes the route Schema, not a factory function.** `pipe(literal('new'), Route.mapTo(ApplicationRoute.NewLink))`.
 - **`Effect.ignore` is ONLY for fallible Effects.** `pushUrl(path).pipe(Effect.as(Message.CompletedNavigateInternal()))`.
-- **The constructor is synchronous.** It yields Services and declares child instances; it does no asynchronous work. Load data with a Command listed in `start`.
-- **Handlers must return Effects with no remaining requirements.** Yield Services (`HttpClient.HttpClient`, `KeyValueStore.KeyValueStore`, `Clock.Clock`, `Crypto.Crypto`) in the constructor and close over them in `commands`, `mounts`, and Streams.
+- **The Layer constructor runs once per Block and its module is shared by every instance.** It yields Services; it holds no per-instance state. Per-instance data, including the args and id, goes into the Model through `init` and reaches Commands as Command args. Load data with a Command returned from `start`.
+- **Handlers must return Effects with no remaining requirements.** Yield Services (`HttpClient.HttpClient`, `KeyValueStore.KeyValueStore`, `Clock.Clock`, `Crypto.Crypto`) in the Layer constructor and close over them in `commands`, `mounts`, and `subscriptions`.
 - **Every Command and Mount listed on the class needs a handler** under `commands` / `mounts`. A missing one fails at runtime, not at the call site.
 - **`messages` on `Command.define` and `Mount.define` is required and always an array**, even for one Message.
 - **A child's Model field Schema is the child class itself**, not `Child.Model`: `Schema.Struct({ search: Search })`.
-- **Every Block the graph creates needs its Live Layer provided** to the parent Layer that creates it. A missing Layer is a type error on `Program.make`'s `layer`, or on `story` / `scene` in tests.
-- **`.on(...)` entries are spread into the update record**: `...search.on({ SubmittedQuery: (model, { query }) => ... })`. The handlers take their types from the parent's update record, so they can return only the parent's own Model, Commands, and OutMessages.
+- **Every Block a Model holds needs its Live Layer provided** to the Layer of the parent whose Model holds it. A missing Layer is a type error on `Program.make`'s `layer`, or on `story` / `scene` in tests.
+- **`Child.on(...)` entries are spread into the update record**: `...Search.on({ SubmittedQuery: (model, { query }, instance) => ... })`. One entry covers every `Search` instance the parent's Model holds; branch on `instance.id` when two need different handling. The handlers take their types from the parent's update record, so they can return only the parent's own Model, Commands, and OutMessages.
 - **The root view returns a `Document` (`{ title, body }`) with `Program.make`.** Every other view, and the root of `Program.makeElement`, returns `Html`.
 - **`makeRules` takes `{ required?: Rule.RuleMessage, rules: Array<Rule.Rule> }` where `Rule.Rule = [Predicate, Rule.RuleMessage]`**, a tuple, NOT `{ test, message }`.
 - **`Field.Invalid` has `errors: NonEmptyArray<string>`, not `error: string`.** Use `Array.headNonEmpty(errors)` for the first message.
 - **Route variants stay on `ApplicationRoute`**: `ApplicationRoute.Home`, not sibling bindings named `HomeRoute`.
 - **Routers are callable for printing**: `homeRouter()` returns `'/'`, `tagFilterRouter({ tag: 'foo' })` returns `'/tag/foo'`. Never hand-construct URLs.
-- **`HttpClient` and `HttpClientRequest` come from `effect/http`**, not `@effect/platform`. Yield `HttpClient.HttpClient` in the constructor and provide `Http.layer` from `foldkit` in `ApplicationLayer`, so a test can provide a deterministic HTTP Layer instead. `@effect/platform-browser` is a different package, used for `BrowserKeyValueStore` and `BrowserCrypto`.
+- **`HttpClient` and `HttpClientRequest` come from `effect/http`**, not `@effect/platform`. Yield `HttpClient.HttpClient` in the Layer constructor and provide `Http.layer` from `foldkit` in `ApplicationLayer`, so a test can provide a deterministic HTTP Layer instead. `@effect/platform-browser` is a different package, used for `BrowserKeyValueStore` and `BrowserCrypto`.
 - **Branch on a Model array with `Array.match`.** `Array.isArrayEmpty` / `Array.isArrayNonEmpty` take a mutable `Array<A>` and reject the `ReadonlyArray` that `Schema.Array(...)` decodes to.
 - **Omit only statically empty Commands.** A handler that statically creates none omits `commands`. A computed collection is returned directly, even when empty. Never write `commands: []`. The same holds for `messages`.
 
@@ -422,7 +419,7 @@ Generate files following the architecture and conventions guides. Write all sour
 - Suffix Model fields containing `AsyncData` values with `AsyncData`: `weatherAsyncData`, `workspaceAsyncData`
 - For remote data, use `AsyncData` rather than hand-rolling a union. `AsyncData.Schema(WeatherData, Schema.String)` returns `{ schema, Idle, Loading, Refreshing, Failure, Stale, Success }`; put `schema` in the Model and build values with the constructors. `Refreshing` keeps current data on screen during a reload, and `Stale` keeps it after a failed reload. Read `AsyncData.match`'s signature before calling it: the handlers take bare values (`onSuccess: data => ...`), except `onStale`, which takes `{ error, data }`
 - For non-remote multi-valued state (form steps, editor modes, connection phases), declare the whole union with `defineTaggedUnion()`. See Discriminated Unions for State in [conventions.md](conventions.md)
-- Child instances live in the Model. The field Schema is the child class: `search: Search`, `maybeDialog: Schema.Option(Dialog)`, `rows: Schema.Array(Row)`, `editors: Schema.Record(Schema.String, Editor)`, or a field inside a tagged variant. Never a HashMap, HashSet, or class instance
+- Child instances live in the Model. Create them with `new Child(id, args)` in `init` or an update handler; ids are unique among one parent's children. The field Schema is the child class: `search: Search`, `maybeDialog: Schema.Option(Dialog)`, `rows: Schema.Array(Row)`, `editors: Schema.Record(Schema.String, Editor)`, or a field inside a tagged variant. Never a HashMap, HashSet, or class instance
 - For apps with multiple domain entities referenced across modules, extract shared Schemas into `src/domain/` (e.g., `domain/product.ts`, `domain/session.ts`). See the shopping-cart and auth examples, and read `${CLAUDE_SKILL_DIR}/../../packages/website/src/page/projectOrganization.md` for guidance on structuring domain modules
 
 ### Messages
@@ -463,43 +460,44 @@ A child Block that reports facts to its parent declares an `OutMessage` union th
 
 - Define a `Flags` Schema for data the initial Model needs from side effects, and `flags` as an `Effect<Flags>` that computes it (localStorage reads, current time, etc.), both in `application.ts` beside the root Block
 - The root class takes `Readonly<{ flags: Flags }>` as args (`Readonly<{ flags: Flags; url: Url }>` with routing). Pass `Flags` to `Program.make` and the Effect to `Runtime.run(program, { flags })`. Provide any Services the Effect needs: `flags.pipe(Effect.provide(ApplicationLayer))`
-- Never perform side effects at module level or in the constructor body to seed the Model
+- Never perform side effects at module level, in the Layer constructor, or in `init` to seed the Model
 - See Flags in [architecture.md](architecture.md) for the full pattern
 
-### Constructor (starting Model and startup Commands)
+### Layer (init and startup Commands)
 
-- Implement each Block with `X.make(Effect.fn(function* (id, args) { ... }))`. The constructor runs once per instance, synchronously, when the instance enters its parent's Model
-- Yield Services first, then declare child instances with `yield* new Child(id, args)` and `yield* Child.each(collection, args)`
-- Return `model` (the starting Model) and, when startup work is needed, `start: [LoadX(...)]`. `start` Commands run when the instance appears. Do not fetch, read storage, or read the clock in the constructor body
-- Constructor args replace init arguments. The root's args are `{ url }` with routing, `{ flags }` with Flags, both, or none. Parse `url` in the constructor into an `ApplicationRoute`
-- Return the starting Model as a plain record. The class checks it against the Model Schema. Use `Model.make` only where you construct a Model outside the constructor, such as test fixtures
+- Implement each Block with `XLive = X.layer(Effect.gen(function* () { ... }))` directly after the class. The constructor runs once per Block, when the program's Layer is built, and returns the module every instance shares
+- Yield Services in the constructor. Hold nothing per instance there
+- Return `init: (args, { id, path }) => Model`, the starting Model of each new instance. Copy into the Model every arg and id the Block needs later. Create child instances inside it with `new Child(id, args)`
+- When startup work is needed, return `start: (model, args) => [LoadX({ ... })]`. Foldkit runs these Commands when an instance appears in the Model. Do not fetch, read storage, or read the clock in the constructor or `init`
+- The root's args are `{ url }` with routing, `{ flags }` with Flags, both, or none. Parse `url` in the root's `init` into an `ApplicationRoute`
+- Return the starting Model as a plain record. The class checks it against the Model Schema. Use `Model.make` only where you construct a Model outside `init`, such as test fixtures
 
 ### Update
 
 - `update` is a record with one handler per Message tag. Each receives `(model, message)` and returns `{ model, commands?, outMessage?, messages? }`. Return results directly
-- Extract a substantial single-Message handler into `handle<MessageTag>` in the Block's file and pass it as the record value. A large update record stays in the constructor; when the Block is too large to read, extract a feature into a child Block
+- Extract a substantial single-Message handler into `handle<MessageTag>` in the Block's file and pass it as the record value. A large update record stays in the Layer; when the Block is too large to read, extract a feature into a child Block
 - Use `modifyFields(model, { field: () => newValue })` for immutable updates. Pass point-free transformers when the update only depends on that field's current value: `items: Array.map(updateItem)`, `count: Number.increment`. Never spread or `Object.assign` an existing Model
 - Give reusable Model-first transitions a descriptive name ending in `Step`, such as `refreshStep`, and sequence pure Steps with `Update.combineSteps`. Name an inline Step parameter `stepModel`. Call a single Step directly
 - When a `Succeeded*` handler writes several caches and kicks off refetches, sequence them with `Update.combineSteps` and build refetch Steps with `Update.refresh({ read, revalidate, write, load })`, which reloads a cache only when it holds data. `examples/route-transitions/src/` shows both
 - Omit `commands`, `outMessage`, and `messages` when absent. Never write `commands: []`. Use `Array.filter(commands, () => condition)` for a Boolean-conditioned group
-- A child Block reports a fact with `outMessage: OutMessage.SubmittedQuery({ query })`. The parent handles it by spreading `...search.on({ SubmittedQuery: (model, { query }, instance) => result })` into its update record. Name every variant in the handler record
+- A child Block reports a fact with `outMessage: OutMessage.SubmittedQuery({ query })`. The parent handles it by spreading `...Search.on({ SubmittedQuery: (model, { query }, instance) => result })` into its update record. One entry covers every `Search` instance the parent holds; branch on `instance.id` when instances need different handling. Name every variant in the handler record
 - A parent changes a child only by sending it a Message: `messages: [model.search.send(Search.Message.RequestedClear())]`. Never write the child's Model fields
 - Never `switch`. Use the union's own `match` / `matchOrElse` for declared unions, and Effect `Match` for partial matches and shared handlers
 
 ### Commands
 
 - Define each Command at module level with `Command.define(name, { args, messages })`; omit `args` when it takes none. Assign it to a PascalCase constant and list it under the class's `Command: [...]`
-- Implement each listed Command under the constructor's `commands` record. The handler receives the decoded args and returns an Effect of one of the declared Messages, with no remaining requirements
+- Implement each listed Command under the module's `commands` record. The handler receives the decoded args and returns an Effect of one of the declared Messages, with no remaining requirements
 - To make a Command interruptible, add `interrupt`: `true` keys every invocation by the Command name, `{ keyFields, toKey }` keys invocations by selected args. `examples/interrupting-commands/src/application.ts` shows `UploadFile.Interrupt(...)`
 - Definitions live in the file of the Block whose update returns them. Never centralize all Commands in one file
 - Let TypeScript infer return types. No explicit annotations on definitions
 - Use `Effect.gen` for multi-step async
 - Convert expected failures with `Effect.catch(() => Effect.succeed(Message.FailedX(...)))`. If the Effect is infallible at the type level (`clock.currentTimeMillis`, `Random.nextIntBetween`), no `catch` and no `Failed*` Message is needed
-- Command args carry values already in the Model or Message. Read time, randomness, and UUIDs inside the handler and return them in the result Message
+- Command args carry values already in the Model or Message, including per-instance data such as an id the handler needs. Read time, randomness, and UUIDs inside the handler and return them in the result Message
 - Name each Command for the effect its handler performs, not the later Model transition: a timer that only waits before dismissal is `WaitBeforeDismissal`, not `DismissAfter`
 - Commands that can't meaningfully fail return `Completed*` Messages named from the Command, payload-carrying ones included: `DetermineStartTime` → `CompletedDetermineStartTime`
-- Use Foldkit's `Dom` module for DOM operations (`Dom.focus`, `Dom.scrollIntoView`, `Dom.showDialog`, `Dom.lockScroll`) and Effect built-ins for time, randomness, and delay. For UUIDs, yield `Crypto.Crypto` in the constructor and provide `BrowserCrypto.layer` in `ApplicationLayer`. See DOM and Effect Helpers in [architecture.md](architecture.md)
-- For HTTP, yield `HttpClient.HttpClient` (from `effect/http`) in the constructor and provide `Http.layer` from `foldkit` in `ApplicationLayer`
+- Use Foldkit's `Dom` module for DOM operations (`Dom.focus`, `Dom.scrollIntoView`, `Dom.showDialog`, `Dom.lockScroll`) and Effect built-ins for time, randomness, and delay. For UUIDs, yield `Crypto.Crypto` in the Layer constructor and provide `BrowserCrypto.layer` in `ApplicationLayer`. See DOM and Effect Helpers in [architecture.md](architecture.md)
+- For HTTP, yield `HttpClient.HttpClient` (from `effect/http`) in the Layer constructor and provide `Http.layer` from `foldkit` in `ApplicationLayer`
 - A child's Command result returns to the child that issued it. The parent never maps child Commands
 
 ### Form Validation
@@ -541,7 +539,7 @@ For date handling (birthday, deadlines, scheduling):
 
 - Use the `Calendar` module: `Calendar.CalendarDate`, `Calendar.today.local` (Effect returning today's date in the user's timezone), `Calendar.make(year, month, day)`, `Calendar.addDays`, etc.
 - Use `DatePicker` (input + popover calendar) or `Calendar` (inline grid) from `@foldkit/ui` for the UI
-- Seed today's date via Flags when the starting Model needs it, then pass it to the component's constructor args. See the `job-application` example
+- Seed today's date via Flags when the starting Model needs it, then pass it in the component's instance args. See the `job-application` example
 
 For file uploads (resumes, images, attachments):
 
@@ -552,7 +550,7 @@ For file uploads (resumes, images, attachments):
 
 ### View
 
-- `view: (model, h) => ...` in the constructor return. Never annotate the primary view's `h` and never construct a builder
+- `view: (model, h) => ...` in the module the Layer returns. Never annotate the primary view's `h` and never construct a builder
 - Extracted helpers are plain functions that take only the values they read, followed by `h`, typed with a local alias: `type SearchViewBuilder = HtmlBuilder<Message>` from `foldkit/html`. Let TypeScript infer whether a helper returns one `Html` or an array. Only where no builder is in scope, typically module scope, use `inertHtml` from `foldkit/html`, aliased `ih`
 - Render a child with `model.search.view()`, or `model.dialog.view({ toView, ... })` when it takes a view input. Key a collection of instances by `instance.id`: `h.keyed('li')(row.id, [], [row.view()])`
 - Use `h.Class(...)` for Tailwind classes, and `clsx` for conditional composition: `h.Class(clsx('base-classes', { 'active-class': isActive }))`. Never string concatenation, template literals, or `&&` expressions
@@ -582,7 +580,7 @@ const program = Program.make(Application, {
 Runtime.run(program)
 ```
 
-- `layer` provides the root Block, every Block the graph creates, and their Services. A child Block's Layer must be provided to every parent Layer that creates it. A feature may instead provide its own children inside its Live Layer (`EditorLive = Editor.make(...).pipe(Layer.provide(DatePicker.DatePickerLive))`) so its parents provide only `EditorLive`
+- `layer` provides the root Block, every Block the Models hold, and their Services. A child Block's Layer must be provided to every parent Layer whose Model holds it. A feature may instead provide its own children inside its Live Layer (`EditorLive = Editor.layer(...).pipe(Layer.provide(DatePicker.DatePickerLive))`) so its parents provide only `EditorLive`
 - `ApplicationLayer` (in `services.ts`) holds ordinary Services: `Http.layer`, `BrowserKeyValueStore.layerLocalStorage`, `BrowserCrypto.layer`, and app-specific Services
 - With Flags, add `Flags` to the options and call `Runtime.run(program, { flags: flags.pipe(Effect.provide(ApplicationLayer)) })`
 - `devTools: { dispatch: true }` lets external DevTools clients dispatch the root's Messages. Omit `devTools` to keep inspection with dispatch disabled; `devTools: false` disables DevTools entirely
@@ -597,21 +595,21 @@ Runtime.run(program)
 - When a Model or Schema accepts only part of `ApplicationRoute`, use `ApplicationRoute.subset(['Home', 'Person'])`. It includes only the tags named. There is no `omit`. Name a variant type when an annotation needs it: `type PersonRoute = typeof ApplicationRoute.Person.Type`
 - Build each route as a Router: `const homeRouter = pipe(Route.root, Route.mapTo(ApplicationRoute.Home))`. Routers are callable printers: `homeRouter()` returns `'/'`
 - **Never hand-construct paths with template strings.** `Href(homeRouter())`, not `Href('/')`. `Href(tagFilterRouter({ tag: tagName }))`, not ``Href(`/tag/${encodeURIComponent(tagName)}`)``
-- Parse the starting `url` in the root constructor and later URLs in `ChangedUrl`. Use `Route.parseUrlWithFallback` for a full `Url`
+- Parse the starting `url` in the root's `init` and later URLs in `ChangedUrl`. Use `Route.parseUrlWithFallback` for a full `Url`
 - When a page Block needs to react to a route change, the root sends it `InformedOfRouteChange` from `ChangedUrl`. `Transition.make` and `Transition.matchOrElse` from `foldkit/route` describe entered, stayed, and exited pages. `examples/routing/src/application.ts` shows both
 - Render each route through its own view function; route branches are never keyed. Key by entity id only when one view function renders different entities across route params
 - Use `pushUrl` from `foldkit/navigation` in a Command for programmatic navigation. In the `ClickedLink` handler's `Internal` case, use `urlToString(url)` from `foldkit/url`
 - In the `ClickedLink` handler, **don't pre-update `model.route`**. The runtime fires `ChangedUrl` after `pushUrl` resolves
 
-### Lifecycle effects (Mounts, Streams, Subscriptions, exposed handles)
+### Lifecycle effects (start Commands, Mounts, Subscriptions, per-instance resources)
 
 Pick the primitive by what causes the side effect. See [architecture.md](architecture.md) for each in detail.
 
 - **A Message just dispatched** → a Command returned from update.
+- **A Block instance just appeared in the Model** → a `start` Command: `start: (model, args) => [LoadX({ id: model.id })]`.
 - **An element exists and the handler uses it** → a Mount: `Mount.define(name, { args?, messages })` or `Mount.defineStream` for continuous events, listed under `Mount: [...]`, implemented under `mounts`, attached with `h.OnMount(MeasurePanel())`.
-- **An event source for the instance's whole life** → `stream`, a Stream of the Block's own Messages.
-- **An event source gated by Model state** → `subscriptions: { name: { dependencies: model => ..., stream: dependencies => Stream } }`. Return `Stream.empty` when the condition is off. The runtime restarts the Stream when the dependencies change.
-- **A stateful handle that Commands need (socket, camera, library instance)** → a child Block that acquires it in its constructor with `Effect.acquireRelease` and exposes it with `expose`. The parent holds the child in an `Option` field while the handle should exist and reads it in Commands with `instance.use`.
+- **An external event source** → `subscriptions: { name: { dependencies: model => ..., stream: dependencies => Stream } }`. Foldkit runs each Subscription while its instance is in the Model and restarts it when the dependencies change. For a source that runs for the instance's whole life, depend on a value that never changes, such as an id from the Model. For a source gated by Model state, return `Stream.empty` when the condition is off.
+- **A stateful resource for one instance (socket, camera, library instance)** → a Subscription that acquires it, when only its Stream reads it. When Commands also use it, an `RcMap` keyed service created once in the Layer constructor: the Subscription holds the key's reference while the instance is in the Model, and Commands borrow it with `RcMap.get` using a key from the Model. See Keep a resource per instance in [composition.md](../foldkit/references/composition.md).
 - **A native web component** → `CustomElement.define`.
 
 ## Phase 4.5: Self-check before verification
@@ -626,7 +624,7 @@ Then eyeball each file you wrote:
 - **Every Message in the union**: does update have a handler for it? Does something dispatch it?
 - **Every state variant**: is it ever entered? Does the view render something different when it's active?
 - **Every Command and Mount**: is it listed on the class, does it have a handler, is it tested, and does its result Message have a handler?
-- **Every child Block**: is its instance in the parent Model, its Layer provided, and each OutMessage it can report handled in `.on` or deliberately ignored?
+- **Every child Block**: is its instance in the parent Model, its Layer provided, and each OutMessage it can report handled in `Child.on` or deliberately ignored?
 
 ## Phase 5: Verify and Test
 
@@ -680,10 +678,10 @@ it.effect('SubmittedSearch saves the query', () =>
 )
 ```
 
-- `story(layer, args?, ...steps)` and `scene(layer, args?, ...steps)` build the instance from its Layer and start from the Model its constructor returns. Pass constructor args after the Layer when the Block takes them. `start` Commands are not in the ledger. `given(model)` replaces the starting Model
-- The Layer must provide exactly one root Block. Provide children with `Layer.provide`, not `Layer.merge`. Provide Services the constructors yield with `.pipe(Effect.provide(TestLayer))` on the returned Effect
-- In tests the Model is resolved: every instance appears as its own Model (`model.search.query`). `given` can set child state but cannot add or remove instances; send the Messages that do that
-- Deliver a child's Message with `message(Block.deliver(Search, 'search', Search.Message.SubmittedQuery({ query })))`. Keyed instances use the path form `['rows', 'row-3']`; nested instances list every id from the root. Stream and Subscription emissions are Messages too: deliver them the same way
+- `story(layer, args?, ...steps)` and `scene(layer, args?, ...steps)` build the root instance from its Layer and start from the Model its `init` returns. Pass the root's args after the Layer when the Block takes them. The `start` Commands of the starting Model are not in the ledger; a child's `start` Commands appear with the update that put the child in the Model. `given(model)` replaces the starting Model
+- The Layer must provide exactly one root Block. Provide children with `Layer.provide`, not `Layer.merge`. Provide Services the Layer constructors yield with `.pipe(Effect.provide(TestLayer))` on the returned Effect
+- In tests the Model is resolved: every instance appears as its own Model (`model.search.query`). `given` can set child state and may hold `new Child(...)` values to add instances
+- Deliver a child's Message with `message(Block.deliver(Search, 'search', Search.Message.SubmittedQuery({ query })))`. The path is the instance's ids from the root: a collection item is addressed by its own id (`'row-3'`), and a nested instance lists every id (`['search', 'listbox']`). Subscription emissions are Messages too: deliver them the same way
 - Neither style runs Command handlers. Assert with `Command.expectHas`, `Command.expectExact`, or `Command.expectNone`, and resolve with `Command.resolve(Definition, resultMessage)`. A child's Command result routes back to the child automatically. Scene's `Mount.resolve(Definition, resultMessage)` does the same for Mounts
 - Assert OutMessages with `expectOutMessage` / `expectNoOutMessage` when testing a child Block directly
 - Import the steps as named imports from `foldkit/story` or `foldkit/scene`. A test file needs only one of the two. If a single file tests both, import the namespaces instead (`import { Scene, Story } from 'foldkit'`) so `Story.given` and `Scene.given` stay distinguishable

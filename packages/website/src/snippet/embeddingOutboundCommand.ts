@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Effect, Function, Schema } from 'effect'
 import { Block, Command, Port } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -22,12 +22,17 @@ export class Widget extends Block<Widget, Readonly<{ flags: Flags }>>()(
   },
 ) {}
 
-export const WidgetLive = Widget.make(
-  Effect.fn(function* (_id, { flags }) {
+export const WidgetLive = Widget.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: flags.initialCount, step: 1 },
+      init: ({ flags }) => ({ count: flags.initialCount, step: 1 }),
 
-      stream: hostStepChanges,
+      subscriptions: {
+        hostStepChanges: {
+          dependencies: Function.constVoid,
+          stream: () => hostStepChanges,
+        },
+      },
 
       update: {
         ClickedAdvance: model => {

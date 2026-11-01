@@ -35,40 +35,31 @@ export class DialogPage extends Block<DialogPage>()('DialogPage', {
   Message,
 }) {}
 
-export const DialogPageLive = DialogPage.make(
-  Effect.fn(function* () {
-    const dialogDemo = yield* new Dialog.Dialog('dialogDemo', {
-      id: 'dialog-demo',
-    })
-    const dialogAnimatedDemo = yield* new Dialog.Dialog('dialogAnimatedDemo', {
-      id: 'dialog-animated-demo',
-      isAnimated: true,
-    })
-    const overlayDialogDemo = yield* new Dialog.Dialog('overlayDialogDemo', {
-      id: 'overlay-dialog-demo',
-    })
-    const overlayComboboxDemo = yield* new CityCombobox('overlayComboboxDemo', {
-      id: 'overlay-combobox-demo',
-    })
-    const nestedDialogParentDemo = yield* new Dialog.Dialog(
-      'nestedDialogParentDemo',
-      { id: 'nested-dialog-parent-demo' },
-    )
-    const nestedDialogChildDemo = yield* new Dialog.Dialog(
-      'nestedDialogChildDemo',
-      { id: 'nested-dialog-child-demo' },
-    )
-
+export const DialogPageLive = DialogPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        dialogDemo,
-        dialogAnimatedDemo,
-        overlayDialogDemo,
-        overlayComboboxDemo,
+      init: () => ({
+        dialogDemo: new Dialog.Dialog('dialogDemo', {
+          id: 'dialog-demo',
+        }),
+        dialogAnimatedDemo: new Dialog.Dialog('dialogAnimatedDemo', {
+          id: 'dialog-animated-demo',
+          isAnimated: true,
+        }),
+        overlayDialogDemo: new Dialog.Dialog('overlayDialogDemo', {
+          id: 'overlay-dialog-demo',
+        }),
+        overlayComboboxDemo: new CityCombobox('overlayComboboxDemo', {
+          id: 'overlay-combobox-demo',
+        }),
         maybeOverlayComboboxDemoSelectedCity: Option.none(),
-        nestedDialogParentDemo,
-        nestedDialogChildDemo,
-      },
+        nestedDialogParentDemo: new Dialog.Dialog('nestedDialogParentDemo', {
+          id: 'nested-dialog-parent-demo',
+        }),
+        nestedDialogChildDemo: new Dialog.Dialog('nestedDialogChildDemo', {
+          id: 'nested-dialog-child-demo',
+        }),
+      }),
 
       update: {
         ClickedDeleteProject: model => ({
@@ -112,7 +103,7 @@ export const DialogPageLive = DialogPage.make(
           ],
         }),
 
-        ...overlayComboboxDemo.on({
+        ...CityCombobox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeOverlayComboboxDemoSelectedCity: () => Option.some(value),

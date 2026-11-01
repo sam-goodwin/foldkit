@@ -23,18 +23,15 @@ export class FileDropPage extends Block<FileDropPage>()('FileDropPage', {
   Message,
 }) {}
 
-export const FileDropPageLive = FileDropPage.make(
-  Effect.fn(function* () {
-    const fileDropBasicDemo = yield* new FileDrop.FileDrop(
-      'fileDropBasicDemo',
-      { id: 'file-drop-basic-demo' },
-    )
-
+export const FileDropPageLive = FileDropPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        fileDropBasicDemo,
+      init: () => ({
+        fileDropBasicDemo: new FileDrop.FileDrop('fileDropBasicDemo', {
+          id: 'file-drop-basic-demo',
+        }),
         fileDropBasicDemoFiles: [],
-      },
+      }),
 
       update: {
         ClickedRemoveFileDropDemoFile: (model, { fileIndex }) => ({
@@ -43,7 +40,7 @@ export const FileDropPageLive = FileDropPage.make(
           }),
         }),
 
-        ...fileDropBasicDemo.on({
+        ...FileDrop.FileDrop.on({
           ReceivedFiles: (model, { files }) => ({
             model: modifyFields(model, {
               fileDropBasicDemoFiles: Array.appendAll(files),

@@ -1137,6 +1137,8 @@ type BlockFunctionRole = 'Decision' | 'Execution'
 
 const blockExecutionSlots = new Set(['commands', 'mounts'])
 
+const blockDecisionSlots = new Set(['init', 'start', 'update', 'view'])
+
 const blockFunctionRole = (
   references: WeakMap<ESTree.Node, Reference> | undefined,
   fn: ESTree.ArrowFunctionExpression | ESTree.Function,
@@ -1144,7 +1146,7 @@ const blockFunctionRole = (
   Option.flatMap(blockImplementationPath(fn, references), path => {
     const [slot, name, field, extra] = path
 
-    if (slot === 'update' || slot === 'view') {
+    if (slot !== undefined && blockDecisionSlots.has(slot)) {
       return Option.some('Decision')
     }
 

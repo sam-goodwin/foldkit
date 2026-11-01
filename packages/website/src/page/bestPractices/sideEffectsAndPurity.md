@@ -14,14 +14,14 @@ Effectful work lives at boundaries managed by the Runtime. Depending on the boun
 
 - [Commands](/core/commands) describe one-shot work caused by a Message, such as an HTTP request, navigation, storage operation, or focus change.
 - [Mount](/core/mount) describes work tied to one live `Element`. Use it for element measurement, observers, portaling, and imperative third-party libraries.
-- [Flags](/core/init-and-flags#flags) obtain the outside data needed before the root's constructor builds the first Model.
-- [Subscriptions](/core/subscriptions) describe ongoing work that runs while a Block instance exists, or while dependencies derived from its Model hold.
-- [Layers](/core/layers) provide app-lifetime services that Block constructors yield and their handlers use.
-- A [resource Block](/core/managed-resources) acquires a stateful handle in its constructor and releases it when it leaves the Model. Commands can use the handle while the instance is live.
+- [Flags](/core/init-and-flags#flags) obtain the outside data the root's `init` needs to build the first Model.
+- [Subscriptions](/core/subscriptions) describe ongoing work that runs while a Block instance is in the Model and its dependencies, derived from its Model, stay the same.
+- [Layers](/core/layers) provide app-lifetime services that each Block's Layer constructor yields and its handlers use.
+- [Resources](/core/managed-resources) are stateful handles a Subscription acquires and releases as the Model changes. Commands reach a handle by a key stored in the Model.
 
 ### Synchronous DOM Event Work
 
-Effects, Streams, and Layers do nothing until the Runtime starts them. One narrow exception stays inside its boundary: a DOM-event mapper may need to perform synchronous browser work before returning a value. Use [`Dom.streamFromEventFilterMapPreventDefault`](/core/dom#filtered-events-and-synchronous-cancellation) when handling an event should also cancel its default action. The helper runs `filterMapEvent` and calls `preventDefault()` inside the browser's dispatch, while a downstream `Stream` operator runs too late to cancel the event. The Block's `stream` and `subscriptions` types check that the final Stream emits the Block's Messages.
+Effects, Streams, and Layers do nothing until the Runtime starts them. One narrow exception stays inside its boundary: a DOM-event mapper may need to perform synchronous browser work before returning a value. Use [`Dom.streamFromEventFilterMapPreventDefault`](/core/dom#filtered-events-and-synchronous-cancellation) when handling an event should also cancel its default action. The helper runs `filterMapEvent` and calls `preventDefault()` inside the browser's dispatch, while a downstream `Stream` operator runs too late to cancel the event. The Block's `subscriptions` types check that the final Stream emits the Block's Messages.
 
 ### CustomElement Boundaries
 

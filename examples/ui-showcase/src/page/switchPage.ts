@@ -22,10 +22,10 @@ export class SwitchPage extends Block<SwitchPage>()('SwitchPage', {
   Message,
 }) {}
 
-export const SwitchPageLive = SwitchPage.make(
-  Effect.fn(function* () {
+export const SwitchPageLive = SwitchPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { isSwitchDemoChecked: false },
+      init: () => ({ isSwitchDemoChecked: false }),
 
       update: {
         ToggledSwitchDemo: (model, { isChecked }) => ({

@@ -41,7 +41,7 @@ check(
 // never called.
 const { Effect } = await import('effect')
 class Application extends block.Block()('Application') {}
-const ApplicationLive = Application.make(() =>
+const ApplicationLive = Application.layer(
   Effect.succeed({ view: () => ({ title: 't', body: null }) }),
 )
 const error = await Effect.runPromise(

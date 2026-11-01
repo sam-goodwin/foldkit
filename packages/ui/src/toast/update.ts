@@ -383,270 +383,267 @@ export const makeRuntime = <A, I>(payloadSchema: Schema.Codec<A, I>) => {
       isSticky: input.sticky ?? false,
     })
 
-  /** Builds the update handlers. `entryAnimation` creates the Animation
-   *  instance of a new entry. */
-  const makeUpdate = (entryAnimation: (key: string) => Animation.Animation) => {
-    const addEntry = (model: Model, input: EntryInput) => {
-      const entry: Entry = { ...input, animation: entryAnimation(input.id) }
-
-      return {
-        model: modifyFields(model, {
-          entries: entries => Array.append(entries, entry),
-          nextEntryKey: Number.increment,
-        }),
-        commands: Array.fromOption(scheduleUnheldDismissal(input)),
-        messages: [
-          entry.animation.send(Animation.Animation.Message.RequestedShow()),
-        ],
-      }
+  const addEntry = (model: Model, input: EntryInput) => {
+    const entry: Entry = {
+      ...input,
+      animation: new Animation.Animation(input.id, { isShowing: false }),
     }
 
     return {
-      RequestedShow: (model: Model, message: RequestedShow) =>
-        addEntry(model, toEntryInput(model, message)),
+      model: modifyFields(model, {
+        entries: entries => Array.append(entries, entry),
+        nextEntryKey: Number.increment,
+      }),
+      commands: Array.fromOption(scheduleUnheldDismissal(input)),
+      messages: [
+        entry.animation.send(Animation.Animation.Message.RequestedShow()),
+      ],
+    }
+  }
 
-      Added: (model: Model, { entry }: typeof MessageSchema.Added.Type) =>
-        addEntry(model, entry),
+  /** The update handlers for the Toast's own Messages. */
+  const update = {
+    RequestedShow: (model: Model, message: RequestedShow) =>
+      addEntry(model, toEntryInput(model, message)),
 
-      RequestedDismiss: (
-        model: Model,
-        { entryId }: typeof MessageSchema.RequestedDismiss.Type,
-      ) => dismissEntry(model, entryId),
+    Added: (model: Model, { entry }: typeof MessageSchema.Added.Type) =>
+      addEntry(model, entry),
 
-      RequestedDismissAll: (model: Model) => ({
-        model,
-        messages: pipe(
-          model.entries,
-          Array.filter(entry => !isEntryLeaving(entry)),
-          Array.map(hideEntryAnimation),
-        ),
+    RequestedDismiss: (
+      model: Model,
+      { entryId }: typeof MessageSchema.RequestedDismiss.Type,
+    ) => dismissEntry(model, entryId),
+
+    RequestedDismissAll: (model: Model) => ({
+      model,
+      messages: pipe(
+        model.entries,
+        Array.filter(entry => !isEntryLeaving(entry)),
+        Array.map(hideEntryAnimation),
+      ),
+    }),
+
+    Dismissed: (
+      model: Model,
+      { entryId }: typeof MessageSchema.Dismissed.Type,
+    ) => dismissEntry(model, entryId),
+
+    CompletedWaitBeforeDismissal: (
+      model: Model,
+      {
+        entryId,
+        version,
+      }: typeof MessageSchema.CompletedWaitBeforeDismissal.Type,
+    ) =>
+      Option.match(findEntry(model, entryId), {
+        onNone: () => ({ model }),
+        onSome: entry => {
+          const isStale = version !== entry.pendingDismissVersion
+          if (isStale || isEntryLeaving(entry)) {
+            return { model }
+          } else {
+            return { model, messages: [hideEntryAnimation(entry)] }
+          }
+        },
       }),
 
-      Dismissed: (
-        model: Model,
-        { entryId }: typeof MessageSchema.Dismissed.Type,
-      ) => dismissEntry(model, entryId),
-
-      CompletedWaitBeforeDismissal: (
-        model: Model,
-        {
-          entryId,
-          version,
-        }: typeof MessageSchema.CompletedWaitBeforeDismissal.Type,
-      ) =>
-        Option.match(findEntry(model, entryId), {
-          onNone: () => ({ model }),
-          onSome: entry => {
-            const isStale = version !== entry.pendingDismissVersion
-            if (isStale || isEntryLeaving(entry)) {
-              return { model }
-            } else {
-              return { model, messages: [hideEntryAnimation(entry)] }
-            }
-          },
+    HoveredEntry: (
+      model: Model,
+      { entryId }: typeof MessageSchema.HoveredEntry.Type,
+    ) => ({
+      model: updateEntry(model, entryId, entry =>
+        modifyFields(entry, {
+          isHovered: () => true,
+          pendingDismissVersion: Number.increment,
         }),
+      ),
+    }),
 
-      HoveredEntry: (
-        model: Model,
-        { entryId }: typeof MessageSchema.HoveredEntry.Type,
-      ) => ({
-        model: updateEntry(model, entryId, entry =>
-          modifyFields(entry, {
-            isHovered: () => true,
+    LeftEntry: (
+      model: Model,
+      { entryId }: typeof MessageSchema.LeftEntry.Type,
+    ) =>
+      Option.match(findEntry(model, entryId), {
+        onNone: () => ({ model }),
+        onSome: entry => {
+          const nextEntry = modifyFields(entry, {
+            isHovered: () => false,
             pendingDismissVersion: Number.increment,
-          }),
-        ),
+          })
+          return {
+            model: updateEntry(model, entryId, () => nextEntry),
+            commands: Array.fromOption(scheduleWaitBeforeDismissal(nextEntry)),
+          }
+        },
       }),
 
-      LeftEntry: (
-        model: Model,
-        { entryId }: typeof MessageSchema.LeftEntry.Type,
-      ) =>
-        Option.match(findEntry(model, entryId), {
-          onNone: () => ({ model }),
-          onSome: entry => {
+    PressedEntryPointer: (
+      model: Model,
+      {
+        entryId,
+        pointerId,
+        clientX,
+      }: typeof MessageSchema.PressedEntryPointer.Type,
+    ) => {
+      if (Option.isNone(model.maybeSwipeConfig)) {
+        return { model }
+      }
+
+      return Option.match(findEntry(model, entryId), {
+        onNone: () => ({ model }),
+        onSome: entry => {
+          if (
+            isEntryLeaving(entry) ||
+            SwipeState.guards.Dragging(entry.swipeState) ||
+            isPointerActive(model, pointerId)
+          ) {
+            return { model }
+          } else {
             const nextEntry = modifyFields(entry, {
-              isHovered: () => false,
               pendingDismissVersion: Number.increment,
+              swipeState: () =>
+                SwipeState.Dragging({
+                  pointerId,
+                  startX: clientX,
+                  currentX: clientX,
+                }),
+              swipeVersion: Number.increment,
             })
-            return {
-              model: updateEntry(model, entryId, () => nextEntry),
-              commands: Array.fromOption(
-                scheduleWaitBeforeDismissal(nextEntry),
-              ),
-            }
-          },
+            return { model: updateEntry(model, entryId, () => nextEntry) }
+          }
+        },
+      })
+    },
+
+    MovedSwipePointer: (
+      model: Model,
+      { pointerId, clientX }: typeof MessageSchema.MovedSwipePointer.Type,
+    ) =>
+      Option.match(
+        Option.all({
+          swipeConfig: model.maybeSwipeConfig,
+          draggingEntry: findDraggingEntry(model, pointerId),
         }),
-
-      PressedEntryPointer: (
-        model: Model,
         {
-          entryId,
-          pointerId,
-          clientX,
-        }: typeof MessageSchema.PressedEntryPointer.Type,
-      ) => {
-        if (Option.isNone(model.maybeSwipeConfig)) {
-          return { model }
-        }
-
-        return Option.match(findEntry(model, entryId), {
           onNone: () => ({ model }),
-          onSome: entry => {
-            if (
-              isEntryLeaving(entry) ||
-              SwipeState.guards.Dragging(entry.swipeState) ||
-              isPointerActive(model, pointerId)
-            ) {
-              return { model }
-            } else {
-              const nextEntry = modifyFields(entry, {
-                pendingDismissVersion: Number.increment,
+          onSome: ({ swipeConfig, draggingEntry: { entry, startX } }) => ({
+            model: updateEntry(model, entry.id, currentEntry =>
+              modifyFields(currentEntry, {
                 swipeState: () =>
                   SwipeState.Dragging({
                     pointerId,
-                    startX: clientX,
-                    currentX: clientX,
+                    startX,
+                    currentX: clampSwipeClientX(
+                      startX,
+                      clientX,
+                      swipeConfig.direction,
+                    ),
                   }),
-                swipeVersion: Number.increment,
-              })
-              return { model: updateEntry(model, entryId, () => nextEntry) }
+              }),
+            ),
+          }),
+        },
+      ),
+
+    ReleasedSwipePointer: (
+      model: Model,
+      { pointerId, clientX }: typeof MessageSchema.ReleasedSwipePointer.Type,
+    ) =>
+      Option.match(
+        Option.all({
+          swipeConfig: model.maybeSwipeConfig,
+          draggingEntry: findDraggingEntry(model, pointerId),
+        }),
+        {
+          onNone: () => ({ model }),
+          onSome: ({ swipeConfig, draggingEntry: { entry, startX } }) => {
+            const offset =
+              clampSwipeClientX(startX, clientX, swipeConfig.direction) - startX
+            const isPastSwipeThreshold =
+              Math.abs(offset) > swipeConfig.threshold
+            if (!isPastSwipeThreshold) {
+              return settleSnapBack(model, entry)
+            }
+
+            const nextSwipeVersion = Number.increment(entry.swipeVersion)
+            const nextEntry = modifyFields(entry, {
+              swipeState: () =>
+                SwipeState.Dismissing({
+                  offsetX: offset,
+                  direction: swipeConfig.direction,
+                }),
+              swipeVersion: () => nextSwipeVersion,
+            })
+            const nextModel = updateEntry(model, entry.id, () => nextEntry)
+
+            if (isEntryLeaving(entry)) {
+              return { model: nextModel }
+            } else {
+              return {
+                model: nextModel,
+                messages: [hideEntryAnimation(entry)],
+              }
             }
           },
-        })
-      },
+        },
+      ),
 
-      MovedSwipePointer: (
-        model: Model,
-        { pointerId, clientX }: typeof MessageSchema.MovedSwipePointer.Type,
-      ) =>
-        Option.match(
-          Option.all({
-            swipeConfig: model.maybeSwipeConfig,
-            draggingEntry: findDraggingEntry(model, pointerId),
-          }),
-          {
-            onNone: () => ({ model }),
-            onSome: ({ swipeConfig, draggingEntry: { entry, startX } }) => ({
-              model: updateEntry(model, entry.id, currentEntry =>
-                modifyFields(currentEntry, {
-                  swipeState: () =>
-                    SwipeState.Dragging({
-                      pointerId,
-                      startX,
-                      currentX: clampSwipeClientX(
-                        startX,
-                        clientX,
-                        swipeConfig.direction,
-                      ),
-                    }),
+    CancelledSwipe: (
+      model: Model,
+      { pointerId }: typeof MessageSchema.CancelledSwipe.Type,
+    ) =>
+      Option.match(findDraggingEntry(model, pointerId), {
+        onNone: () => ({ model }),
+        onSome: ({ entry }) => settleSnapBack(model, entry),
+      }),
+
+    PressedEscape: (model: Model) =>
+      Array.reduce(
+        Array.filter(model.entries, entry =>
+          SwipeState.guards.Dragging(entry.swipeState),
+        ),
+        {
+          model,
+          commands: Array.empty<
+            | ReturnType<typeof WaitForSwipeSettled>
+            | ReturnType<typeof WaitBeforeDismissal>
+          >(),
+        },
+        (settled, entry) => {
+          const entrySettle = settleSnapBack(settled.model, entry)
+          return {
+            model: entrySettle.model,
+            commands: [...settled.commands, ...entrySettle.commands],
+          }
+        },
+      ),
+
+    CompletedWaitForSwipeSettled: (
+      model: Model,
+      {
+        entryId,
+        version,
+      }: typeof MessageSchema.CompletedWaitForSwipeSettled.Type,
+    ) =>
+      Option.match(findEntry(model, entryId), {
+        onNone: () => ({ model }),
+        onSome: entry => {
+          if (
+            SwipeState.guards.Settling(entry.swipeState) &&
+            entry.swipeVersion === version
+          ) {
+            return {
+              model: updateEntry(model, entryId, current =>
+                modifyFields(current, {
+                  swipeState: () => SwipeState.Idle(),
                 }),
               ),
-            }),
-          },
-        ),
-
-      ReleasedSwipePointer: (
-        model: Model,
-        { pointerId, clientX }: typeof MessageSchema.ReleasedSwipePointer.Type,
-      ) =>
-        Option.match(
-          Option.all({
-            swipeConfig: model.maybeSwipeConfig,
-            draggingEntry: findDraggingEntry(model, pointerId),
-          }),
-          {
-            onNone: () => ({ model }),
-            onSome: ({ swipeConfig, draggingEntry: { entry, startX } }) => {
-              const offset =
-                clampSwipeClientX(startX, clientX, swipeConfig.direction) -
-                startX
-              const isPastSwipeThreshold =
-                Math.abs(offset) > swipeConfig.threshold
-              if (!isPastSwipeThreshold) {
-                return settleSnapBack(model, entry)
-              }
-
-              const nextSwipeVersion = Number.increment(entry.swipeVersion)
-              const nextEntry = modifyFields(entry, {
-                swipeState: () =>
-                  SwipeState.Dismissing({
-                    offsetX: offset,
-                    direction: swipeConfig.direction,
-                  }),
-                swipeVersion: () => nextSwipeVersion,
-              })
-              const nextModel = updateEntry(model, entry.id, () => nextEntry)
-
-              if (isEntryLeaving(entry)) {
-                return { model: nextModel }
-              } else {
-                return {
-                  model: nextModel,
-                  messages: [hideEntryAnimation(entry)],
-                }
-              }
-            },
-          },
-        ),
-
-      CancelledSwipe: (
-        model: Model,
-        { pointerId }: typeof MessageSchema.CancelledSwipe.Type,
-      ) =>
-        Option.match(findDraggingEntry(model, pointerId), {
-          onNone: () => ({ model }),
-          onSome: ({ entry }) => settleSnapBack(model, entry),
-        }),
-
-      PressedEscape: (model: Model) =>
-        Array.reduce(
-          Array.filter(model.entries, entry =>
-            SwipeState.guards.Dragging(entry.swipeState),
-          ),
-          {
-            model,
-            commands: Array.empty<
-              | ReturnType<typeof WaitForSwipeSettled>
-              | ReturnType<typeof WaitBeforeDismissal>
-            >(),
-          },
-          (settled, entry) => {
-            const entrySettle = settleSnapBack(settled.model, entry)
-            return {
-              model: entrySettle.model,
-              commands: [...settled.commands, ...entrySettle.commands],
             }
-          },
-        ),
-
-      CompletedWaitForSwipeSettled: (
-        model: Model,
-        {
-          entryId,
-          version,
-        }: typeof MessageSchema.CompletedWaitForSwipeSettled.Type,
-      ) =>
-        Option.match(findEntry(model, entryId), {
-          onNone: () => ({ model }),
-          onSome: entry => {
-            if (
-              SwipeState.guards.Settling(entry.swipeState) &&
-              entry.swipeVersion === version
-            ) {
-              return {
-                model: updateEntry(model, entryId, current =>
-                  modifyFields(current, {
-                    swipeState: () => SwipeState.Idle(),
-                  }),
-                ),
-              }
-            } else {
-              return { model }
-            }
-          },
-        }),
-    }
+          } else {
+            return { model }
+          }
+        },
+      }),
   }
 
   /** Handles the entry Animations' OutMessages: waits for a leave to settle,
@@ -688,7 +685,7 @@ export const makeRuntime = <A, I>(payloadSchema: Schema.Codec<A, I>) => {
     OutMessage: OutMessageSchema,
     initialModel,
     requestShow,
-    makeUpdate,
+    update,
     entryAnimationHandlers,
   }
 }

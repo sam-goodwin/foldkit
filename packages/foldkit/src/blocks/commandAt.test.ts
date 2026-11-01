@@ -27,22 +27,24 @@ const Save = Command.define('Save', {
 })
 
 class Note extends Block<Note>()('Note', {
-  Model: Schema.Struct({ status: Schema.String }),
+  Model: Schema.Struct({ noteId: Schema.String, status: Schema.String }),
   Message: NoteMessage,
   Command: [Save],
 }) {}
 
-const NoteLive = Note.make(
-  Effect.fn(function* (id) {
+const NoteLive = Note.layer(
+  Effect.gen(function* () {
     return {
-      model: { status: 'Idle' },
+      init: (_, { id }) => ({ noteId: id, status: 'Idle' }),
       update: {
         ClickedSave: model => ({
           model,
           commands: [Save({ body: 'draft' })],
         }),
-        SucceededSave: () => ({ model: { status: 'Saved' } }),
-        FailedSave: (_model, { reason }) => ({ model: { status: reason } }),
+        SucceededSave: model => ({ model: { ...model, status: 'Saved' } }),
+        FailedSave: (model, { reason }) => ({
+          model: { ...model, status: reason },
+        }),
       },
       commands: {
         Save: () => Effect.succeed(Note.Message.SucceededSave()),
@@ -51,8 +53,11 @@ const NoteLive = Note.make(
         h.div(
           [],
           [
-            h.button([h.OnClick(Note.Message.ClickedSave())], [`Save ${id}`]),
-            h.p([], [`${id}: ${model.status}`]),
+            h.button(
+              [h.OnClick(Note.Message.ClickedSave())],
+              [`Save ${model.noteId}`],
+            ),
+            h.p([], [`${model.noteId}: ${model.status}`]),
           ],
         ),
     }
@@ -68,19 +73,22 @@ class Notes extends Block<Notes>()('Notes', {
   Message: defineMessageUnion({ ClickedAddRow: {} }),
 }) {}
 
-const NotesLive = Notes.make(
-  Effect.fn(function* () {
-    const left = yield* new Note('left')
-    const right = yield* new Note('right')
-    const row = yield* Note.each('rows')
-
+const NotesLive = Notes.layer(
+  Effect.gen(function* () {
     return {
-      model: { left, right, rows: [] },
+      init: () => ({
+        left: new Note('left'),
+        right: new Note('right'),
+        rows: [],
+      }),
       update: {
         ClickedAddRow: model => ({
           model: {
             ...model,
-            rows: Array.append(model.rows, row(`row-${model.rows.length}`)),
+            rows: Array.append(
+              model.rows,
+              new Note(`row-${model.rows.length}`),
+            ),
           },
         }),
       },
@@ -134,22 +142,19 @@ describe('Command.at', () => {
     ).toThrow('multiple pending Commands match')
   })
 
-  it.effect('selects keyed instances by collection and key', () =>
+  it.effect('selects keyed instances by key', () =>
     story(
       NotesLive,
       message(Notes.Message.ClickedAddRow()),
       message(Notes.Message.ClickedAddRow()),
-      message(deliver(Note, ['rows', 'row-0'], Note.Message.ClickedSave())),
-      message(deliver(Note, ['rows', 'row-1'], Note.Message.ClickedSave())),
+      message(deliver(Note, 'row-0', Note.Message.ClickedSave())),
+      message(deliver(Note, 'row-1', Note.Message.ClickedSave())),
       StoryCommand.resolveAll(
         [
-          StoryCommand.at(['rows', 'row-1'], Save),
+          StoryCommand.at('row-1', Save),
           Note.Message.FailedSave({ reason: 'conflict' }),
         ],
-        [
-          StoryCommand.at(['rows', 'row-0'], Save),
-          Note.Message.SucceededSave(),
-        ],
+        [StoryCommand.at('row-0', Save), Note.Message.SucceededSave()],
       ),
       model(model =>
         expect(Array.map(model.rows, ({ status }) => status)).toEqual([

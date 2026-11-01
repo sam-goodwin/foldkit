@@ -44,10 +44,10 @@ const autoScrollFrames = (readDependencies: () => AutoScrollDependencies) =>
     ).pipe(Effect.flatMap(() => Effect.never)),
   )
 
-export const DragLive = Drag.make(
-  Effect.fn(function* () {
+export const DragLive = Drag.layer(
+  Effect.gen(function* () {
     return {
-      model: { isDragging: false, clientY: 0 },
+      init: () => ({ isDragging: false, clientY: 0 }),
 
       update: {
         MovedPointer: (model, { clientY }) => ({

@@ -11,10 +11,10 @@ export class BlockPage extends Block<BlockPage, void, ViewInput>()(
   { Model, Message },
 ) {}
 
-export const BlockPageLive = BlockPage.make(
-  Effect.fn(function* () {
+export const BlockPageLive = BlockPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { isMessageRoutingUnderHoodOpen: false },
+      init: () => ({ isMessageRoutingUnderHoodOpen: false }),
 
       update: {
         ToggledMessageRoutingUnderHood: (model, { isOpen }) => ({

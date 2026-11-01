@@ -21,7 +21,7 @@ import {
 import { runtimeBlockOf } from '../../blocks/block.js'
 import {
   type RuntimeInstance,
-  constructSync,
+  constructRoot,
   disposeGraph,
   makeGraph,
   renderRoot,
@@ -1461,11 +1461,9 @@ export const renderToString = <Root extends RootInstance, E, R>(
           ...(hasFlags ? { Flags } : {}),
           ...(hasRouting ? { routing: {} } : {}),
           init: (...initArguments: ReadonlyArray<unknown>) => ({
-            model: constructSync(
+            model: constructRoot(
               graph,
               block,
-              [],
-              block.id,
               rootArgs(initArguments),
               context,
             ),

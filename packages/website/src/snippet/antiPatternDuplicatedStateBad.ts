@@ -16,10 +16,10 @@ export class Catalog extends Block<Catalog>()('Catalog', {
   Message: defineMessageUnion({ UpdatedQuery: { query: Schema.String } }),
 }) {}
 
-export const CatalogLive = Catalog.make(
-  Effect.fn(function* () {
+export const CatalogLive = Catalog.layer(
+  Effect.gen(function* () {
     return {
-      model: { items: [], query: '', visibleItems: [] },
+      init: () => ({ items: [], query: '', visibleItems: [] }),
 
       update: {
         UpdatedQuery: (model, { query }) => ({

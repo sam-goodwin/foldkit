@@ -10,7 +10,6 @@ import {
   type BaseViewInputsCommon,
   type Contract,
   type ItemToValueInput,
-  animationId,
   baseInit,
   commandHandlers,
   makeContract,
@@ -67,7 +66,6 @@ export interface Listbox<
   Item = string,
   Value extends string = Item extends string ? Item : string,
 > extends BlockTypes.Instance<
-  Listbox<Item, Value>,
   Contract<Value>,
   InitConfig,
   ViewInputs<Item, Value>
@@ -83,7 +81,6 @@ export type ListboxClass<
   'Listbox',
   InitConfig,
   ViewInputs<Item, Value>,
-  never,
   Contract<Value>
 > &
   Readonly<{ Live: Layer.Layer<Listbox<Item, Value>> }>
@@ -93,8 +90,8 @@ export type ListboxClass<
  * with its Layer attached as `Live`. `Value` defaults to `Item` for string
  * items and to `string` for object items. Declare
  * `const ResultListbox = Listbox.makeBlock<Result>()` once at module scope,
- * create instances with `yield* new ResultListbox('listbox', { id })` in a
- * parent constructor, and provide `ResultListbox.Live` to the parent's Layer.
+ * create instances with `new ResultListbox('listbox', { id })` in a parent's
+ * Model, and provide `ResultListbox.Live` to the parent's Layer.
  * Selection closes the Listbox and reports `Selected({ value })` for the
  * parent to store. Send `RequestedOpen`, `RequestedClose`, and
  * `RequestedSelectItem({ item })` to drive it from the parent.
@@ -110,22 +107,14 @@ export const makeBlock = <
   >()('Listbox', makeContract<Value>())
   const arrayBasedView = internalView<unknown, Value>()
 
-  const ListboxLive = ListboxClass.make(
-    Effect.fn(function* (_instanceId, config) {
-      const animation = yield* new Animation.Animation('animation', {
-        id: animationId(config.id),
-      })
-
+  const ListboxLive = ListboxClass.layer(
+    Effect.gen(function* () {
       return {
-        model: baseInit(config, animation),
-        update: makeUpdate<Value>(
-          animation,
-          'CloseWithFocus',
-          (model, item) => ({
-            model,
-            outMessage: selected<Value>(item),
-          }),
-        ),
+        init: baseInit,
+        update: makeUpdate<Value>('CloseWithFocus', (model, item) => ({
+          model,
+          outMessage: selected<Value>(item),
+        })),
         commands: commandHandlers,
         mounts: mountHandlers,
         view: (model, h, viewInputs) => {

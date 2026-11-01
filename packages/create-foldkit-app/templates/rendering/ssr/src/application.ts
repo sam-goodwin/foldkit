@@ -52,14 +52,14 @@ export class Application extends Block<
   Command: [PersistCount],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ flags }) => ({
         count: flags.initialCount,
         renderedAt: flags.renderedAt,
         renderedOn: flags.renderedOn,
-      },
+      }),
 
       update: {
         ClickedDecrement: model => {

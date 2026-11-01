@@ -2,13 +2,18 @@
 
 ## Overview
 
-This guide upgrades an application from an earlier Blocks preview, the one built on `Block.makeDefinition`, Compositions, Bindings, and `Block.assemble`, to the class Blocks in this deployment. If the project uses a stable release, start with [Migrate from Stable Foldkit](/preview-migration) instead.
+This guide upgrades an application from an earlier Blocks preview to the class Blocks in this deployment. It covers two earlier previews:
 
-The earlier preview split each feature into stages: a Definition owned the contracts and effect handlers, a Composition owned the child graph and authored init, update, and view, and assembly produced the completed `FeatureBlock`. A parent reached each child through a Binding. In this preview, a Block is one class plus one constructor:
+- The Definitions preview, built on `Block.makeDefinition`, Compositions, Bindings, and `Block.assemble`. Most of this page covers it.
+- The class Blocks preview that implemented a Block with `X.make(Effect.fn(function* (id, args) { ... }))`, a constructor that ran once per instance. [Upgrade from Per-Instance Constructors](#per-instance-constructors) covers it.
+
+If the project uses a stable release, start with [Migrate from Stable Foldkit](/preview-migration) instead.
+
+The Definitions preview split each feature into stages: a Definition owned the contracts and effect handlers, a Composition owned the child graph and authored init, update, and view, and assembly produced the completed `FeatureBlock`. A parent reached each child through a Binding. In this preview, a Block is one class plus one Layer:
 
 - The class declares the contract: Model, Message, OutMessage, and the Commands and Mounts the Block owns.
-- `Feature.make(constructor)` implements it and returns a Layer, `FeatureLive`. The constructor returns the starting Model, update handlers, effect handlers, and view.
-- A parent creates child instances in its constructor and holds them in its Model. The instance replaces the Binding: the parent sends it Messages, handles its OutMessages with `.on`, and renders it with `.view()`.
+- `Feature.layer(Effect.gen(function* () { ... }))` implements it and returns a Layer, `FeatureLive`. The Effect runs once, yields the services the Block uses, and returns the Block's module: `init`, update handlers, effect handlers, Subscriptions, and view. Every instance shares that module.
+- A child instance is plain data. The parent creates it with `new Child(id, args)` and holds it in its Model. The instance replaces the Binding: the parent sends it Messages, handles its OutMessages with `Child.on`, and renders it with `.view()`.
 
 The architecture is the same. Messages record facts, update is pure, and the Runtime performs the Commands update returns. Most changes are mechanical once you see where each old piece goes.
 
@@ -34,27 +39,27 @@ If the project enforces pnpm's `minimumReleaseAge`, a newly uploaded preview may
 
 Use this table to find each old API. The sections after it show the larger changes with before and after code.
 
-| Earlier preview                                                                                                       | This preview                                                                                                                                        |
-| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Block.makeDefinition`, `makeComposition`, `prepareBlock`, `Block.assemble`, `FromAssembly*` headers, `makeNamespace` | `class X extends Block<X, Args, ViewInput, Exposed>()('X', contract) {}` plus `X.make(constructor)`                                                 |
-| `XBlock` export                                                                                                       | `X` (the class) and `XLive` (its Layer)                                                                                                             |
-| `makeInit(...)`                                                                                                       | The constructor returns `model`, plus `start` Commands; init args become constructor args                                                           |
-| `Definition.makeCommand(name, { args, messages, handler })`, `.layer`, `EffectsLayer`                                 | Module-level `Command.define(name, { args, messages })`, listed under `Command: [...]`, handled under `commands`                                    |
-| `makeMount` / `makeMountStream`                                                                                       | `Mount.define` / `Mount.defineStream` without `handler`, listed under `Mount: [...]`, handled under `mounts`                                        |
-| `makeSubscriptions(entry => ...)`                                                                                     | `stream` for an always-on source, or `subscriptions: { name: { dependencies, stream } }`                                                            |
-| `makeManagedResources` / `makeResource`                                                                               | A child Block that acquires the handle in its constructor and exposes it; the parent holds it in an `Option` field and reads it with `instance.use` |
-| `makeBinding(Child, { field })`                                                                                       | `yield* new Child('field', args)` stored in that field                                                                                              |
-| `makeBinding(Child, { field, key, childField })` / `makeMapBinding`                                                   | `Child.each('field', args)`, with instances in an array or Record                                                                                   |
-| `makeVariantBinding`                                                                                                  | An instance stored inside a tagged union variant                                                                                                    |
-| `withOutMessagePolicy({ fold })`, `makeOutMessageFold`                                                                | `...child.on({ Tag: (model, outMessage, instance) => result })`                                                                                     |
-| `makeOutMessageForward`                                                                                               | An `.on` handler that returns `{ model, outMessage: Parent.OutMessage.X(...) }`                                                                     |
-| `Binding.requestX()` and other operations                                                                             | `messages: [model.child.send(Child.Message.RequestedX())]`                                                                                          |
-| `h.block(Binding.embedView({...}))`                                                                                   | `model.child.view(input?)`                                                                                                                          |
-| `makeFieldsStep`, `makeCommandsStep`, `makeOutMessageStep`, `makeNoopStep`, `makeStep`                                | Plain functions `(model, ...) => ({ model, commands?, outMessage? })`; `Update.combineSteps` still combines pure Steps                              |
-| `Program.make({ block, routing, Flags, ... })` and `program.provide(ApplicationLayer)`                                | `Program.make(Application, { layer, container, routing, Flags, devTools })`                                                                         |
-| `Server.renderToString(ApplicationBlock, { Flags }, request)`                                                         | `Server.renderToString(Application, { layer, Flags }, request)`                                                                                     |
-| `toParentMessage(Binding, key, message)`                                                                              | `Block.deliver(Child, 'id' or ['collection', 'key'], message)`                                                                                      |
-| `story(update, given(model), ...)` / `scene({ update, view }, ...)`                                                   | `it.effect(() => story(XLive.pipe(Layer.provide(...)), args?, given(model)?, ...))`                                                                 |
+| Earlier preview                                                                                                       | This preview                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `Block.makeDefinition`, `makeComposition`, `prepareBlock`, `Block.assemble`, `FromAssembly*` headers, `makeNamespace` | `class X extends Block<X, Args, ViewInput>()('X', contract) {}` plus `X.layer(Effect.gen(...))`                              |
+| `XBlock` export                                                                                                       | `X` (the class) and `XLive` (its Layer)                                                                                      |
+| `makeInit(...)`                                                                                                       | `init: (args, { id, path }) => Model`, plus `start: (model, args) => Commands`; init args become the Block's args            |
+| `Definition.makeCommand(name, { args, messages, handler })`, `.layer`, `EffectsLayer`                                 | Module-level `Command.define(name, { args, messages })`, listed under `Command: [...]`, handled under `commands`             |
+| `makeMount` / `makeMountStream`                                                                                       | `Mount.define` / `Mount.defineStream` without `handler`, listed under `Mount: [...]`, handled under `mounts`                 |
+| `makeSubscriptions(entry => ...)`                                                                                     | `subscriptions: { name: { dependencies, stream } }`; an always-on source has constant `dependencies`                         |
+| `makeManagedResources` / `makeResource`                                                                               | An Effect `RcMap` the Layer creates, held by a Subscription while the Model needs the handle and borrowed by Commands by key |
+| `makeBinding(Child, { field })`                                                                                       | `new Child('field', args)` stored in that field                                                                              |
+| `makeBinding(Child, { field, key, childField })` / `makeMapBinding`                                                   | `new Child(key, args)` per item, with instances in an array or Record                                                        |
+| `makeVariantBinding`                                                                                                  | An instance stored inside a tagged union variant                                                                             |
+| `withOutMessagePolicy({ fold })`, `makeOutMessageFold`                                                                | `...Child.on({ Tag: (model, outMessage, instance) => result })`                                                              |
+| `makeOutMessageForward`                                                                                               | A `Child.on` handler that returns `{ model, outMessage: Parent.OutMessage.X(...) }`                                          |
+| `Binding.requestX()` and other operations                                                                             | `messages: [model.child.send(Child.Message.RequestedX())]`                                                                   |
+| `h.block(Binding.embedView({...}))`                                                                                   | `model.child.view(input?)`                                                                                                   |
+| `makeFieldsStep`, `makeCommandsStep`, `makeOutMessageStep`, `makeNoopStep`, `makeStep`                                | Plain functions `(model, ...) => ({ model, commands?, outMessage? })`; `Update.combineSteps` still combines pure Steps       |
+| `Program.make({ block, routing, Flags, ... })` and `program.provide(ApplicationLayer)`                                | `Program.make(Application, { layer, container, routing, Flags, devTools })`                                                  |
+| `Server.renderToString(ApplicationBlock, { Flags }, request)`                                                         | `Server.renderToString(Application, { layer, Flags }, request)`                                                              |
+| `toParentMessage(Binding, key, message)`                                                                              | `Block.deliver(Child, 'id' or ['parentId', 'id'], message)`                                                                  |
+| `story(update, given(model), ...)` / `scene({ update, view }, ...)`                                                   | `it.effect(() => story(XLive.pipe(Layer.provide(...)), args?, given(model)?, ...))`                                          |
 
 ## Effects
 
@@ -64,9 +69,9 @@ A Definition-owned Command carried a handler constructor, and completion collect
 
 ::Snippet{name="previewUpgradeCommandBefore" label="Before: a Definition-owned Command"}
 
-Now `Command.define` declares only the name, args, and result Messages, at module level before the class. The class lists the Command under `Command`, and the constructor supplies the handler under `commands`. The handler constructor's generator becomes the Block constructor: yield services at its top and close over them in the handler. There is no `EffectsLayer`; the Block's Layer carries its handlers.
+Now `Command.define` declares only the name, args, and result Messages, at module level before the class. The class lists the Command under `Command`, and the Block's Layer supplies the handler under `commands`. The handler constructor's generator becomes the Layer's `Effect.gen`: yield services at its top and close over them in the handler. There is no `EffectsLayer`; the Block's Layer carries its handlers.
 
-::Snippet{name="previewMigrationCommandAfter" label="After: a Command handled in the Block constructor"}
+::Snippet{name="previewMigrationCommandAfter" label="After: a Command handled in the Block's Layer"}
 
 ### Mounts
 
@@ -74,7 +79,7 @@ Mounts follow the same move. Drop `handler` from the definition, list the Mount 
 
 ::Snippet{name="previewUpgradeMountBefore" label="Before: a Definition-owned Mount"}
 
-::Snippet{name="previewMigrationMountAfter" label="After: a Mount handled in the Block constructor"}
+::Snippet{name="previewMigrationMountAfter" label="After: a Mount handled in the Block's Layer"}
 
 ### Subscriptions
 
@@ -82,7 +87,7 @@ A `makeSubscriptions` registry declared each entry's Messages, a `when` gate or 
 
 ::Snippet{name="previewUpgradeSubscriptionBefore" label="Before: a Subscription registry"}
 
-Now each entry lives in the constructor's `subscriptions` record. `dependencies` derives a value from the Model, and Foldkit restarts `stream` when that value changes. A `when` gate becomes a Boolean dependency whose `stream` returns `Stream.empty` while it is false. A zero-dependency entry that ran for the Block's whole life becomes the constructor's `stream` field. `keepAliveEquivalence` and the second `stream` argument, which reads the latest dependencies, keep a Stream running across dependency changes.
+Now each entry lives in the module's `subscriptions` record. `dependencies` derives a value from the instance's Model, and Foldkit restarts `stream` when that value changes. A `when` gate becomes a Boolean dependency whose `stream` returns `Stream.empty` while it is false. A zero-dependency entry that ran for the Block's whole life returns a constant from `dependencies`. `keepAliveEquivalence` and the second `stream` argument, which reads the latest dependencies, keep a Stream running across dependency changes.
 
 ::Snippet{name="previewMigrationSubscriptionAfter" label="After: a Subscription gated by Model state"}
 
@@ -92,25 +97,25 @@ A ManagedResource registry acquired a handle while `modelToMaybeRequirements` re
 
 ::Snippet{name="previewUpgradeResourceBefore" label="Before: a ManagedResource registry"}
 
-Now the handle belongs to a child Block. The child acquires it in its constructor with `Effect.acquireRelease` and exposes it with `expose`, declared as the class's fourth type parameter. The parent holds the instance in an `Option` field: adding it acquires the handle and removing it releases the handle. Parent Command handlers read it with `instance.use`, which fails with `NotConnected` while the instance is not in the Model.
+Now the Block's Layer creates an Effect `RcMap` that acquires the handle with `Effect.acquireRelease` the first time a key is requested and releases it when the last holder lets go. A Subscription whose `dependencies` replace `modelToMaybeRequirements` holds the handle while the Model needs it, and Command handlers borrow it with `Effect.scoped(RcMap.get(map, key))`:
 
-::Snippet{name="previewMigrationResourceAfter" label="After: a socket owned by a child Block"}
+::Snippet{name="previewMigrationResourceAfter" label="After: a socket held by a Subscription"}
 
-Requirements that used to flow through `modelToMaybeRequirements` become the child's constructor args. When they change, put a fresh instance in the Model; replacing an instance closes the old one's scope.
+Requirements that used to flow through `modelToMaybeRequirements` become the Subscription's dependencies and the `RcMap` key. When they change, the Subscription restarts with the new key, which releases the old handle and acquires a new one.
 
 ## Init and Update
 
-### Replace makeInit with the constructor
+### Replace makeInit with init and start
 
 `makeInit` produced the starting Model and Commands, and each Binding's `init` selector chose its child's args:
 
 ::Snippet{name="previewUpgradeInitBefore" label="Before: Composition init with a child args selector"}
 
-Now the constructor returns `model` and, under `start`, the Commands init returned. Init arguments become the class's second type parameter and arrive as the constructor's second argument. A parent passes a child's args when it creates the instance, so `ChildInitContext` and `contextToArgs` go away:
+Now the module's `init` returns the starting Model, and `start` returns the Commands init returned. Init arguments become the class's second type parameter and arrive as `init`'s first argument. A parent passes a child's args when it creates the instance, so `ChildInitContext` and `contextToArgs` go away:
 
-::Snippet{name="previewUpgradeInitAfter" label="After: constructor args and start Commands"}
+::Snippet{name="previewUpgradeInitAfter" label="After: init args and start Commands"}
 
-The constructor runs once per instance, synchronously, when the instance enters its parent's Model. Do not do asynchronous work there; load data with a `start` Command. `Binding.init`, `initAndSet`, `initAndAppend`, `initAndInsert`, and `makeInitIfMissingStep` are all replaced by putting an instance into the Model: Foldkit constructs it and runs its `start` Commands.
+Foldkit calls `init` when an instance first appears in a Model. Keep it pure; load data with a `start` Command. `Binding.init`, `initAndSet`, `initAndAppend`, `initAndInsert`, and `makeInitIfMissingStep` are all replaced by putting `new Child(id, args)` into the Model: Foldkit runs its `init` and its `start` Commands.
 
 ### Replace Composition update and Step helpers
 
@@ -118,7 +123,7 @@ The constructor runs once per instance, synchronously, when the instance enters 
 
 ::Snippet{name="previewUpgradeUpdateBefore" label="Before: Composition update with Definition-owned Steps"}
 
-Now the constructor's `update` record has one plain function per Message, `(model, message) => ({ model, commands?, outMessage?, messages? })`. A shared transition is an ordinary named function ending in `Step`. A handler that changes nothing returns `{ model }`. The handlers are typed from the class contract, so they need no annotations, and `withContext` has no replacement because handlers read what they need from the Model and the constructor's closure. The Settings Block from the Commands section shows both forms; its `changeThemeStep` replaces the `makeStep` producer:
+Now the module's `update` record has one plain function per Message, `(model, message) => ({ model, commands?, outMessage?, messages? })`. A shared transition is an ordinary named function ending in `Step`. A handler that changes nothing returns `{ model }`. The handlers are typed from the class contract, so they need no annotations, and `withContext` has no replacement because handlers read what they need from the Model. The Settings Block from the Commands section shows both forms; its `changeThemeStep` replaces the `makeStep` producer:
 
 ::Snippet{name="previewMigrationCommandAfter" label="After: plain update handlers and a named Step"}
 
@@ -132,9 +137,9 @@ A Binding registered the child on the Composition, carried its OutMessage policy
 
 ::Snippet{name="previewUpgradeBindingBefore" label="Before: a Binding with a fold, an operation, and embedView"}
 
-Now the parent yields `new Settings('settings')` in its constructor and stores the instance in the field the Binding named. Its Schema names the child class (`settings: Settings`) instead of `SettingsBlock.Model`. Each part of the Binding has a direct replacement:
+Now the parent creates `new Settings('settings')` in its `init` and stores the instance in the field the Binding named. Its Schema names the child class (`settings: Settings`) instead of `SettingsBlock.Model`. Each part of the Binding has a direct replacement:
 
-- **OutMessage policy.** Spread `...settings.on({ ChangedTheme: (model, outMessage, instance) => result })` into the update record. The handler returns an ordinary result.
+- **OutMessage policy.** Spread `...Settings.on({ ChangedTheme: (model, outMessage, instance) => result })` into the update record. One entry covers every Settings instance the parent's Model holds. The handler returns an ordinary result.
 - **Operations.** Return `messages: [model.settings.send(Settings.Message.RequestedReset())]`. The operation's Message becomes a public child Message.
 - **embedView.** Call `model.settings.view()`, passing the view input when the child declares one.
 
@@ -144,17 +149,17 @@ The parent may read the child's state as `model.settings.model`, and never write
 
 ### Keyed collections and map Bindings
 
-A keyed Binding or `makeMapBinding` became a factory:
+A keyed Binding or `makeMapBinding` held one child per key:
 
 ::Snippet{name="previewUpgradeCollectionBefore" label="Before: a keyed Binding"}
 
-Yield `Row.each('rows', args)` in the constructor and call the factory with a stable key, `row('row-3')`, to create each instance. Store instances in an array or a Record; a HashMap field becomes a Record. `row(key, args)` overrides the factory's args for one instance. `row.on({...})` handles OutMessages from every instance, and its third argument is the instance that reported it. Wrapper items that held parent-owned data beside the child (`childField`) become structs with an instance field.
+Create each instance with a stable id and its args, `new Row('row-3', { label })`, in the update handler that adds it. Store instances in an array or a Record; a HashMap field becomes a Record. `Row.on({...})` handles OutMessages from every instance, and its third argument is the instance that reported it. Wrapper items that held parent-owned data beside the child (`childField`) become structs with an instance field.
 
 ::Snippet{name="previewMigrationCollectionAfter" label="After: a keyed collection of child Blocks"}
 
 ### Variant children
 
-`makeVariantBinding` placed a child in one variant of a tagged union. Now store the instance inside that variant's struct. The parent's update switches variants by returning a Model with a different variant, which removes the old instance and constructs the new one.
+`makeVariantBinding` placed a child in one variant of a tagged union. Now store the instance inside that variant's struct. The parent's update switches variants by returning a Model with a different variant, which stops the old instance and starts the new one.
 
 ### Forwarding OutMessages
 
@@ -162,9 +167,9 @@ Yield `Row.each('rows', args)` in the constructor and call the factory with a st
 
 ::Snippet{name="previewUpgradeForwardBefore" label="Before: forwarding a child OutMessage"}
 
-Now an `.on` handler returns the parent's OutMessage itself:
+Now a `Child.on` handler returns the parent's OutMessage itself:
 
-::Snippet{name="previewUpgradeForwardAfter" label="After: an .on handler returning the parent's OutMessage"}
+::Snippet{name="previewUpgradeForwardAfter" label="After: an on handler returning the parent's OutMessage"}
 
 ## Views
 
@@ -186,11 +191,11 @@ A Block that renders through parent callbacks declares its view input as the cla
 
 ::Snippet{name="previewUpgradeProgramBefore" label="Before: a Program over the completed root Block"}
 
-Now `Program.make` takes the root class and a single Layer. That Layer provides the root Block, every Block the tree creates, and the ordinary services that constructors yield. Provide each child's `Live` Layer to every parent Layer that creates it, or merge them into one Layer provided to the whole tree.
+Now `Program.make` takes the root class and a single Layer. That Layer provides the root Block, every Block the tree creates, and the ordinary services the Block Layers yield. Provide each child's `Live` Layer to every parent Layer whose Model holds it, or merge them into one Layer provided to the whole tree.
 
 ::Snippet{name="previewMigrationEntryAfter" label="After: a Program over the root class and its Layer"}
 
-The root's constructor args decide which host options are required. Args with `flags` require `Flags`, args with `url` require `routing`, and the constructor receives both values directly, so the root init's `(flags, url)` parameters become `{ flags, url }` args. `Program.makeElement` follows the same shape for a container-scoped application.
+The root's args decide which host options are required. Args with `flags` require `Flags`, args with `url` require `routing`, and `init` receives both values directly, so the root init's `(flags, url)` parameters become `{ flags, url }` args. `Program.makeElement` follows the same shape for a container-scoped application.
 
 ### Server rendering
 
@@ -208,15 +213,15 @@ A Story ran the composed `update`, and a child fact needed `toParentMessage` wit
 
 ::Snippet{name="previewUpgradeTestBefore" label="Before: a Story over the composed update"}
 
-Now `story` and `scene` take the Block's Layer. Wrap each in `it.effect` from `@effect/vitest`, and add `@effect/vitest` to the package's devDependencies. Without `given`, the test starts from the Model the constructor returns. Provide services with `Layer.provide`, and deliver a child's Message with `Block.deliver(Child, 'id', message)`.
+Now `story` and `scene` take the Block's Layer. Wrap each in `it.effect` from `@effect/vitest`, and add `@effect/vitest` to the package's devDependencies. Without `given`, the test starts from the Model `init` returns. Provide services with `Layer.provide`, and deliver a child's Message with `Block.deliver(Child, 'id', message)`.
 
 ::Snippet{name="previewMigrationTestAfter" label="After: Stories over the child and parent Layers"}
 
 Keep these differences in mind:
 
 - The Layer provides exactly one root Block. Provide its children with `Layer.provide`, not `Layer.merge`.
-- In tests the Model is the resolved tree: each instance appears as its own Model, as in `model.settings.theme`. `given` can set child state but cannot add or remove instances; do that with Messages.
-- An instance created by `each` is addressed by `[collection, key]`, as in `Block.deliver(Row, ['rows', 'row-3'], message)`.
+- In tests the Model is the resolved tree: each instance appears as its own Model, as in `model.settings.theme`. `given` may contain `new Child(...)` values.
+- An instance is addressed by the ids from the root, never by a collection field name: `Block.deliver(Row, 'row-3', message)` for a row of the root, `Block.deliver(Row, ['table', 'row-3'], message)` for a row of the `table` child.
 - `start` Commands of the starting Model do not appear in the Story's Command ledger.
 - When sibling instances have identical pending Commands, `Command.at(path, Definition)` targets one instance.
 - `Scene.deliver(message)` delivers a Message that is not a user interaction, such as a child Message or a Subscription emission.
@@ -226,7 +231,7 @@ Delete tests that only exercised removed machinery, such as Binding registration
 
 ## UI Components
 
-Each stateful `@foldkit/ui` component is a class with a `Live` Layer. A component's old init config becomes its constructor args, its operations become Messages the parent sends, its folds become `.on` handlers, and its `embedView` inputs become the input to `model.x.view(...)`. A component that needs another component's Layer provides it inside its own, so `Dialog.DialogLive` already includes Animation.
+Each stateful `@foldkit/ui` component is a class with a `Live` Layer. A component's old init config becomes its args, its operations become Messages the parent sends, its folds become `X.on` handlers, and its `embedView` inputs become the input to `model.x.view(...)`. A component that needs another component's Layer provides it inside its own, so `Dialog.DialogLive` already includes Animation.
 
 | Earlier preview                                                                                                                                           | This preview                                                                                                                    |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -237,7 +242,7 @@ Each stateful `@foldkit/ui` component is a class with a `Live` Layer. A componen
 | `Menu.makeBlock<Item>()`, `Listbox.makeBlock`, `Combobox.makeBlock`, `RadioGroup.makeBlock`, `Tabs.makeBlock`, `VirtualList.makeBlock`, `Toast.makeBlock` | The same call, returning a class with its Layer as `.Live`: `const ActionMenu = Menu.makeBlock<Action>()` and `ActionMenu.Live` |
 | `Binding.requestOpen()`, `requestClose()`, `requestSelectItem(...)`                                                                                       | `send(X.Message.RequestedOpen())`, `RequestedClose()`, `RequestedSelectItem({ ... })`                                           |
 | `inform*Changed(...)` operations                                                                                                                          | `InformedOf*` Messages, such as `Slider.Slider.Message.InformedOfRangeChange({ min, max })`                                     |
-| Folds such as `Opened`, `Closed`, `Selected`                                                                                                              | `...dialog.on({ Opened, Closed })`, `...menu.on({ Selected })`                                                                  |
+| Folds such as `Opened`, `Closed`, `Selected`                                                                                                              | `...Dialog.Dialog.on({ Opened, Closed })`, `...ActionMenu.on({ Selected })`                                                     |
 | `model.dialog.isOpen` in a parent                                                                                                                         | `model.dialog.model.isOpen`; in tests, `model.dialog.isOpen`                                                                    |
 | `ToastBlock.test.drainEntry({ binding, key?, ... })`                                                                                                      | `T.test.drainEntry({ path?, entryId, version? })`                                                                               |
 
@@ -249,9 +254,40 @@ The old split layout had `definition.ts`, `composition.ts`, `init.ts`, `update.t
 
 - Each Block lives in one file named for it in camelCase, such as `issueBoard.ts`, holding its Message and OutMessage unions, Model Schema, Command and Mount definitions, class, and `Live` Layer. Remove the feature's `index.ts` barrel.
 - A Block too large to read in one file extracts a feature that owns its own state, effects, or lifecycle into a child Block in its own file instead of splitting into `message.ts`, `model.ts`, `update.ts`, `command.ts`, or `view.ts`.
-- `definition.ts`, `composition.ts`, `composition/` policy modules, and `init.ts` have no counterpart. Their contents move into the class, the constructor, and the parent's update record.
+- `definition.ts`, `composition.ts`, `composition/` policy modules, and `init.ts` have no counterpart. Their contents move into the class, the Block's Layer, and the parent's update record.
 
-The recursive-initializer and import-cycle workarounds for reciprocal Binding policies go away, since policies are `.on` handlers in the parent's own constructor. See [Project Organization](/patterns/project-organization).
+The recursive-initializer and import-cycle workarounds for reciprocal Binding policies go away, since policies are `Child.on` entries in the parent's own update record. See [Project Organization](/patterns/project-organization).
+
+## Upgrade from Per-Instance Constructors {#per-instance-constructors}
+
+The class Blocks preview before this one implemented a Block with `X.make(Effect.fn(function* (id, args) { ... }))`. That constructor ran once for every instance, so it could close over the instance's id and args, yield child instances, and acquire resources for one instance. In this preview, `X.layer(Effect.gen(function* () { ... }))` runs once for the whole Block, and an instance is plain data. Anything the constructor captured for one instance moves into that instance's Model.
+
+::Snippet{name="previewUpgradeClassBlockBefore" label="Before: a constructor that ran once per instance"}
+
+::Snippet{name="previewUpgradeClassBlockAfter" label="After: one Layer for every Counter"}
+
+Apply these changes to each Block:
+
+| Per-instance constructor preview                                    | This preview                                                                                                   |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `X.make(Effect.fn(function* (id, args) { ... }))`                   | `X.layer(Effect.gen(function* () { ... }))`                                                                    |
+| `model: { ... }`                                                    | `init: (args, { id, path }) => ({ ... })`                                                                      |
+| `id` or `args` read in a handler or view                            | A Model field set by `init`, passed to Command handlers as Command args                                        |
+| `start: [Command()]`                                                | `start: (model, args) => [Command(...)]`                                                                       |
+| `const child = yield* new Child('child', args)`                     | `new Child('child', args)` where the value is needed, usually in `init` or an update handler                   |
+| `const row = yield* Child.each('rows', args)` and `row(key, args?)` | `new Child(key, args)`, always with explicit args                                                              |
+| `child.on({ ... })`, `child.onAll({ ... })`, `row.on({ ... })`      | `Child.on({ ... })` or `Child.onAll({ ... })`, merged into one entry per Block; branch on `instance.id`        |
+| `child.when(predicate)`                                             | `Child.when(predicate)`                                                                                        |
+| `stream: source`                                                    | `subscriptions: { name: { dependencies: model => model.id, stream: () => source } }`                           |
+| `expose`, `instance.use`, `NotConnected`, the fourth type parameter | An Effect `RcMap` the Layer creates, held by a Subscription and borrowed by Commands with a key from the Model |
+| `yield* Block.Path`                                                 | `init`'s second argument, `{ path }`, stored in the Model when the Block needs it                              |
+| A service provided to one instance's declaration                    | A Model field that selects the behavior, passed as a Command arg; tests swap the service for the whole Block   |
+| `Block.deliver(Child, ['rows', 'row-3'], message)`                  | `Block.deliver(Child, 'row-3', message)`: the path is parent ids then the child's id                           |
+| `Command.at(['rows', 'row-3'], Definition)`                         | `Command.at('row-3', Definition)`                                                                              |
+
+Instance lifetimes follow the Model in the same way. Foldkit starts an instance's `start` Commands and Subscriptions when its path first appears and stops them when the path leaves, interrupting its in-flight Commands. The path is the parent's path plus the instance id, so ids must be unique among one parent's children, and moving an instance between fields of the same parent keeps it running.
+
+A parent's Layer requires the Layers of the Blocks its Model Schema holds. Wiring stays `ParentLive.pipe(Layer.provide(ChildLive))`.
 
 ## Native TypeScript Tooling
 
@@ -299,7 +335,7 @@ When asking a coding agent to perform the upgrade, give it this page URL and the
 
 Run the project's formatter, typecheck, lint, tests, and build after these edits. Include test files in typechecking and exercise the browser, SSR or SSG, or embedding path the application uses. Confirm that the lockfile resolves one exact Foldkit snapshot.
 
-Search the source for each removed name before declaring the upgrade finished: `makeDefinition`, `makeComposition`, `prepareBlock`, `Block.assemble`, `FromAssembly`, `makeBinding`, `makeMapBinding`, `makeVariantBinding`, `withOutMessagePolicy`, `embedView`, `h.block`, `EffectsLayer`, `toParentMessage`, and `program.provide`. Each remaining hit is a place the table above has not been applied.
+Search the source for each removed name before declaring the upgrade finished: `makeDefinition`, `makeComposition`, `prepareBlock`, `Block.assemble`, `FromAssembly`, `makeBinding`, `makeMapBinding`, `makeVariantBinding`, `withOutMessagePolicy`, `embedView`, `h.block`, `EffectsLayer`, `toParentMessage`, and `program.provide`. From the per-instance constructor preview, search for `.make(Effect.fn`, `yield* new`, `.each(`, `expose`, `.use`, `NotConnected`, and `Block.Path`. Each remaining hit is a place the table above has not been applied.
 
 Enable the current Foldkit Oxlint preset. The rules for Bindings and Compositions, such as `no-binding-write-coordination`, `no-manual-composition-routing`, and `no-completed-block-model-in-schema`, are gone; remove them from any lint configuration that names them. See [the Oxlint plugin](/tooling/oxlint-plugin) for the current rules.
 
@@ -307,11 +343,10 @@ Enable the current Foldkit Oxlint preset. The rules for Bindings and Composition
 
 - **The update record is missing a property.** Every Message tag needs a handler, including Command result Messages. A handler that changes nothing returns `{ model }`.
 - **`commands` or `mounts` is missing a property.** Add a handler for every Command and Mount listed on the class.
-- **A handler's Effect still requires a service.** Yield the service in the constructor and close over it, then provide it in the Program's Layer.
+- **A handler's Effect still requires a service.** Yield the service in the Block's Layer and close over it, then provide it in the Program's Layer.
 - **`Program.make` or `story` rejects the Layer.** The Layer still requires a child Block or a service. Provide each child's `Live` Layer to its parent's Layer, then the services.
-- **A parent Model field rejects a child Model.** Use the child class as the field's Schema (`settings: Settings`) and store the instance yielded in the constructor, not `SettingsBlock.Model.make(...)`.
-- **A child does not start, or starts twice.** An instance is constructed when it enters the Model and closed when it leaves. Put the yielded instance into the Model once; replacing it at the same path constructs a fresh one.
-- **A `given` Model does not add an instance.** `given` can change child state but not the set of instances. Send the Message that adds the instance.
-- **`instance.use` fails with `NotConnected`.** The instance is not in the parent's Model. Check the `Option` field that holds it.
+- **A parent Model field rejects a child Model.** Use the child class as the field's Schema (`settings: Settings`) and store `new Settings('settings')`, not `SettingsBlock.Model.make(...)`.
+- **A child does not start, or starts twice.** Foldkit starts an instance when its path (parent path plus id) first appears in the Model and stops it when the path leaves. Moving an instance between fields of one parent keeps it running; a new id starts a fresh one.
+- **Foldkit reports a duplicate id.** Two children of one parent share an id. Give each instance an id that is unique among its parent's children, such as a domain id or a counter stored in the parent's Model.
 - **Installed packages show different canary hashes.** Reapply the exact manifest versions and regenerate the lockfile before diagnosing TypeScript errors.
 - **pnpm refuses a newly uploaded package because of its age.** Add that exact manifest entry to `minimumReleaseAgeExclude`. Keep the project's minimum release age enabled.

@@ -27,21 +27,22 @@ export class ApiReference extends Block<
   Command: [LoadApiData],
 }) {}
 
-export const ApiReferenceLive = ApiReference.make(
-  Effect.fn(function* (_id, { maybeApiData }) {
+export const ApiReferenceLive = ApiReference.layer(
+  Effect.gen(function* () {
     return {
-      model: Option.match(maybeApiData, {
-        onNone: () => ({
-          apiData: ApiDataAsyncData.Loading(),
-          disclosures: {},
+      init: ({ maybeApiData }) =>
+        Option.match(maybeApiData, {
+          onNone: () => ({
+            apiData: ApiDataAsyncData.Loading(),
+            disclosures: {},
+          }),
+          onSome: apiData => ({
+            apiData: ApiDataAsyncData.Refreshing({ data: apiData }),
+            disclosures: disclosuresForApiData(apiData),
+          }),
         }),
-        onSome: apiData => ({
-          apiData: ApiDataAsyncData.Refreshing({ data: apiData }),
-          disclosures: disclosuresForApiData(apiData),
-        }),
-      }),
 
-      start: [LoadApiData()],
+      start: () => [LoadApiData()],
 
       update: {
         InformedOfRouteChange: refreshApiDataStep,

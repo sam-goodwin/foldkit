@@ -3,22 +3,22 @@ import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-export type PickerArgs<Item> = Readonly<{
+export type PickerViewInput<Item> = Readonly<{
   items: ReadonlyArray<Item>
   toLabel: (item: Item) => string
 }>
 
 export const makeBlock = <Item>() => {
-  class Picker extends Block<Picker, PickerArgs<Item>>()('Picker', {
+  class Picker extends Block<Picker, void, PickerViewInput<Item>>()('Picker', {
     Model: Schema.Struct({ maybeSelectedIndex: Schema.Option(Schema.Number) }),
     Message: defineMessageUnion({ ClickedItem: { index: Schema.Number } }),
     OutMessage: defineMessageUnion({ SelectedItem: { index: Schema.Number } }),
   }) {}
 
-  const PickerLive = Picker.make(
-    Effect.fn(function* (_id, { items, toLabel }) {
+  const PickerLive = Picker.layer(
+    Effect.gen(function* () {
       return {
-        model: { maybeSelectedIndex: Option.none() },
+        init: () => ({ maybeSelectedIndex: Option.none() }),
 
         update: {
           ClickedItem: (model, { index }) => ({
@@ -29,12 +29,17 @@ export const makeBlock = <Item>() => {
           }),
         },
 
-        view: (_model, h) =>
+        view: (model, h, { items, toLabel }) =>
           h.ul(
             [],
             Array.map(items, (item, index) =>
               h.li(
-                [h.OnClick(Picker.Message.ClickedItem({ index }))],
+                [
+                  h.AriaSelected(
+                    Option.contains(model.maybeSelectedIndex, index),
+                  ),
+                  h.OnClick(Picker.Message.ClickedItem({ index })),
+                ],
                 [toLabel(item)],
               ),
             ),

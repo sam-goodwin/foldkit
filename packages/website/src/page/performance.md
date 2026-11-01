@@ -19,7 +19,7 @@ Every state change in a Foldkit app flows through one pipeline, so the cost mode
 
 The production hot path does no serialization, no deep comparison, no freezing, and no snapshots. Change detection for rendering is reference equality, and `modifyFields` preserves unchanged branches by reference, so the cost of a frame is the cost of the subtrees that actually changed.
 
-After each Message, the Runtime also walks the Model to find the Block instances it holds. It closes the scope of every instance that left the Model and recomputes the Subscription dependencies of every instance still in it. That walk visits the arrays, Options, and plain objects in each instance's Model, so its cost grows with the amount of data the Model holds and with the number of live instances.
+After each Message, the Runtime also walks the Model to find the Block instances it holds. It stops what runs for every instance that left the Model, its Subscriptions and in-flight Commands, starts the `start` Commands and Subscriptions of every instance that appeared, and recomputes the Subscription dependencies of every instance still in it. That walk visits the arrays, Options, and plain objects in each instance's Model, so its cost grows with the amount of data the Model holds and with the number of live instances.
 
 ## What the abstractions cost
 
@@ -27,12 +27,12 @@ The cost model above puts most of the cost of a Message on your `update` logic. 
 
 ### Child Messages and Model Updates
 
-- A Message for a child instance carries that instance's path. The Runtime follows the path from the root, runs the child's update handler, and rebuilds each ancestor's Model with the new instance in place. An ancestor's own handler runs only when it handles the child's OutMessage with `.on`.
+- A Message for a child instance carries that instance's path. The Runtime follows the path from the root, runs the child's update handler, and rebuilds each ancestor's Model with the new instance in place. An ancestor's own handler runs only when it handles the child's OutMessage with `Child.on` or `Child.onAll`.
 - `modifyFields` is Effect’s `Struct.evolve` at runtime; the wrapper adds key checking at the type level only. It walks the struct’s own enumerable keys once and applies a transform only where you provided one, copying everything else by reference. The cost is proportional to the Model’s top-level field count, the same as an object spread, and that reference preservation is what lets [createLazy](/core/view-memoization) hit its `===` check.
 
 ### Update Handler Records
 
-A Block's `update` record is created once, when its constructor runs for an instance. Each handler receives the Model and the Message as arguments, so a dispatch does not allocate new closures over the Model. A domain matcher built inside a handler can still allocate case closures on dispatch; profile the actual update before attributing a delay to that allocation.
+A Block's `update` record is created once, when its Layer constructor runs, and every instance shares it. Each handler receives the Model and the Message as arguments, so a dispatch does not allocate new closures over the Model. A domain matcher built inside a handler can still allocate case closures on dispatch; profile the actual update before attributing a delay to that allocation.
 
 ## Benchmarks
 

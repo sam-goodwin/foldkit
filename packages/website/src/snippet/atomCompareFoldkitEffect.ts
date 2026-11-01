@@ -37,12 +37,12 @@ export class Todo extends Block<Todo>()('Todo', {
   Command: [CreateTodo],
 }) {}
 
-export const TodoLive = Todo.make(
-  Effect.fn(function* () {
+export const TodoLive = Todo.layer(
+  Effect.gen(function* () {
     const api = yield* Api
 
     return {
-      model: { draft: '', isDrawing: false },
+      init: () => ({ draft: '', isDrawing: false }),
 
       update: {
         SubmittedTodo: model => ({

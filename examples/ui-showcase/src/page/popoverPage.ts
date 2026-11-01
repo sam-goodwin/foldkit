@@ -21,31 +21,25 @@ export class PopoverPage extends Block<PopoverPage>()('PopoverPage', {
   Model,
 }) {}
 
-export const PopoverPageLive = PopoverPage.make(
-  Effect.fn(function* () {
-    const popoverBasicDemo = yield* new Popover.Popover('popoverBasicDemo', {
-      id: 'popover-basic-demo',
-    })
-    const popoverAnimatedDemo = yield* new Popover.Popover(
-      'popoverAnimatedDemo',
-      { id: 'popover-animated-demo', isAnimated: true },
-    )
-    const popoverNestedParentDemo = yield* new Popover.Popover(
-      'popoverNestedParentDemo',
-      { id: 'popover-nested-parent-demo', contentFocus: true },
-    )
-    const popoverNestedChildDemo = yield* new Popover.Popover(
-      'popoverNestedChildDemo',
-      { id: 'popover-nested-child-demo' },
-    )
-
+export const PopoverPageLive = PopoverPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        popoverBasicDemo,
-        popoverAnimatedDemo,
-        popoverNestedParentDemo,
-        popoverNestedChildDemo,
-      },
+      init: () => ({
+        popoverBasicDemo: new Popover.Popover('popoverBasicDemo', {
+          id: 'popover-basic-demo',
+        }),
+        popoverAnimatedDemo: new Popover.Popover('popoverAnimatedDemo', {
+          id: 'popover-animated-demo',
+          isAnimated: true,
+        }),
+        popoverNestedParentDemo: new Popover.Popover(
+          'popoverNestedParentDemo',
+          { id: 'popover-nested-parent-demo', contentFocus: true },
+        ),
+        popoverNestedChildDemo: new Popover.Popover('popoverNestedChildDemo', {
+          id: 'popover-nested-child-demo',
+        }),
+      }),
       view,
     }
   }),

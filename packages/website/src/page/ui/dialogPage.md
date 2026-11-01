@@ -2,7 +2,7 @@
 
 ## Overview
 
-A modal dialog backed by the native `<dialog>` element, opened with `show()` and a high z-index. Create a `Dialog.Dialog` instance in the parent's constructor and hold it in the parent Model. The Dialog manages focus trapping, Escape handling, scroll locking, and backdrop rendering. For non-modal floating content, use Popover instead.
+A modal dialog backed by the native `<dialog>` element, opened with `show()` and a high z-index. Create an instance with `new Dialog.Dialog('dialog', { id })` in the parent's `init` and hold it in the parent Model. The Dialog manages focus trapping, Escape handling, scroll locking, and backdrop rendering. For non-modal floating content, use Popover instead.
 
 :::Info{label="See it in an app"}
 Check out how Dialog is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/dialogPage.ts).
@@ -62,7 +62,7 @@ A Dialog always starts closed. To open it when the parent appears, return a `sta
 
 ::Snippet{name="uiDialogInitiallyOpen" label="Starting with an open Dialog"}
 
-See [When the constructor runs](/core/block#when-the-constructor-runs) for why the constructor itself cannot send a Message.
+`init` returns only the starting Model, so it cannot send the Dialog a Message. See [Block](/core/block).
 
 ## Keyboard Interaction
 
@@ -123,7 +123,7 @@ Payload delivered to the `toView` callback each render.
 
 ### OutMessage {#out-message}
 
-Facts the Dialog reports to its parent. Handle them by spreading `...dialog.on({ ... })` into the parent's update record; variants without a handler are ignored.
+Facts the Dialog reports to its parent. Handle them by spreading `...Dialog.Dialog.on({ ... })` into the parent's update record; variants without a handler are ignored. One entry covers every Dialog the parent holds; branch on the third argument, the reporting instance, when two Dialogs need different handling.
 
 | Name             | Type | Default | Description                                                                                                                                                                                                                                                                                      |
 | ---------------- | ---- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

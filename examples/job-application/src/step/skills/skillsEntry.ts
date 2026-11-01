@@ -45,20 +45,18 @@ export class SkillsEntry extends Block<SkillsEntry>()('SkillsEntry', {
   OutMessage,
 }) {}
 
-export const SkillsEntryLive = SkillsEntry.make(
-  Effect.fn(function* (entryId) {
-    const proficiencyRadioGroup = yield* new ProficiencyRadioGroup(
-      'proficiencyRadioGroup',
-      { id: `${entryId}-proficiency` },
-    )
-
+export const SkillsEntryLive = SkillsEntry.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        id: entryId,
+      init: (_, { id }) => ({
+        id,
         name: NotValidated({ value: '' }),
         proficiency: 'Intermediate',
-        proficiencyRadioGroup,
-      },
+        proficiencyRadioGroup: new ProficiencyRadioGroup(
+          'proficiencyRadioGroup',
+          { id: `${id}-proficiency` },
+        ),
+      }),
 
       update: {
         UpdatedName: (model, { value }) => ({
@@ -74,7 +72,7 @@ export const SkillsEntryLive = SkillsEntry.make(
           outMessage: OutMessage.Removed(),
         }),
 
-        ...proficiencyRadioGroup.on({
+        ...ProficiencyRadioGroup.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { proficiency: () => value }),
           }),

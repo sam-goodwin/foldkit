@@ -23,10 +23,10 @@ export class Snake extends Block<Snake>()('Snake', {
   Command: [GenerateApplePosition],
 }) {}
 
-export const SnakeLive = Snake.make(
-  Effect.fn(function* () {
+export const SnakeLive = Snake.layer(
+  Effect.gen(function* () {
     return {
-      model: { apple: { x: 0, y: 0 } },
+      init: () => ({ apple: { x: 0, y: 0 } }),
 
       update: {
         RequestedApple: model => ({

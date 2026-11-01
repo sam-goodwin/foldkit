@@ -6,17 +6,21 @@ import { modifyFields } from 'foldkit/struct'
 
 import { it } from '@effect/vitest'
 
-type StepperViewInput = Readonly<{ label: string; isDisabled: boolean }>
+const StepperViewInput = Schema.Struct({
+  label: Schema.String,
+  isDisabled: Schema.Boolean,
+})
+type StepperViewInput = typeof StepperViewInput.Type
 
 class Stepper extends Block<Stepper, void, StepperViewInput>()('Stepper', {
   Model: Schema.Struct({ count: Schema.Number }),
   Message: defineMessageUnion({ ClickedIncrement: {} }),
 }) {}
 
-const StepperLive = Stepper.make(
-  Effect.fn(function* () {
+const StepperLive = Stepper.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: () => ({ count: 0 }),
       update: {
         ClickedIncrement: model => ({
           model: modifyFields(model, { count: Number.increment }),
@@ -34,20 +38,26 @@ const StepperLive = Stepper.make(
   }),
 )
 
-// A test-only parent. Its constructor args become the child's view input,
-// so each test chooses the input it renders with.
+// A test-only parent. Its args become the child's view input, so each test
+// chooses the input it renders with.
 class StepperScene extends Block<StepperScene, StepperViewInput>()(
   'StepperScene',
-  { Model: Schema.Struct({ stepper: Stepper }) },
+  {
+    Model: Schema.Struct({
+      stepper: Stepper,
+      stepperViewInput: StepperViewInput,
+    }),
+  },
 ) {}
 
-const StepperSceneLive = StepperScene.make(
-  Effect.fn(function* (_id, viewInput) {
-    const stepper = yield* new Stepper('stepper')
-
+const StepperSceneLive = StepperScene.layer(
+  Effect.gen(function* () {
     return {
-      model: { stepper },
-      view: model => model.stepper.view(viewInput),
+      init: stepperViewInput => ({
+        stepper: new Stepper('stepper'),
+        stepperViewInput,
+      }),
+      view: model => model.stepper.view(model.stepperViewInput),
     }
   }),
 ).pipe(Layer.provide(StepperLive))

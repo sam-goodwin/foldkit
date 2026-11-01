@@ -167,7 +167,6 @@ export type Entry<A, I> = ReturnType<typeof makeEntry<A, I>>['Type']
 
 /** A Toast instance refined to one payload Schema. */
 export interface Toast<A, I> extends BlockTypes.Instance<
-  Toast<A, I>,
   Contract<A, I>,
   InitConfig,
   ViewInputs<Entry<A, I>>
@@ -180,7 +179,6 @@ export type Completed<A, I> = BlockTypes.BlockClass<
   'Toast',
   InitConfig,
   ViewInputs<Entry<A, I>>,
-  never,
   Contract<A, I>
 > &
   Readonly<{
@@ -203,7 +201,7 @@ export type Completed<A, I> = BlockTypes.BlockClass<
  * and swipe state.
  *
  * Put the class in your parent Model, create the instance with
- * `yield* new AppToast('toast', { id: 'toast' })`, and provide
+ * `new AppToast('toast', { id: 'toast' })`, and provide
  * `AppToast.Live`. Send `AppToast.requestShow({ payload })`,
  * `AppToast.Message.RequestedDismiss({ entryId })`, and
  * `AppToast.Message.RequestedDismissAll()` with
@@ -252,18 +250,14 @@ export const makeBlock = <A, I>(
     contract,
   )
 
-  const ToastLive = ToastClass.make(
-    Effect.fn(function* (_instanceId, config) {
-      const entryAnimation = yield* Animation.Animation.each('entries', {
-        isShowing: false,
-      })
-
+  const ToastLive = ToastClass.layer(
+    Effect.gen(function* () {
       return {
-        model: runtime.initialModel(config),
+        init: runtime.initialModel,
 
         update: {
-          ...runtime.makeUpdate(entryAnimation),
-          ...entryAnimation.on(runtime.entryAnimationHandlers),
+          ...runtime.update,
+          ...Animation.Animation.on(runtime.entryAnimationHandlers),
         },
 
         commands: commandHandlers,
@@ -416,7 +410,11 @@ export const makeBlock = <A, I>(
   ).pipe(Layer.provide(Animation.AnimationLive))
 
   return Object.assign(ToastClass, {
-    Live: ToastLive,
+    // NOTE: a Toast's Model holds no Blocks besides its entry Animations, but
+    // its payload type is generic, so TypeScript cannot rule out Block
+    // instances in it.
+    // oxlint-disable-next-line typescript/consistent-type-assertions, effecttsgo/unsafe-effect-type-assertion
+    Live: ToastLive as Layer.Layer<Toast<A, I>>,
     requestShow: runtime.requestShow,
     test: makeTest(),
   })

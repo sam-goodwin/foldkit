@@ -20,8 +20,8 @@ export class Banner extends Block<Banner>()('Banner', {
   Mount: [TrackVisit, MeasureWidth],
 }) {}
 
-export const BannerLive = Banner.make(
-  Effect.fn(function* () {
+export const BannerLive = Banner.layer(
+  Effect.gen(function* () {
     return {
       update: {
         CompletedTrackVisit: model => ({ model }),

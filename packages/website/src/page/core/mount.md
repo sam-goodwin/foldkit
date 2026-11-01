@@ -12,7 +12,7 @@ A Mount, like a Command, has a declaration and a handler in different places:
 
 - `Mount.define(name, { args?, messages })` at module level declares a Mount that produces one Message when its element appears. `Mount.defineStream` declares one whose handler returns a continuing `Stream<Message>`, for listeners or observers on the element.
 - The Block lists the declaration under `Mount: [...]` on its class.
-- The constructor's result implements it under `mounts`, keyed by name. The handler receives the live `element`, the declared args, and `viewStateChanges`, and returns an Effect or Stream. Its scope stays open until the element unmounts, so cleanup registered with `Effect.acquireRelease` runs at the right time.
+- The module the Block's Layer returns implements it under `mounts`, keyed by name. The handler receives the live `element`, the declared args, and `viewStateChanges`, and returns an Effect or Stream. Its scope stays open until the element unmounts, so cleanup registered with `Effect.acquireRelease` runs at the right time.
 
 ### Result Messages
 
@@ -38,7 +38,7 @@ Choose a lifecycle primitive by what causes the work:
 
 - A [Subscription](/core/subscriptions) listens to an external event source while dependencies derived from the Model remain active. Timers, document events, system theme changes, and WebSocket messages fit this shape.
 
-- A [resource Block](/core/managed-resources) owns a stateful handle whose lifetime follows a child instance in the Model and whose operations are performed by Commands.
+- A [keyed resource](/core/managed-resources) is a stateful handle whose lifetime follows a Block instance in the Model, held by that instance's Subscription and used by its Commands.
 
 - A [CustomElement](/core/custom-element) renders a native web component with declarative properties and `CustomEvent`s. Use Mount only when the foreign element requires an imperative API instead.
 
@@ -72,7 +72,7 @@ This Panel measures its own height. The view attaches `MeasurePanel()` with `OnM
 
 The class lists `Mount: [MeasurePanel]`, so the view's builder accepts `h.OnMount(MeasurePanel())`. A view that attaches a Mount the class does not list is a type error, and so is a listed Mount without a handler.
 
-A view helper extracted from the constructor needs the builder type that allows the Mount. Spell it `HtmlBuilder<Message, Mount.RequirementsOf<typeof MeasurePanel>>`, as `panelView` does. Listing a Mount does not start anything until the element appears in the view.
+A view helper extracted from the Block's `view` needs the builder type that allows the Mount. Spell it `HtmlBuilder<Message, Mount.RequirementsOf<typeof MeasurePanel>>`, as `panelView` does. Listing a Mount does not start anything until the element appears in the view.
 
 ### Mount Work Requirements
 
@@ -108,7 +108,7 @@ Calling the declaration with an args record creates the MountAction passed to `O
 
 #### What Belongs in Args
 
-Args are only per-element inputs. Module constants stay in lexical scope, and handles with their own lifetime come from resource Blocks. Yield app-wide services in the Block's constructor and close over them in the handler, as the chart example below does.
+Args are only per-element inputs. Module constants stay in lexical scope, and handles with their own lifetime come from [keyed resources](/core/managed-resources). Yield app-wide services in the Block's Layer and close over them in the handler, as the chart example below does.
 
 :::Info{label="Args surface in DevTools and tests"}
 DevTools shows the args beside the Mount name. Scene tests can target one instance by passing the same args record to `Mount.expectHas` or `Mount.resolve`. See [Scene](/testing/scene) for the declaration and instance matcher contract.
@@ -154,7 +154,7 @@ Mount is especially useful when a library owns a rendered subtree. Charts, code 
 
 ### Acquisition and Cleanup
 
-Construct the handle in an acquire Effect, return the Mount's result Message, and register teardown with `Effect.acquireRelease`. The Effect can finish after emitting its Message because Foldkit keeps its scope open until the element unmounts. This Sales Block loads its chart library through a `ChartLibrary` service that its constructor yields:
+Construct the handle in an acquire Effect, return the Mount's result Message, and register teardown with `Effect.acquireRelease`. The Effect can finish after emitting its Message because Foldkit keeps its scope open until the element unmounts. This Sales Block loads its chart library through a `ChartLibrary` service that its Layer yields:
 
 ::Snippet{name="mountThirdPartyChart" label="Chart Mount with cleanup"}
 

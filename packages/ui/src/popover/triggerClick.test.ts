@@ -14,12 +14,12 @@ class PopoverTriggerClickTest extends Block<PopoverTriggerClickTest>()(
 ) {}
 
 const makePopoverTriggerClickTestLive = (isModal: boolean) =>
-  PopoverTriggerClickTest.make(
-    Effect.fn(function* () {
-      const popover = yield* new Popover('popover', { id: 'sort', isModal })
-
+  PopoverTriggerClickTest.layer(
+    Effect.gen(function* () {
       return {
-        model: { popover },
+        init: () => ({
+          popover: new Popover('popover', { id: 'sort', isModal }),
+        }),
         view: (model, h) =>
           h.div(
             [],

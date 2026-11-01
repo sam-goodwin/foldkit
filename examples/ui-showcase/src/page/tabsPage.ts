@@ -21,33 +21,27 @@ type Model = typeof Model.Type
 
 export class TabsPage extends Block<TabsPage>()('TabsPage', { Model }) {}
 
-export const TabsPageLive = TabsPage.make(
-  Effect.fn(function* () {
-    const horizontalTabsDemo = yield* new DemoTabs('horizontalTabsDemo', {
-      id: 'horizontal-tabs-demo',
-    })
-    const verticalTabsDemo = yield* new DemoTabs('verticalTabsDemo', {
-      id: 'vertical-tabs-demo',
-    })
-
+export const TabsPageLive = TabsPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        horizontalTabsDemo,
+      init: () => ({
+        horizontalTabsDemo: new DemoTabs('horizontalTabsDemo', {
+          id: 'horizontal-tabs-demo',
+        }),
         horizontalTabsDemoTab: 'Foldkit',
-        verticalTabsDemo,
+        verticalTabsDemo: new DemoTabs('verticalTabsDemo', {
+          id: 'vertical-tabs-demo',
+        }),
         verticalTabsDemoTab: 'Foldkit',
-      },
+      }),
 
       update: {
-        ...horizontalTabsDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { horizontalTabsDemoTab: () => value }),
-          }),
-        }),
-
-        ...verticalTabsDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { verticalTabsDemoTab: () => value }),
+        ...DemoTabs.on({
+          Selected: (model, { value }, { id }) => ({
+            model:
+              id === 'horizontalTabsDemo'
+                ? modifyFields(model, { horizontalTabsDemoTab: () => value })
+                : modifyFields(model, { verticalTabsDemoTab: () => value }),
           }),
         }),
       },

@@ -588,26 +588,12 @@ const hasCopyState = (
     state => state._tag === tag && state.requestId === requestId,
   )
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const store = yield* StoreService
     const shadow = yield* ShadowRootService
     const keyValueStore = yield* KeyValueStore.KeyValueStore
     const initialState = yield* InitialStateService
-
-    const inspectorTabs = yield* new InspectorTabs('inspectorTabs', {
-      id: INSPECTOR_TABS_ID,
-    })
-    const blockFilterListbox = yield* new BlockFilterListbox(
-      'blockFilterListbox',
-      { id: BLOCK_FILTER_ID },
-    )
-    const scrubberSlider = yield* new ScrubberSlider('scrubberSlider', {
-      id: SCRUBBER_SLIDER_ID,
-      min: 0,
-      max: initialState.entries.length,
-      step: 1,
-    })
 
     const { isFlattened, ...displayState } = initialState
     const sliderMax = initialState.entries.length
@@ -619,7 +605,7 @@ const ApplicationLive = Application.make(
       : sliderMax
 
     return {
-      model: {
+      init: () => ({
         screen: 'Messages',
         ...displayState,
         isFlattened,
@@ -628,7 +614,9 @@ const ApplicationLive = Application.make(
         isFollowingTop: true,
         blockTags: computeBlockTags(initialState.entries),
         maybeBlockFilter: Option.none(),
-        blockFilterListbox,
+        blockFilterListbox: new BlockFilterListbox('blockFilterListbox', {
+          id: BLOCK_FILTER_ID,
+        }),
         maybeInspectedModel: Option.none(),
         maybeInspectedMessage: Option.none(),
         expandedPaths: HashSet.empty(),
@@ -637,16 +625,21 @@ const ApplicationLive = Application.make(
         copyStates: HashMap.empty(),
         nextCopyRequestId: 0,
         maybePendingScrubIndex: Option.none(),
-        inspectorTabs,
+        inspectorTabs: new InspectorTabs('inspectorTabs', {
+          id: INSPECTOR_TABS_ID,
+        }),
         activeInspectorTab: 'Model',
-        scrubberSlider,
+        scrubberSlider: new ScrubberSlider('scrubberSlider', {
+          id: SCRUBBER_SLIDER_ID,
+          min: 0,
+          max: sliderMax,
+          step: 1,
+        }),
         scrubberValue: Slider.snapAndClamp(initialSliderValue, 0, sliderMax, 1),
-      },
+      }),
 
-      start: Array.filter(
-        [LockScroll()],
-        () => initialState.isOpen && initialState.isMobile,
-      ),
+      start: model =>
+        Array.filter([LockScroll()], () => model.isOpen && model.isMobile),
 
       update: {
         ClickedToggle: model => {
@@ -914,12 +907,12 @@ const ApplicationLive = Application.make(
             ? modifyFields(model, { copyStates: HashMap.remove(targetId) })
             : model,
         }),
-        ...inspectorTabs.on({
+        ...InspectorTabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeInspectorTab: () => value }),
           }),
         }),
-        ...blockFilterListbox.on({
+        ...BlockFilterListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeBlockFilter: () =>
@@ -931,7 +924,7 @@ const ApplicationLive = Application.make(
         // and inspecting the corresponding state is expensive. Keep only the
         // latest host index until TickedScrubFrame flushes one navigation on
         // the next frame.
-        ...scrubberSlider.on({
+        ...ScrubberSlider.on({
           ChangedValue: (model, { value }) => ({
             model: modifyFields(model, {
               scrubberValue: () => value,
@@ -992,20 +985,25 @@ const ApplicationLive = Application.make(
           }),
       },
 
-      stream: Stream.merge(
-        SubscriptionRef.changes(store.stateRef).pipe(
-          Stream.map(state =>
-            Message.ReceivedStoreUpdate(toDisplayState(state)),
-          ),
-        ),
-        Dom.streamFromMediaQuery({
-          query: MOBILE_BREAKPOINT_QUERY,
-          mapMatches: isMobile =>
-            Message.ObservedMobileBreakpoint({ isMobile }),
-        }),
-      ),
-
       subscriptions: {
+        storeUpdates: {
+          dependencies: () => 'storeUpdates',
+          stream: () =>
+            SubscriptionRef.changes(store.stateRef).pipe(
+              Stream.map(state =>
+                Message.ReceivedStoreUpdate(toDisplayState(state)),
+              ),
+            ),
+        },
+        mobileBreakpoint: {
+          dependencies: () => 'mobileBreakpoint',
+          stream: () =>
+            Dom.streamFromMediaQuery({
+              query: MOBILE_BREAKPOINT_QUERY,
+              mapMatches: isMobile =>
+                Message.ObservedMobileBreakpoint({ isMobile }),
+            }),
+        },
         scrubFrameTicks: {
           dependencies: model => Option.isSome(model.maybePendingScrubIndex),
           stream: (isActive: boolean) =>

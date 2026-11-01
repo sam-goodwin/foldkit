@@ -21,10 +21,10 @@ export class TextareaPage extends Block<TextareaPage>()('TextareaPage', {
   Message,
 }) {}
 
-export const TextareaPageLive = TextareaPage.make(
-  Effect.fn(function* () {
+export const TextareaPageLive = TextareaPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { textareaDemoValue: '' },
+      init: () => ({ textareaDemoValue: '' }),
 
       update: {
         UpdatedTextareaDemoValue: (model, { value }) => ({

@@ -21,25 +21,23 @@ export class SortableList extends Block<SortableList>()('SortableList', {
   }),
 }) {}
 
-export const SortableListLive = SortableList.make(
-  Effect.fn(function* () {
-    const dragAndDrop = yield* new DragAndDrop.DragAndDrop('dragAndDrop', {
-      id: 'sortable-list',
-    })
-
+export const SortableListLive = SortableList.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        dragAndDrop,
+      init: () => ({
+        dragAndDrop: new DragAndDrop.DragAndDrop('dragAndDrop', {
+          id: 'sortable-list',
+        }),
         items: [
           { id: '1', label: 'First' },
           { id: '2', label: 'Second' },
           { id: '3', label: 'Third' },
         ],
-      },
+      }),
 
       update: {
         // `Reordered` carries the move so you can apply it to your own list
-        ...dragAndDrop.on({
+        ...DragAndDrop.DragAndDrop.on({
           Reordered: (model, { itemId, fromIndex, toIndex }) => ({
             model: modifyFields(model, {
               items: items => reorder(items, itemId, fromIndex, toIndex),

@@ -45,19 +45,15 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const tabs = yield* new AppTabs('tabs', { id: TABS_ID })
-    const postsTab = yield* new PostsTab('postsTab')
-    const statsTab = yield* new StatsTab('statsTab')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        tabs,
+      init: () => ({
+        tabs: new AppTabs('tabs', { id: TABS_ID }),
         activeTab: 'Posts',
-        postsTab,
-        statsTab,
-      },
+        postsTab: new PostsTab('postsTab'),
+        statsTab: new StatsTab('statsTab'),
+      }),
 
       update: {
         TickedStatsRefreshInterval: model => ({
@@ -66,7 +62,7 @@ export const ApplicationLive = Application.make(
             model.statsTab.send(StatsTab.Message.RequestedRevalidation()),
           ],
         }),
-        ...tabs.on({
+        ...AppTabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeTab: () => value }),
             messages: [loadTab(model, value)],

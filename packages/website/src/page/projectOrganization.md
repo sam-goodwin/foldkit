@@ -51,11 +51,11 @@ Order a Block's file so each declaration comes before its first use:
 3. Command and Mount definitions, which name their result Messages.
 4. The class, which lists the Model, Messages, Commands, and Mounts.
 5. View helpers and the view.
-6. The `Live` Layer, whose constructor yields Services and returns the starting Model, update handlers, Command and Mount handlers, and view.
+6. The `Live` Layer, whose constructor yields Services and returns `init`, update handlers, Command and Mount handlers, and view.
 
 ::Snippet{name="organizationBlockFile" label="Search Block in one file"}
 
-The constructor in `SearchLive` yields the Services its handlers need, here `HttpClient`, and the Command handler closes over them. Update and view stay pure functions of the Model, so they never touch a Service.
+The Layer constructor in `SearchLive` yields the Services its handlers need, here `HttpClient`, and the Command handler closes over them. Update and view stay pure functions of the Model, so they never touch a Service.
 
 Use the standard structural names inside a Block file: `Model`, `Message`, `OutMessage`, and `view`. The class supplies context in parent code, such as `Search.Message.RequestedClear()`. Domain Schemas and individual Commands keep descriptive names such as `Person`, `FetchPeople`, and `FocusSearchInput`.
 
@@ -67,7 +67,7 @@ Name a type alias for a view helper's builder after its owner, such as `SearchVi
 
 ### Commands, Mounts, and Steps
 
-Commands belong to the Block whose update returns them. Never collect every Command in one application-wide file. Declare the Message union first so each Command and Mount definition can name its result Messages, list the definitions under `Command` and `Mount` in the class, and implement each one under `commands` and `mounts` in the constructor.
+Commands belong to the Block whose update returns them. Never collect every Command in one application-wide file. Declare the Message union first so each Command and Mount definition can name its result Messages, list the definitions under `Command` and `Mount` in the class, and implement each one under `commands` and `mounts` in the Layer constructor.
 
 A Step transforms one Block's Model, so it lives in that Block's file. Keep a Step used by one handler beside that handler, and a Step shared by several handlers above the `Live` Layer. Named Steps keep the `Step` suffix. When a pure function serves more than one Block, move it to `domain/`.
 
@@ -75,13 +75,13 @@ A Step transforms one Block's Model, so it lives in that Block's file. Keep a St
 
 When a Block grows too large to read in one file, extract a feature that owns its own state, effects, or lifecycle into a child Block in its own file. Do not slice the parent's responsibilities into sibling files. Markup that only renders the parent's state and sends the parent's Messages stays in the parent's file as view functions.
 
-A parent holds a child instance in its Model. Name the child class in the parent's Model Schema, create the instance in the parent constructor with `yield* new Child('id', args)`, and put it in the starting Model. Name the instance for its role in the parent, and use that name for the Model field and the id:
+A parent holds a child instance in its Model. Name the child class in the parent's Model Schema, and create the instance with `new Child('id', args)` in the Model the parent's `init` returns. Name the instance for its role in the parent, and use that name for the Model field and the id:
 
 ::Snippet{name="organizationChildBlock" label="Dashboard holding a Counter"}
 
-The Dashboard reads the child through its public members. It renders `model.counter.view()`, sends `Counter.Message.RequestedReset()` with `model.counter.send(...)`, and handles `ReachedMax` in `...counter.on({ ... })`. It never writes the Counter's Model.
+The Dashboard reads the child through its public members. It renders `model.counter.view()`, sends `Counter.Message.RequestedReset()` with `model.counter.send(...)`, and handles `ReachedMax` in `...Counter.on({ ... })`. It never writes the Counter's Model.
 
-The parent's Layer provides `CounterLive`, because a Block's Layer must be provided to every parent Layer that creates it. Providing it inside `DashboardLive` lets whoever provides `DashboardLive` stay unaware of Counter. For several children, merge their Layers with `Layer.mergeAll` and provide the result once.
+The parent's Layer provides `CounterLive`, because a Block's Layer must be provided to every parent Layer whose Model holds it. Providing it inside `DashboardLive` lets whoever provides `DashboardLive` stay unaware of Counter. For several children, merge their Layers with `Layer.mergeAll` and provide the result once.
 
 ### Import Direction
 
@@ -97,7 +97,7 @@ Keep shared domain Schemas in leaf modules that import no Block, so two Blocks c
 
 ## Root Application
 
-The root is an ordinary Block named `Application` in `application.ts`. Its constructor creates the root's children, and its Layer provides their merged Layers:
+The root is an ordinary Block named `Application` in `application.ts`. Its `init` creates the root's children, and its Layer provides their merged Layers:
 
 ::Snippet{name="applicationRegistrations" label="Root child graph"}
 
@@ -105,13 +105,13 @@ The root is an ordinary Block named `Application` in `application.ts`. Its const
 
 ::Snippet{name="applicationEntryPoint" label="Browser application entry point"}
 
-Keep container lookup, routing Messages, Flags, and DevTools configuration visible in `entry.ts`. A root whose constructor receives `{ url }` takes `routing` here; one that receives `{ flags }` takes a `Flags` Schema. See [Routing and Navigation](/core/routing-and-navigation) for the routed root.
+Keep container lookup, routing Messages, Flags, and DevTools configuration visible in `entry.ts`. A root whose args are `{ url }` takes `routing` here; one that receives `{ flags }` takes a `Flags` Schema. See [Routing and Navigation](/core/routing-and-navigation) for the routed root.
 
 The root's Subscriptions, Flags Schema, and Commands live in `application.ts` with the rest of the root Block. Move `ApplicationRoute` to `route.ts` once a page Block needs it too.
 
 ### Ordinary Service Providers {#composing-handler-layers}
 
-A Block constructor yields ordinary Effect Services such as an HTTP client, storage, or an RPC client, and its Command handlers close over them. Root `services.ts` chooses the concrete providers and exports `ApplicationLayer`, with a test alternative `ApplicationTestLayer`:
+A Block's Layer constructor yields ordinary Effect Services such as an HTTP client, storage, or an RPC client, and its Command handlers close over them. Root `services.ts` chooses the concrete providers and exports `ApplicationLayer`, with a test alternative `ApplicationTestLayer`:
 
 ::Snippet{name="applicationRootLayer" label="Root service Layer composition"}
 
@@ -123,7 +123,7 @@ Effect represents each required Service in an Effect's requirements type and use
 
 ### Test Beside the Owning Block
 
-Put tests beside the Block they exercise and name them for it: `search.story.test.ts` drives the Search Block's update and `search.scene.test.ts` drives its view. Both take the Block's `Live` Layer, with the Services its constructor yields provided by a test Layer. The root's tests are `story.test.ts` and `scene.test.ts` beside `application.ts`.
+Put tests beside the Block they exercise and name them for it: `search.story.test.ts` drives the Search Block's update and `search.scene.test.ts` drives its view. Both take the Block's `Live` Layer, with the Services its Layer constructor yields provided by a test Layer. The root's tests are `story.test.ts` and `scene.test.ts` beside `application.ts`.
 
 Test rendering, interactions, Commands, and OutMessages in the Block that owns them. Test at the parent when the behavior is the parent's: what it sends a child, or how it reacts to a child's OutMessage.
 

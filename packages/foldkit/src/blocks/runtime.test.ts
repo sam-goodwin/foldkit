@@ -71,20 +71,35 @@ class Widget extends Block<Widget>()('Widget', {
   Command: [ReportCount],
 }) {}
 
-const releasedWidgets: Array<string> = []
+const widgetEvents: Array<string> = []
 
-const WidgetLive = Widget.make(
-  Effect.fn(function* (id) {
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => {
-        releasedWidgets.push(id)
-      }),
-    )
+const WidgetLive = Widget.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
-      stream: Port.stream(ports.inbound.stepChanged).pipe(
-        Stream.map(step => Widget.Message.ReceivedStep({ step })),
-      ),
+      init: () => ({ count: 0 }),
+      subscriptions: {
+        steps: {
+          dependencies: () => 'steps',
+          stream: () =>
+            Stream.unwrap(
+              Effect.acquireRelease(
+                Effect.sync(() => {
+                  widgetEvents.push('acquired')
+                }),
+                () =>
+                  Effect.sync(() => {
+                    widgetEvents.push('released')
+                  }),
+              ).pipe(
+                Effect.as(
+                  Port.stream(ports.inbound.stepChanged).pipe(
+                    Stream.map(step => Widget.Message.ReceivedStep({ step })),
+                  ),
+                ),
+              ),
+            ),
+        },
+      },
       update: {
         ReceivedStep: (model, { step }) => {
           const count = model.count + step
@@ -104,8 +119,8 @@ const WidgetLive = Widget.make(
 )
 
 describe('Runtime.embed with a Block program', () => {
-  it('connects Ports, closes instances on dispose, and embeds again', async () => {
-    releasedWidgets.length = 0
+  it('connects Ports, releases what Subscriptions hold on dispose, and embeds again', async () => {
+    widgetEvents.length = 0
     const container = mountContainer('widget')
     const program = makeElement(Widget, {
       container,
@@ -124,7 +139,9 @@ describe('Runtime.embed with a Block program', () => {
     await vi.waitFor(() => expect(reported).toEqual([5]))
 
     handle.dispose()
-    await vi.waitFor(() => expect(releasedWidgets).toEqual(['Widget']))
+    await vi.waitFor(() =>
+      expect(widgetEvents).toEqual(['acquired', 'released']),
+    )
 
     const second = embed(program)
     second.ports.stepChanged.send('2')
@@ -132,7 +149,12 @@ describe('Runtime.embed with a Block program', () => {
 
     second.dispose()
     await vi.waitFor(() =>
-      expect(releasedWidgets).toEqual(['Widget', 'Widget']),
+      expect(widgetEvents).toEqual([
+        'acquired',
+        'released',
+        'acquired',
+        'released',
+      ]),
     )
   })
 })
@@ -142,21 +164,23 @@ describe('Runtime.embed with a Block program', () => {
 const CounterMessage = defineMessageUnion({ ClickedIncrement: {} })
 
 class Counter extends Block<Counter>()('Counter', {
-  Model: Schema.Struct({ count: Schema.Number }),
+  Model: Schema.Struct({ counterId: Schema.String, count: Schema.Number }),
   Message: CounterMessage,
 }) {}
 
-const CounterLive = Counter.make(
-  Effect.fn(function* (id) {
+const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: (_, { id }) => ({ counterId: id, count: 0 }),
       update: {
-        ClickedIncrement: model => ({ model: { count: model.count + 1 } }),
+        ClickedIncrement: model => ({
+          model: { ...model, count: model.count + 1 },
+        }),
       },
       view: (model, h) =>
         h.button(
           [
-            h.Id(`counter-${id}`),
+            h.Id(`counter-${model.counterId}`),
             h.OnClick(Counter.Message.ClickedIncrement()),
           ],
           [`${model.count}`],
@@ -187,30 +211,26 @@ class Board extends Block<Board>()('Board', {
 
 const loadRuns: Array<number> = []
 
-const BoardLive = Board.make(
-  Effect.fn(function* () {
-    const home = yield* new Counter('home')
-    const bonus = yield* new Counter('bonus')
-    const row = yield* Counter.each('rows')
-
+const BoardLive = Board.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         openedAt: new Date('2026-10-29T00:00:00.000Z'),
         loads: 0,
-        home,
+        home: new Counter('home'),
         rows: [],
         maybeBonus: Option.none(),
-      },
-      start: [Load()],
+      }),
+      start: () => [Load()],
       update: {
         ClickedAddRow: model => ({
           model: {
             ...model,
-            rows: [...model.rows, row(`row-${model.rows.length}`)],
+            rows: [...model.rows, new Counter(`row-${model.rows.length}`)],
           },
         }),
         ClickedShowBonus: model => ({
-          model: { ...model, maybeBonus: Option.some(bonus) },
+          model: { ...model, maybeBonus: Option.some(new Counter('bonus')) },
         }),
         CompletedLoad: model => ({
           model: { ...model, loads: model.loads + 1 },
@@ -287,7 +307,7 @@ const preserveBoard = async (): Promise<unknown> => {
 }
 
 describe('Block program Model preservation', () => {
-  it('restores child instances, collections, and optional children without rerunning init', async () => {
+  it('restores child instances, collections, and optional children without rerunning start Commands', async () => {
     loadRuns.length = 0
     const wire = await preserveBoard()
     expect(loadRuns).toHaveLength(1)
@@ -316,12 +336,17 @@ describe('Block program Model preservation', () => {
     }
   })
 
-  it('initializes fresh when the preserved Model holds an instance the current Blocks do not create', async () => {
+  it('initializes fresh when a preserved child Model no longer decodes', async () => {
     loadRuns.length = 0
     const wire = await preserveBoard()
+    const encoded = JSON.stringify(wire)
     const stale = JSON.parse(
-      JSON.stringify(wire).replaceAll('"rows","row-1"', '"ghosts","row-1"'),
+      encoded.replaceAll(
+        '"counterId":"row-1","count":1',
+        '"counterId":"row-1","count":"one"',
+      ),
     )
+    expect(JSON.stringify(stale)).not.toBe(encoded)
 
     vi.mocked(ModelPreservationBridge.resolvePreservedModel).mockReturnValue(
       Effect.succeed(stale),

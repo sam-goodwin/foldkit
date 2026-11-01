@@ -6,7 +6,7 @@ VirtualList renders large lists by mounting only items inside the viewport plus 
 
 VirtualList supports fixed, known-variable, and measured row heights. Logical scroll targets can address an index, stable item key, pixel offset, or the end. End following and stable-key anchoring cover chat, logs, and reverse infinite feeds while keeping DOM and visual row order aligned.
 
-Call `VirtualList.makeBlock<Item>()` once at module scope. It returns a Block class typed for your items, with its Layer attached as `Live`. Create an instance in the parent's constructor, hold it in the parent Model, and provide the class's `Live` to the parent's Layer. Each scrolling and notification helper below returns a Message the parent sends to the instance, as in `messages: [model.activityList.send(VirtualList.requestScrollToIndex(500))]`.
+Call `VirtualList.makeBlock<Item>()` once at module scope. It returns a Block class typed for your items, with its Layer attached as `Live`. Create an instance with `new` in the parent's `init`, hold it in the parent Model, and provide the class's `Live` to the parent's Layer. Each scrolling and notification helper below returns a Message the parent sends to the instance, as in `messages: [model.activityList.send(VirtualList.requestScrollToIndex(500))]`.
 
 :::Info{label="See it in an app"}
 Check out how VirtualList is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/virtualListPage.ts).
@@ -129,7 +129,7 @@ The Mount also supplies the live list and its selected scroll owner to scroll Co
 
 ### Handle observations
 
-The Mount reports the scroll position and container dimensions as VirtualList Messages, which go to the VirtualList instance. VirtualList reports what the parent may need through the `ObservedContainerScroll`, `ApproachedLoadedStart`, and `EndedContainerScroll` OutMessages. Handle the ones you need with `...list.on({ ... })`.
+The Mount reports the scroll position and container dimensions as VirtualList Messages, which go to the VirtualList instance. VirtualList reports what the parent may need through the `ObservedContainerScroll`, `ApproachedLoadedStart`, and `EndedContainerScroll` OutMessages. Handle the ones you need by spreading the class's `.on({ ... })`, such as `...ActivityList.on({ ... })`.
 
 ## Styling
 
@@ -199,7 +199,7 @@ Pass these fields to the instance's `view`, as in `model.activityList.view({ ...
 
 ### History loading
 
-The `ApproachedLoadedStart` OutMessage includes `distanceToLoadedStartPx` and `containerHeight`. Handle it with the instance's `.on` and return a parent-owned fetch Command when a page is needed. Send `VirtualList.informHistoryPrepended(...)` to the instance from the update that puts fetched rows in the parent Model. Pass `{ items, prependedItems, itemToKey, page }`, using the same stable key function as the view. Pass `HistoryPage.Complete()` on the last page so the real beginning becomes reachable.
+The `ApproachedLoadedStart` OutMessage includes `distanceToLoadedStartPx` and `containerHeight`. Handle it with the class's `.on` and return a parent-owned fetch Command when a page is needed. Send `VirtualList.informHistoryPrepended(...)` to the instance from the update that puts fetched rows in the parent Model. Pass `{ items, prependedItems, itemToKey, page }`, using the same stable key function as the view. Pass `HistoryPage.Complete()` on the last page so the real beginning becomes reachable.
 
 ### ScrollTarget {#scroll-target}
 

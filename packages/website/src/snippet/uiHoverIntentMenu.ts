@@ -17,12 +17,10 @@ export class HoverMenu extends Block<HoverMenu>()('HoverMenu', {
   Message,
 }) {}
 
-export const HoverMenuLive = HoverMenu.make(
-  Effect.fn(function* () {
-    const hoverMenu = yield* new HoverIntent.HoverIntent('hoverMenu', {})
-
+export const HoverMenuLive = HoverMenu.layer(
+  Effect.gen(function* () {
     return {
-      model: { hoverMenu },
+      init: () => ({ hoverMenu: new HoverIntent.HoverIntent('hoverMenu', {}) }),
 
       update: {
         // Close the menu immediately when any item is clicked

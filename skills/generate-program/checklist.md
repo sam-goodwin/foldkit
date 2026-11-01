@@ -29,14 +29,16 @@ Among others, the plugin enforces keyed mapped rows, hard-coded route strings, e
 Each hit is either a fix or a `// NOTE:` justification. Silent hits aren't allowed.
 
 ```bash
-# Stale Block API. These identifiers belong to Foldkit's earlier Block
-# authoring API and do not exist in a release with class Blocks. Any hit in
+# Stale Block API. These identifiers belong to earlier Foldkit Block
+# authoring APIs and do not exist in the installed release. Any hit in
 # generated code is a BLOCKER: rewrite it as a class Block (`class X extends
-# Block<...>()('X', {...})` plus `XLive = X.make(...)`), children via
-# `yield* new Child(...)` / `Child.each(...)`, OutMessages via `.on`, parent
-# requests via `send`, child views via `model.child.view()`, Commands via
-# `Command.define` with handlers under `commands`, and
-# `Program.make(Application, { layer })`.
+# Block<...>()('X', {...})` plus `XLive = X.layer(Effect.gen(...))` returning
+# `{ init, start?, update, commands?, mounts?, subscriptions?, view }`),
+# children as `new Child(id, args)` values in the Model, OutMessages via
+# `Child.on`, parent requests via `send`, child views via
+# `model.child.view()`, Commands via `Command.define` with handlers under
+# `commands`, and `Program.make(Application, { layer })`.
+grep -rnE '\.make\(\s*Effect\.fn|yield\* new [A-Z]|\.each\(|NotConnected|Block\.Path|^\s+expose:|\.use\.pipe' src
 grep -rnE 'makeDefinition|makeComposition|prepareBlock|Block\.assemble|FromAssembly|makeNamespace|makeBinding|makeMapBinding|makeVariantBinding|withOutMessagePolicy|makeOutMessageFold|makeOutMessageForward|make(Fields|Commands|OutMessage|Noop)?Step\b|makeInit\b|makeUpdate\b|makeView\b|ViewBuilderFor|EffectsLayer|makeSubscriptions|makeManagedResources|makeResource\b|embedView|h\.block\(|toParentMessage|bindingInit|ChildInitContext|replaceEffectsLayer|provideHandlers|program\.provide\(' src
 
 # Stale test API. story and scene take a Block's Layer, not an update function
@@ -53,9 +55,9 @@ grep -rnE "^\s+[a-zA-Z]+: (Schema\.(Option|Array)\()?[A-Z][A-Za-z]*\.Model\b" sr
 # values is fine.
 grep -rnE "Schema\.(HashMap|HashSet)\(" src/
 
-# Async work in a constructor. Constructors are synchronous; data loads go in
-# a `start` Command. Read each hit in a `.make(` constructor body (not inside
-# a `commands` handler or a Stream).
+# Async work in a Layer constructor or `init`. Data loads go in a `start`
+# Command. Read each hit in a `.layer(` constructor body or `init` (not inside
+# a `commands` handler or a Subscription Stream).
 grep -rnE "Effect\.(promise|tryPromise|sleep)\(|fetch\(" src/
 
 # A parent rewriting a child's state, or a spread Model. A parent changes a
@@ -180,7 +182,7 @@ Alongside the greps, eyeball each file's imports. Every symbol you imported shou
 ## Structural completeness
 
 - [ ] Every Message variant is declared once in `defineMessageUnion()`, and every Block's `update` record has a handler for each of its tags.
-- [ ] Every child OutMessage the parent cares about has an `.on` handler, and each handler names its variant.
+- [ ] Every child OutMessage the parent cares about has a handler in the parent's single `Child.on` or `Child.onAll` entry for that Block, and each handler names its variant.
 - [ ] Every Command and Mount listed on a class has a handler under `commands` / `mounts`, and every result Message has an update handler.
 - [ ] Independent workflows have independent pending/error state. Retained editors survive repeated URL delivery and refresh; removed instances end their lifecycle deliberately. Mutation results preserve unrelated newer data.
 - [ ] Every route variant has a corresponding view branch.
@@ -192,24 +194,25 @@ Alongside the greps, eyeball each file's imports. Every symbol you imported shou
 
 - [ ] Each Block is a class named for its feature (`Search`, `Application`) with a matching string id, and its Layer is `SearchLive` / `ApplicationLive`. A generic UI factory's result is named once at module scope and provided through `.Live`.
 - [ ] Messages, OutMessages, Commands, and Mounts are declared at module level, before the class, and listed on it.
-- [ ] Each constructor is an `Effect.fn` that yields Services and declares children, returns the starting Model synchronously, and lists startup work under `start`. No async work in the constructor body.
-- [ ] Constructor args replace init arguments. The root's args are `{ url }` with routing, `{ flags }` with Flags, both, or none.
-- [ ] Child instances live in the parent Model, with the child class as the field Schema (`search: Search`, `Schema.Option(Dialog)`, `Schema.Array(Row)`, `Schema.Record(Schema.String, Editor)`, or a tagged variant field). Never HashMap, HashSet, or a class instance.
-- [ ] Instance ids are unique within the parent. Keyed instances come from one `each` factory per collection and use a stable domain key, never an array index or a generated value that changes on re-render.
-- [ ] A parent changes a child only through `send` under `messages`, reads it through `model.child.model`, and handles its facts through `.on`. It never rewrites a child's fields.
+- [ ] Each Layer is `XLive = X.layer(Effect.gen(...))`, directly after the class. Its constructor yields Services and returns the shared module: `init` builds the starting Model synchronously from args, and `start` returns startup Commands. No async work in the constructor or `init`.
+- [ ] The constructor holds no per-instance state. Every arg and id the Block needs after `init` is stored in the Model, and Commands receive per-instance values as Command args.
+- [ ] The root's args are `{ url }` with routing, `{ flags }` with Flags, both, or none.
+- [ ] Child instances are created with `new Child(id, args)` and live in the parent Model, with the child class as the field Schema (`search: Search`, `Schema.Option(Dialog)`, `Schema.Array(Row)`, `Schema.Record(Schema.String, Editor)`, or a tagged variant field). Never HashMap, HashSet, or a class instance.
+- [ ] Instance ids are unique among one parent's children, across all of its Model fields. Collection instances use a stable domain id, never an array index or a generated value that changes on re-render.
+- [ ] A parent changes a child only through `send` under `messages`, reads it through `model.child.model`, and handles its facts through `Child.on`, branching on `instance.id` when instances need different handling. It never rewrites a child's fields.
 - [ ] A child rendered with callbacks declares its view input as the third type parameter; attributes it builds for the parent use `childAttributes(...)`.
-- [ ] A stateful handle (socket, camera, library instance) is a child Block that acquires it with `Effect.acquireRelease` in its constructor and `expose`s it; the parent holds the child in an `Option` field while the handle should exist, and parent Commands read it with `instance.use`, mapping `NotConnected` to a Message.
+- [ ] A stateful resource for one instance (socket, camera, library instance) is acquired by a Subscription when only its Stream reads it, or lives in an `RcMap` created once in the Layer constructor and keyed by a value in the Model when Commands use it too. Its lifetime follows the instance's presence in the Model.
 - [ ] `entry.ts` calls `Program.make(Application, { layer, container, routing?, Flags?, devTools })` (or `Program.makeElement`) and `Runtime.run(program)`. With Flags, `Runtime.run(program, { flags })` provides the Effect's Services.
-- [ ] `layer` provides the root Live Layer, every child Block's Live Layer (to each parent that creates it, or inside the child's own Live), and `ApplicationLayer` of ordinary Services.
-- [ ] Constructor-yielded Services are execution infrastructure. Handlers close over them and capture no Command args, current time, Subscription dependencies, or DOM elements in the constructor.
-- [ ] Mutable handler or Service state is execution bookkeeping only. The Model and update own pending work shown to the user, selections, and submission rules. A `Ref` created in the constructor is never the source of truth for workflow decisions or state read by view.
+- [ ] `layer` provides the root Live Layer, every child Block's Live Layer (to each parent whose Model holds it, or inside the child's own Live), and `ApplicationLayer` of ordinary Services.
+- [ ] Services yielded in the Layer constructor are execution infrastructure shared by every instance. Handlers close over them and capture no Command args, current time, Subscription dependencies, or DOM elements in the constructor.
+- [ ] Mutable handler or Service state is execution bookkeeping only. The Model and update own pending work shown to the user, selections, and submission rules. A `Ref` created in the Layer constructor is never the source of truth for workflow decisions or state read by view.
 - [ ] External DevTools dispatch uses `devTools: { dispatch: true }`. Omitting `devTools` keeps inspection with dispatch disabled; `devTools: false` disables DevTools entirely.
 
 ## Purity
 
 - [ ] update handlers have no side effects (no DOM, no randomness, no I/O)
 - [ ] view functions have no side effects
-- [ ] constructors do no asynchronous work and read no clock, storage, or randomness (Flags and `start` Commands do)
+- [ ] Layer constructors and `init` do no asynchronous work and read no clock, storage, or randomness (Flags and `start` Commands do)
 - [ ] No `let` declarations anywhere
 - [ ] No mutation (`.push()`, `.splice()`, object mutation)
 - [ ] No `Effect.runSync` / `Effect.runPromise` outside of Commands
@@ -219,19 +222,20 @@ Alongside the greps, eyeball each file's imports. Every symbol you imported shou
 - [ ] Every Command is defined at module level with `Command.define(name, { args?, messages })`, assigned to a PascalCase constant, and listed on its Block's `Command: [...]`
 - [ ] No inline Command definitions in pipe chains
 - [ ] Definitions are declared in the file of the Block whose update returns them
-- [ ] Handlers live under the constructor's `commands`, close over constructor-yielded Services, and return Effects with no remaining requirements
+- [ ] Handlers live under the module's `commands`, close over Services yielded in the Layer constructor, and return Effects with no remaining requirements
 - [ ] Every _fallible_ Command catches its errors: `Effect.catch(() => Effect.succeed(Message.FailedX(...)))`. Infallible Effects need no catch and no `Failed*` Message. UUID generation via `Crypto.Crypto` uses `Effect.orDie`; a crypto failure is a defect, not a domain error
 - [ ] Return types inferred. No explicit annotations on definitions
 - [ ] Commands that can't meaningfully fail return `Completed*` Messages, payload-carrying ones included
-- [ ] Command args carry values already in the Model or Message; time, randomness, and UUIDs are read inside the handler
+- [ ] Command args carry values already in the Model or Message, including per-instance values such as an id; time, randomness, and UUIDs are read inside the handler
 
-## Mount, Command, Stream, Subscription, exposed handle, CustomElement: pick by what causes the side effect
+## Command, start Command, Mount, Subscription, per-instance resource, CustomElement: pick by what causes the side effect
 
 - [ ] **One-time effect after a Message dispatched** → Command. Focus-on-open, navigation, network, storage, analytics, and scroll lock paired with a modal opening or closing belong in update's return, not in `OnMount`.
 - [ ] **Per-element lifecycle where the live `Element` is needed** → Mount. Measuring a panel with `element.getBoundingClientRect()`, anchor positioning, backdrop portaling, attaching observers or listeners to a specific element, and third-party library instantiation share this shape. `Mount.define(name, { args?, messages })` for one-shot work, `Mount.defineStream` for continuous events; list it under `Mount: [...]`, implement it under `mounts`, attach it with `h.OnMount(X(args))`.
-- [ ] **External event source for the instance's whole life** → `stream`. Global key bindings, a clock that always runs.
+- [ ] **Startup work when an instance appears in the Model** → a `start` Command, `start: (model, args) => [LoadX(...)]`.
+- [ ] **External event source for the instance's whole life** → a `subscriptions` entry whose `dependencies` never change (`() => null`, or an id from the Model when the Stream needs it). Global key bindings, a clock that always runs.
 - [ ] **External event source gated by Model state** → a `subscriptions` entry whose `dependencies` extract exactly what the Stream needs and whose `stream` returns `Stream.empty` when the condition is off.
-- [ ] **Stateful runtime object** (WebSocket, camera stream, library instance) that Commands use → a child Block that acquires it in its constructor and exposes it. There must be a handle for Commands to use.
+- [ ] **Stateful runtime object for one instance** (WebSocket, camera stream, library instance) → a Subscription that acquires it, or an `RcMap` keyed service when Commands use it too. There must be a key in the Model for Commands to reach it.
 - [ ] **Native web component** (anything that speaks typed JS properties, observed attributes, and dispatched `CustomEvent`s) → `CustomElement.define({ tag, properties, events })` after a side-effect import that registers the element.
 
 ### Two practical rules for Mount (both must hold)
@@ -246,7 +250,7 @@ Alongside the greps, eyeball each file's imports. Every symbol you imported shou
 ### Smell check
 
 - [ ] **Don't reach for Mount just because the work coincides with an element appearing.** If a Message just dispatched (`Opened*`, `Submitted*`), the cause is the Message. Focusing a search input when its dialog opens is a `FocusInput` Command returned from the `Opened` handler.
-- [ ] **`Effect.acquireRelease` construction lives INSIDE the acquire body.** If the acquire body reads as `Effect.sync(() => alreadyExistingValue)`, the construction happened earlier and the release is dangling. Applies to constructors, Mount handlers, and Stream bodies.
+- [ ] **`Effect.acquireRelease` construction lives INSIDE the acquire body.** If the acquire body reads as `Effect.sync(() => alreadyExistingValue)`, the construction happened earlier and the release is dangling. Applies to `RcMap` lookups, Mount handlers, and Subscription Streams.
 
 ### Naming
 
@@ -280,13 +284,13 @@ Alongside the greps, eyeball each file's imports. Every symbol you imported shou
 
 Foldkit ships these; reaching past them is a finding, not a style choice.
 
-- [ ] `update` is a record with one handler per tag, not a `Message.match` or `switch` inside one function. The record stays in the Block's constructor; a Block too large to read in one file extracts a feature that owns its own state, effects, or lifecycle into a child Block, and keeps render-only markup as view functions.
+- [ ] `update` is a record with one handler per tag, not a `Message.match` or `switch` inside one function. The record stays in the Block's Layer; a Block too large to read in one file extracts a feature that owns its own state, effects, or lifecycle into a child Block, and keeps render-only markup as view functions.
 - [ ] Handlers omit `commands`, `outMessage`, and `messages` when they statically produce none, return computed collections directly, and never write `commands: []`.
 - [ ] Update-like results from helpers are bound to values named after their operations and consumed with dot access, not destructured or renamed.
 - [ ] An OutMessage that is already known is included directly in a new result. `Update.withOutMessage` is used for an existing result or a value of type `OutMessage | undefined`.
 - [ ] Two-or-more-Step post-mutation handlers use `Update.combineSteps(model, [...])` and `Update.refresh({ read, revalidate, write, load })` rather than hand-threaded `modifyFields` chains and conditional Command arrays. One Step is not wrapped in `Update.combineSteps`, and an inline Step parameter is named `stepModel`.
 - [ ] A child's Commands are never mapped or re-issued by the parent; the child's own `commands` handle them and their results return to the child.
-- [ ] HTTP uses `HttpClient` from `effect/http`, yielded in the constructor, with `Http.layer` from `foldkit` provided in `ApplicationLayer`.
+- [ ] HTTP uses `HttpClient` from `effect/http`, yielded in the Layer constructor, with `Http.layer` from `foldkit` provided in `ApplicationLayer`.
 - [ ] UI components are imported from `@foldkit/ui` by name. There is no `Ui` namespace on `foldkit`.
 
 ## Effect-TS patterns
@@ -312,8 +316,8 @@ Foldkit ships these; reaching past them is a finding, not a style choice.
 
 - [ ] Foldkit UI components used where the interaction matches (Dialog, Tabs, Menu, Combobox, DatePicker, FileDrop, Toast, Tooltip, DragAndDrop, etc.). Never hand-roll accessible widgets
 - [ ] **Form inputs use `Input.view`, `Textarea.view`, `Button.view` from `@foldkit/ui`.** Hand-rolled `input`/`textarea`/`button` elements in a form are a fail unless the file has a NOTE explaining why the component couldn't be used.
-- [ ] Each stateful component is a child instance: declared with `yield* new Dialog.Dialog(id, args)` (or a named `makeBlock` result), stored in the Model with the class as its field Schema, driven by sent Messages, handled with `.on`, rendered with `model.x.view({ ... })`, and its Live Layer provided. Stateless render helpers (`Button`, `Input`, `Textarea`, `Select`, `Fieldset`, `Checkbox`, `Switch`, `Disclosure`, `Nav`) are called directly in view with your `h`; the controlled ones take the current value from the parent Model, which stores the new value on toggle
-- [ ] Only the components you construct have their Layers provided; components that depend on others (Dialog on Animation, DatePicker on Calendar and Popover) already provide them
+- [ ] Each stateful component is a child instance: created with `new Dialog.Dialog(id, args)` (or a named `makeBlock` result), stored in the Model with the class as its field Schema, driven by sent Messages, handled with `Dialog.Dialog.on`, rendered with `model.x.view({ ... })`, and its Live Layer provided. Stateless render helpers (`Button`, `Input`, `Textarea`, `Select`, `Fieldset`, `Checkbox`, `Switch`, `Disclosure`, `Nav`) are called directly in view with your `h`; the controlled ones take the current value from the parent Model, which stores the new value on toggle
+- [ ] Only the components your Models hold have their Layers provided; components that depend on others (Dialog on Animation, DatePicker on Calendar and Popover) already provide them
 - [ ] No custom keyboard navigation or ARIA attributes for patterns covered by Foldkit UI components
 
 ### Mechanical check: no hand-rolling
@@ -339,8 +343,8 @@ The rule: **if the interaction pattern appears in the `@foldkit/ui` component ta
 
 **A NOTE is not a free pass.** Before writing one, read the component's `.d.ts` and confirm the concern is real. Common false justifications:
 
-- _"Using the component would require a per-row instance and duplicate state"_: first check whether the component is stateful. `Checkbox`, `Switch`, and `Disclosure` are controlled render helpers with no child Model. For stateful components, the component Model holds UI state (focus, open/closed, typeahead buffer), not your domain value, so holding it is not duplication. A keyed collection uses one `each` factory.
-- _"The component is too hard to wire"_: a child is one `yield* new Child(...)`, one Model field, and one provided Layer.
+- _"Using the component would require a per-row instance and duplicate state"_: first check whether the component is stateful. `Checkbox`, `Switch`, and `Disclosure` are controlled render helpers with no child Model. For stateful components, the component Model holds UI state (focus, open/closed, typeahead buffer), not your domain value, so holding it is not duplication. A collection holds one instance per item, each created with `new Child(item.id, args)`.
+- _"The component is too hard to wire"_: a child is one `new Child(...)` in `init`, one Model field, and one provided Layer.
 - _"The interaction is too custom for the component"_: check the `toView` view input. It lets you render whatever HTML you want inside the component's attribute scaffolding. Custom visuals are fine; custom a11y is never needed.
 
 Reviewers should challenge every NOTE: "Is this justification true? What does the `.d.ts` say?"
@@ -399,13 +403,13 @@ Each confirmed miss is a concrete a11y bug a screen reader user would hit.
 
 - [ ] Tests import `describe`, `expect`, `it` from `@effect/vitest` and wrap each case in `it.effect(() => story(...))`; `@effect/vitest` is in devDependencies
 - [ ] `story.test.ts` exists (sibling pages or component variants use a subject prefix: `login.story.test.ts`), beside the code under test
-- [ ] `story` receives a Block's Layer, with child Layers attached through `Layer.provide`, constructor args after the Layer when the Block takes them, and constructor Services supplied with `.pipe(Effect.provide(TestLayer))`
+- [ ] `story` receives a Block's Layer, with child Layers attached through `Layer.provide`, the root's args after the Layer when the Block takes them, and Layer constructor Services supplied with `.pipe(Effect.provide(TestLayer))`
 - [ ] Every fallible Command (`Succeeded*`/`Failed*` pair) tested for both outcomes
 - [ ] At least one multi-step test that chains Messages and Command resolutions
 - [ ] Child Block tests assert OutMessages with `expectOutMessage` / `expectNoOutMessage`
 - [ ] Commands are asserted with `Command.expectHas` / `expectExact` / `expectNone` and resolved with `Command.resolve(Definition, resultMessage)`; Command Effects are never run directly in a Story
-- [ ] Child Messages, including Stream and Subscription emissions, are delivered with `message(Block.deliver(Child, path, Child.Message.X()))`
-- [ ] `given` sets state but never adds or removes instances; tests that need a new instance send the Message that creates it
+- [ ] Child Messages, including Subscription emissions, are delivered with `message(Block.deliver(Child, path, Child.Message.X()))`, where `path` is the instance's ids from the root (`'row-1'`, or `['search', 'listbox']` for a nested instance)
+- [ ] `given` sets state and may hold `new Child(...)` values to add instances; a test of the parent's own creation logic sends the Message that creates the instance
 - [ ] Whole-application execution tests keep the production Layers and replace Service providers at the lowest boundary the test does not need to exercise
 - [ ] The TypeScript project includes `*.test.ts`, so Story and Scene API changes fail during the normal typecheck
 - [ ] All tests pass with the project's test script
@@ -489,19 +493,19 @@ Items without a tier marker apply universally (even to a 50-line counter). When 
 - [ ] Message unions have `type Message = typeof Message.Type` immediately below the Schema, with no blank line. Constructors stay on the owning namespace; when an extracted handler needs a variant type, declare an alias beside the union, such as `type ClickedSave = typeof Message.ClickedSave.Type`.
 - [ ] [T5+] A child's OutMessage union is declared in the child's file beside its Message union.
 
-## Streams and Subscriptions [T2+]
+## Subscriptions [T2+]
 
-- [ ] An always-on source is the Block's `stream`; a Model-gated source is a named `subscriptions` entry. A child's sources stop when the child leaves the Model, so a parent gates a whole child by removing it.
+- [ ] Every external event source is a named `subscriptions` entry. An always-on source has dependencies that never change; a Model-gated source derives them from the Model. A child's Subscriptions stop when the child leaves the Model, so a parent gates a whole child by removing it.
 - [ ] `dependencies` extracts exactly the data the Stream needs, not the whole Model, and the Stream returns `Stream.empty` when its condition is off.
 - [ ] Message mapping happens inside the Stream (`Stream.map(event => Message.UpdatedX({ data: event }))`), not scattered through update. Stream errors become `Failed*` Messages inside the Stream.
 - [ ] Entries are named for the events they supply (`keyboardPresses`, `stopwatchTicks`), not `watch*`.
-- [ ] Substantial Stream implementations are extracted into named functions in the Block's file, above the `Live` Layer.
+- [ ] Substantial Stream implementations are extracted into named functions in the Block's file, below the `Live` Layer.
 
-## Exposed handles [T7]
+## Per-instance resources [T7]
 
-- [ ] A stateful handle is acquired inside the child's constructor with `Effect.acquireRelease`, constructing the resource inside the acquire Effect.
-- [ ] The parent holds the child in an `Option` field exactly while the handle should exist; removing it releases the handle.
-- [ ] Parent Commands read the handle with `instance.use` and map `NotConnected` to a result Message. No handle is stored in a Ref, Service, or module variable.
+- [ ] A resource that only a Stream reads is acquired by a Subscription with `Effect.acquireRelease` or `Stream.acquireRelease`, constructing the resource inside the acquire Effect.
+- [ ] A resource Commands also use lives in an `RcMap` created once in the Layer constructor. Its key is stored in the Model, a Subscription holds the key's reference while the instance is in the Model, and Commands receive the key as a Command arg and borrow the resource with `RcMap.get` inside `Effect.scoped`.
+- [ ] The resource exists exactly while its instance is in the Model; removing the instance releases it. No handle is stored in a Ref, a module variable, or a plain Layer constructor variable shared by every instance.
 
 ## Testing quality
 

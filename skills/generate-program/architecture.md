@@ -24,10 +24,10 @@ Model    Commands                                                |
   +-> view -> Browser -> user events ----------------------------+
   |       +-> Mounts -> Runtime ---------------------------------+
   |                                                              |
-  +-> stream / subscriptions -> Stream<Message> -> Runtime ------+
+  +-> subscriptions -> Stream<Message> -> Runtime ---------------+
 ```
 
-Commands are one-shot effects. Mounts do work while a rendered element exists and report Messages. `stream` and `subscriptions` are Streams of Messages; a Subscription restarts when the Model-derived dependencies it reads change. The browser sends Messages when the user interacts with the DOM.
+Commands are one-shot effects. Mounts do work while a rendered element exists and report Messages. `subscriptions` are Streams of Messages; a Subscription runs while its Block instance is in the Model and restarts when the Model-derived dependencies it reads change. The browser sends Messages when the user interacts with the DOM.
 
 There are no escape hatches:
 
@@ -35,11 +35,11 @@ There are no escape hatches:
 - **Messages** are facts about what happened: past-tense, never imperative
 - **update** handlers are pure functions of the Model and one Message
 - **view** is a pure function: `(model, h) → Html`, where `h` is the builder the runtime supplies
-- **Side effects** stay outside update and view. The Runtime performs Commands and manages Mount and Stream lifecycles. Each reports results through Messages
+- **Side effects** stay outside update and view. The Runtime performs Commands and manages Mount and Subscription lifecycles. Each reports results through Messages
 
 ## Blocks
 
-A Block is a class. The class declares the contract: its Model, Message, OutMessage, and the Commands and Mounts it owns. `make` implements it and returns an Effect Layer. Every app has at least one Block, the root `Application`.
+A Block is a class. The class declares the contract: its Model, Message, OutMessage, and the Commands and Mounts it owns. `layer` implements it and returns an Effect Layer. Its constructor runs once per Block and returns the Block's module, which every instance shares. An instance is plain data, created with `new Counter('left', { max: 10 })` and held in a parent's Model. Every app has at least one Block, the root `Application`.
 
 ```ts
 const Message = defineMessageUnion({
@@ -50,37 +50,41 @@ const Message = defineMessageUnion({
 type Message = typeof Message.Type
 
 const Save = Command.define('Save', {
-  args: { count: Schema.Number },
+  args: { counterId: Schema.String, count: Schema.Number },
   messages: [Message.SucceededSave, Message.FailedSave],
 })
 
 export class Counter extends Block<Counter, Readonly<{ max: number }>>()(
   'Counter',
   {
-    Model: Schema.Struct({ count: Schema.Number }),
+    Model: Schema.Struct({
+      counterId: Schema.String,
+      max: Schema.Number,
+      count: Schema.Number,
+    }),
     Message,
     OutMessage: defineMessageUnion({ ReachedMax: {} }),
     Command: [Save],
   },
 ) {}
 
-export const CounterLive = Counter.make(
-  Effect.fn(function* (id, { max }) {
+export const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     const store = yield* CountStore
 
     return {
-      model: { count: 0 },
+      init: ({ max }, { id }) => ({ counterId: id, max, count: 0 }),
       update: {
         ClickedSave: model => ({
           model,
-          commands: [Save({ count: model.count })],
+          commands: [Save({ counterId: model.counterId, count: model.count })],
         }),
         SucceededSave: model => ({ model }),
         FailedSave: model => ({ model }),
       },
       commands: {
-        Save: ({ count }) =>
-          store.save(id, count).pipe(
+        Save: ({ counterId, count }) =>
+          store.save(counterId, count).pipe(
             Effect.as(Message.SucceededSave()),
             Effect.catch(error =>
               Effect.succeed(Message.FailedSave({ reason: String(error) })),
@@ -95,9 +99,9 @@ export const CounterLive = Counter.make(
 ```
 
 - Declare Messages, OutMessages, Commands, and Mounts at module level, before the class. The class lists them; nothing else registers them.
-- The type parameters of `Block<Self, Args, ViewInput, Exposed>()` are the class itself, its constructor args (default `void`), the input its view takes from a parent (default `void`), and the value it exposes to its parent's Commands (default `never`). The string id matches the class name.
-- The constructor passed to `make` is an `Effect.fn` that receives the instance id and args. It runs once per instance, synchronously, when the instance enters its parent's Model. Yield Services there and close over them in handlers.
-- The constructor returns `{ model, start?, update, commands?, mounts?, stream?, subscriptions?, expose?, view }`. Omit `model` for a Block without state and `update` for a Block without Messages.
+- The type parameters of `Block<Self, Args, ViewInput>()` are the class itself, its instances' args (default `void`), and the input its view takes from a parent (default `void`). The string id matches the class name.
+- The constructor passed to `layer` is an `Effect.gen` that runs once per Block, when the program's Layer is built. Yield Services there and close over them in handlers. It holds nothing that belongs to one instance.
+- The constructor returns the module `{ init, start?, update, commands?, mounts?, subscriptions?, view }`. `init: (args, { id, path }) => Model` builds a new instance's starting Model; copy into it every arg and id the Block needs later, and pass them to Commands as Command args (`counterId` above). Omit `init` for a Block without state and `update` for a Block without Messages.
 - `commands` has one handler per listed Command and `mounts` one per listed Mount. Handlers must return an Effect with no remaining requirements. A listed Command or Mount without a handler fails at runtime.
 - The root view returns `{ title, body }`. Every other view returns `Html`.
 
@@ -122,25 +126,26 @@ These operations belong in Commands, which return their results as Messages.
 
 The view takes the Model and the builder `h` and returns Html. It must not access external state, perform side effects, or close over mutable variables. Event handlers in the view dispatch Messages; they don't perform actions.
 
-### 3. The constructor does no asynchronous work
+### 3. `init` and the Layer constructor do no asynchronous work
 
-The constructor yields Services, declares child instances, and returns the starting Model synchronously. Work that loads data, reads storage, or reads the clock belongs in a Command listed in `start`, which runs when the instance appears:
+The Layer constructor yields Services. `init` returns an instance's starting Model synchronously, including any child instances it creates. Work that loads data, reads storage, or reads the clock belongs in a Command returned from `start`, which Foldkit runs when the instance appears in the Model:
 
 ```ts
-export const PeopleLive = People.make(
-  Effect.fn(function* (_id, { route }) {
-    const searchText = routeSearchText(route)
-
+export const PeopleLive = People.layer(
+  Effect.gen(function* () {
     return {
-      model: { searchInput: searchText, results: SearchResults.Loading() },
-      start: [FetchPeople({ searchText })],
+      init: ({ route }) => ({
+        searchInput: routeSearchText(route),
+        results: SearchResults.Loading(),
+      }),
+      start: model => [FetchPeople({ searchText: model.searchInput })],
       // ...
     }
   }),
 )
 ```
 
-A Ref or a Service may hold execution bookkeeping, such as worker availability or protocol request IDs. The Model and update own pending work shown to the user, selections, and submission rules. A `Ref` created in the constructor must not become the source of truth for workflow decisions or state read by view.
+A Ref or a Service may hold execution bookkeeping, such as worker availability or protocol request IDs. The Model and update own pending work shown to the user, selections, and submission rules. A `Ref` created in the Layer constructor is shared by every instance and must not become the source of truth for workflow decisions or state read by view.
 
 ### 4. Expected Command failures become Messages
 
@@ -290,26 +295,29 @@ export class Board extends Block<Board>()('Board', {
   Message,
 }) {}
 
-export const BoardLive = Board.make(
-  Effect.fn(function* () {
-    const search = yield* new Search('search', { placeholder: 'Find' })
-    const dialog = yield* new Dialog('dialog', { id: 'confirm' })
-    const column = yield* Column.each('columns', { isCollapsible: true })
-
+export const BoardLive = Board.layer(
+  Effect.gen(function* () {
     return {
-      model: { search, maybeDialog: Option.none(), columns: [] },
+      init: () => ({
+        search: new Search('search', { placeholder: 'Find' }),
+        maybeDialog: Option.none(),
+        columns: [],
+      }),
       update: {
         ClickedOpenDialog: model => ({
           model: modifyFields(model, {
-            maybeDialog: () => Option.some(dialog),
+            maybeDialog: () =>
+              Option.some(new Dialog('dialog', { id: 'confirm' })),
           }),
         }),
         ClickedAddColumn: (model, { columnId }) => ({
           model: modifyFields(model, {
-            columns: Array.append(column(columnId)),
+            columns: Array.append(
+              new Column(columnId, { isCollapsible: true }),
+            ),
           }),
         }),
-        ...search.on({
+        ...Search.on({
           SubmittedQuery: (model, { query }) => ({
             model,
             messages: Array.map(model.columns, boardColumn =>
@@ -317,7 +325,7 @@ export const BoardLive = Board.make(
             ),
           }),
         }),
-        ...column.on({
+        ...Column.on({
           RequestedRemove: (model, _, removedColumn) => ({
             model: modifyFields(model, {
               columns: Array.filter(({ id }) => id !== removedColumn.id),
@@ -340,11 +348,13 @@ export const BoardLive = Board.make(
 )
 ```
 
-- `yield* new Child(id, args)` declares one instance. `yield* Child.each(collection, args)` returns a factory; `factory(key)` declares a keyed instance whose `id` is the key, and `factory(key, args)` overrides the factory's args for that instance. Ids are unique within the parent.
-- Declaring an instance constructs nothing. An instance is live while it is in the Model. Putting it in the Model constructs it; removing it closes its scope, which stops its Streams and Subscriptions and runs finalizers registered in its constructor. Putting the same declared instance back constructs it fresh.
+- `new Child(id, args)` creates an instance value anywhere: in `init`, in an update handler, or in a test's `given`. It runs nothing by itself. Foldkit calls the child's `init` the first time the instance appears in a Model and runs its `start` Commands then.
+- Foldkit identifies an instance by its path, the parent's path plus the instance id. Ids must be unique among one parent's children, across all of the parent's Model fields; a duplicate throws. Derive collection ids from a stable domain id.
+- While an instance is in the Model, its Subscriptions run. When it leaves the Model, Foldkit stops its Subscriptions and interrupts its in-flight Commands.
 - Instances can live in Struct fields, `Option`, arrays, Records, and tagged union variants. Not in HashMap, HashSet, or class instances; convert those to arrays or Records.
 - The parent reads child state through `model.search.model`. It changes the child only by sending it a Message: `messages: [model.search.send(Search.Message.RequestedClear())]`. Name those Messages as facts: `RequestedClear` for a request, `InformedOfQuery` for a notification.
-- The parent receives child facts by spreading `...instance.on({ Tag: (model, outMessage, instance) => result })` or `...factory.on({ ... })` into its update record. An `.on` handler can return `outMessage` to report a fact to its own parent.
+- The parent receives child facts by spreading `...Child.on({ Tag: (model, outMessage, instance) => result })` into its update record. One entry covers every instance of that Block the parent's Model holds; when two instances need different handling, branch on `instance.id`. Use `Child.onAll` to require a handler for every variant. A handler can return `outMessage` to report a fact to its own parent.
+- A parent that must refuse some child Messages while its own state forbids them spreads `...Child.when((model, message) => boolean)`. Messages the parent sends with `send` are not gated.
 - Render a child with `model.search.view()`. Never reach into a child's Model fields to change them from the parent.
 
 `examples/auth/src/application.ts` holds its page instances inside tagged Model variants and swaps between them on login and logout. `examples/routing/src/application.ts` sends `InformedOfRouteChange` to a page instance.
@@ -377,44 +387,53 @@ export class Toggle extends Block<Toggle, void, ToggleViewInput>()('Toggle', {
 
 Functions in the input run as the parent, so Messages they create are the parent's. Attributes the child builds for the parent to spread use `childAttributes(...)` from `foldkit/html`, so they keep the child's dispatch. Pass stable functions (module-level or memoized) when the child caches on their identity.
 
-### Exposed values
+### Per-instance resources
 
-A Block can expose a value to its parent's Commands with `expose`. A parent Command handler reads it with `instance.use`, which fails with `NotConnected` while the instance is not in the Model. This is how a stateful handle such as a socket is shared, and it replaces a separate resource primitive:
+A Block's module is shared by every instance, so a resource that belongs to one instance, such as a socket per chat room, cannot live in a Layer constructor variable. Choose by who reads the resource.
+
+When only a Stream reads it, a Subscription acquires it. The Subscription holds the resource while its instance is in the Model and releases it when the instance leaves or the dependencies change.
+
+When Commands also use it, create an Effect `RcMap` once in the Layer constructor and key it by a value stored in the Model. A Subscription holds the key's reference for as long as the instance is in the Model, and Commands borrow the resource by key:
 
 ```ts
-export class Connection extends Block<
-  Connection,
-  Readonly<{ url: string }>,
-  void,
-  WebSocket
->()('Connection') {}
+export const ChatRoomLive = ChatRoom.layer(
+  Effect.gen(function* () {
+    const makeWebSocket = yield* Socket.WebSocketConstructor
+    const sockets = yield* RcMap.make({
+      lookup: (roomId: string) =>
+        Effect.acquireRelease(
+          Effect.sync(() => makeWebSocket(`${CHAT_URL}/${roomId}`)),
+          socket => Effect.sync(() => socket.close()),
+        ),
+    })
 
-export const ConnectionLive = Connection.make(
-  Effect.fn(function* (_id, { url }) {
-    const socket = yield* Effect.acquireRelease(
-      Effect.sync(() => new WebSocket(url)),
-      socket => Effect.sync(() => socket.close()),
-    )
-
-    return { expose: socket }
+    return {
+      init: ({ roomId }) => ({ roomId, messages: [] }),
+      // update returns SendChat({ roomId: model.roomId, text })
+      commands: {
+        SendChat: ({ roomId, text }) =>
+          RcMap.get(sockets, roomId).pipe(
+            Effect.flatMap(socket => Effect.sync(() => socket.send(text))),
+            Effect.scoped,
+            Effect.as(Message.SucceededSendChat()),
+          ),
+      },
+      subscriptions: {
+        socketEvents: {
+          dependencies: model => model.roomId,
+          stream: (roomId: string) =>
+            Stream.unwrap(
+              Effect.map(RcMap.get(sockets, roomId), streamSocketEvents),
+            ),
+        },
+      },
+      // ...
+    }
   }),
 )
-
-// parent constructor: const connection = yield* new Connection('connection', { url })
-// parent Model:       maybeConnection: Schema.Option(Connection)
-// parent update:      ClickedConnect puts Option.some(connection) in the Model; removing it closes the socket
-// parent commands:
-SendChat: ({ text }) =>
-  connection.use.pipe(
-    Effect.flatMap(socket => Effect.sync(() => socket.send(text))),
-    Effect.as(Message.SucceededSendChat()),
-    Effect.catchTag('NotConnected', () =>
-      Effect.succeed(Message.FailedSendChat({ reason: 'Disconnected' })),
-    ),
-  ),
 ```
 
-The handle exists exactly while the child is in the Model, and the child's own Commands and Subscriptions can use it too. Construct the resource inside the acquire Effect, never before it: `Effect.acquireRelease` registers the release only after the acquire body completes. `repos/foldkit/examples/websocket-chat/src/chatSocket.ts` is the full pattern, including a `start` Command that waits for the socket to open and a Subscription gated on the open state.
+The socket opens when a `ChatRoom` instance enters the Model and closes when it leaves. Construct the resource inside the acquire Effect, never before it: `Effect.acquireRelease` registers the release only after the acquire body completes. `repos/foldkit/examples/websocket-chat/src/` is the full example.
 
 ## Flags: side effects that seed the starting Model
 
@@ -424,7 +443,7 @@ When the starting Model needs data from a side effect (current time, localStorag
 // WRONG: module-level side effect (non-deterministic and untestable)
 const now = Date.now()
 
-// RIGHT: Flags run as an Effect before the root constructor
+// RIGHT: Flags run as an Effect before the root's init
 export const Flags = Schema.Struct({
   todos: Schema.Option(Todos),
 })
@@ -441,10 +460,13 @@ export class Application extends Block<
   Readonly<{ flags: Flags }>
 >()('Application', { Model, Message, Command: [SaveTodos] }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { todos: Option.getOrElse(flags.todos, () => []) /* ... */ },
+      init: ({ flags }) => ({
+        todos: Option.getOrElse(flags.todos, () => []),
+        // ...
+      }),
       // ...
     }
   }),
@@ -485,12 +507,12 @@ export const SavedBoardJsonString = Schema.fromJsonString(
 
 ## Services and Layers
 
-- A constructor yields the Services it needs. Command, Mount, and Stream handlers close over them and must return Effects with no remaining requirements.
-- A Block's Layer requires the Services its constructor yields plus the Layer of every Block it creates. Provide a child's Layer to every parent Layer that creates it. If a child creates Blocks, provide those to the child's Layer first, or provide one merged Layer to the whole graph.
+- A Layer constructor yields the Services it needs. Command, Mount, and Subscription handlers close over them and must return Effects with no remaining requirements.
+- A Block's Layer requires the Services its constructor yields plus the Layer of every Block its Model Schema holds. Provide a child's Layer to every parent Layer whose Model holds it. If a child holds Blocks, provide those to the child's Layer first, or provide one merged Layer to the whole graph.
 - `@foldkit/ui` components provide their own component dependencies.
 - The root `ApplicationLayer` (in `services.ts`) supplies ordinary Services: `Http.layer`, `BrowserKeyValueStore.layerLocalStorage`, `BrowserCrypto.layer`, and app-specific Services. A test alternative is `ApplicationTestLayer`.
 
-Lifetimes stay distinct. Services yielded in a constructor last as long as the instance. A Command Effect lasts for one dispatch. Subscription Streams follow their dependencies. A Mount follows one DOM element. A handler must not capture current time, Command args, Subscription dependencies, or a DOM element in the constructor.
+Lifetimes stay distinct. Services and resources created in a Layer constructor last as long as the program and are shared by every instance. A Command Effect lasts for one dispatch. Subscription Streams run while their instance is in the Model and follow their dependencies. A Mount follows one DOM element. A handler must not capture current time, Command args, Subscription dependencies, or a DOM element in the constructor.
 
 [Block composition and Layers](../foldkit/references/composition.md) covers Layer wiring and composed tests in more depth.
 
@@ -504,7 +526,7 @@ export const MeasurePanel = Mount.define('MeasurePanel', {
 })
 
 // class:       Mount: [MeasurePanel]
-// constructor: mounts: {
+// module:      mounts: {
 //                MeasurePanel: ({ element }) =>
 //                  Effect.sync(() =>
 //                    Message.CompletedMeasurePanel({ height: element.getBoundingClientRect().height }),
@@ -517,27 +539,30 @@ A Mount with `args` receives them alongside `element` (`({ element, hostId }) =>
 
 If a Mount's handler doesn't read or write its element, you've misidentified the cause.
 
-## Streams and Subscriptions
+## Subscriptions
 
-A Block has two ways to receive Messages from an external event source.
+A Block receives Messages from an external event source through `subscriptions`. Each entry runs while its instance is in the Model. The runtime recomputes the entry's `dependencies` from the instance's Model after every update and restarts its Stream when they change.
 
-`stream` runs for the whole life of the instance:
+A source that runs for the whole life of the instance depends on a value that never changes:
 
 ```ts
-return {
-  // ...
-  stream: Dom.streamFromKeyBindings({
-    bindings: [
-      {
-        keys: ['G', 'H'],
-        mapEvent: () => Message.EnteredNavigationShortcut({ shortcut: 'GH' }),
-      },
-    ],
-  }),
-}
+subscriptions: {
+  navigationShortcutPresses: {
+    dependencies: () => null,
+    stream: () =>
+      Dom.streamFromKeyBindings({
+        bindings: [
+          {
+            keys: ['G', 'H'],
+            mapEvent: () => Message.EnteredNavigationShortcut({ shortcut: 'GH' }),
+          },
+        ],
+      }),
+  },
+},
 ```
 
-`subscriptions` entries are gated by Model state. The runtime recomputes each entry's `dependencies` after every update and restarts its Stream when they change:
+A source gated by Model state derives its dependencies from the Model:
 
 ```ts
 subscriptions: {
@@ -554,12 +579,12 @@ subscriptions: {
 },
 ```
 
-- `dependencies` extracts exactly the data the Stream needs, not the whole Model. Return `Stream.empty` when the condition is off.
+- `dependencies` extracts exactly the data the Stream needs, not the whole Model. When the Stream depends on per-instance data, such as a room id, read it from the Model here. Return `Stream.empty` when the condition is off.
 - Map events to Messages inside the Stream (`Stream.map(event => Message.UpdatedRoom({ room: event }))`), not in update.
 - Map Stream errors to a `Failed*` Message inside the Stream rather than letting them escape.
 - An entry can declare `keepAliveEquivalence: (previous, next) => boolean` to keep its Stream running across dependency changes it considers equivalent; the Stream reads the latest dependencies through its second argument, `readDependencies`.
 - Name the entry for the events it supplies, such as `keyboardPresses`, `systemThemeChanges`, or `stopwatchTicks`, not a generic `watch*`.
-- A child's Streams stop when the child leaves the Model. Gate an entire child by whether it is in the Model; gate one Stream with `dependencies`.
+- A child's Subscriptions stop when the child leaves the Model. Gate an entire child by whether it is in the Model; gate one Stream with `dependencies`.
 
 Canonical live examples:
 
@@ -567,17 +592,17 @@ Canonical live examples:
 - **Always-on key bindings**: `repos/foldkit/examples/routing/src/application.ts` (`navigationShortcutPresses`)
 - **Always-active keyboard input**: `repos/foldkit/examples/snake/src/`
 - **Animation-frame ticks**: `repos/foldkit/examples/canvas-art/src/`
-- **Socket events gated on connection state**: `repos/foldkit/examples/websocket-chat/src/chatSocket.ts`
+- **Socket events**: `repos/foldkit/examples/websocket-chat/src/`
 
 ## Choosing a lifecycle primitive
 
 Pick by what causes the side effect:
 
 - A Message just dispatched → a Command.
+- A Block instance just appeared in the Model → a `start` Command.
 - An element exists in the rendered tree, and the handler uses that element → a Mount.
-- An external event source for the whole life of the instance → `stream`.
-- An event source gated by Model state → a `subscriptions` entry.
-- A stateful handle that Commands need → a child Block that acquires it in its constructor and exposes it.
+- An external event source, for the instance's whole life or gated by Model state → a `subscriptions` entry.
+- A stateful resource for one instance → a Subscription that acquires it, or an `RcMap` keyed service when Commands use it too. See Per-instance resources above.
 - A native web component → `CustomElement`.
 
 ## One Foldkit module instance
@@ -623,7 +648,7 @@ Always build with `@foldkit/vite-plugin`; without it, branch identity falls back
 
 ## DOM and Effect Helpers
 
-DOM operations and browser Streams use Foldkit's `Dom` module. Time, randomness, and delays use Effect's built-in services. The Effects compose in Commands; the Streams compose in `stream`, `subscriptions`, and Mounts.
+DOM operations and browser Streams use Foldkit's `Dom` module. Time, randomness, and delays use Effect's built-in services. The Effects compose in Commands; the Streams compose in `subscriptions` and Mounts.
 
 ### Foldkit `Dom` module
 
@@ -646,15 +671,15 @@ Import as `import { Dom } from 'foldkit'`.
 
 ### Effect built-ins
 
-Use these directly from the `effect` package for non-DOM concerns. Yield the Service in the constructor when a handler needs it, so the handler has no remaining requirements.
+Use these directly from the `effect` package for non-DOM concerns. Yield the Service in the Layer constructor when a handler needs it, so the handler has no remaining requirements.
 
-| Need                  | Use                                                                                                                 |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Current time (millis) | `const clock = yield* Clock.Clock` in the constructor, then `yield* clock.currentTimeMillis` in the handler         |
-| Current calendar date | `yield* Calendar.today.local` (returns `CalendarDate`), usually in Flags                                            |
-| Random integer        | `yield* Random.nextIntBetween(min, max)`                                                                            |
-| UUID                  | `const crypto = yield* Crypto.Crypto` in the constructor, `yield* Effect.orDie(crypto.randomUUIDv4)` in the handler |
-| Delay                 | `yield* Effect.sleep(Duration.millis(500))`                                                                         |
+| Need                  | Use                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Current time (millis) | `const clock = yield* Clock.Clock` in the Layer constructor, then `yield* clock.currentTimeMillis` in the handler         |
+| Current calendar date | `yield* Calendar.today.local` (returns `CalendarDate`), usually in Flags                                                  |
+| Random integer        | `yield* Random.nextIntBetween(min, max)`                                                                                  |
+| UUID                  | `const crypto = yield* Crypto.Crypto` in the Layer constructor, `yield* Effect.orDie(crypto.randomUUIDv4)` in the handler |
+| Delay                 | `yield* Effect.sleep(Duration.millis(500))`                                                                               |
 
 Use these instead of raw `document.querySelector`, `setTimeout`, `Date.now()`, or `Math.random()`. Provide platform Layers such as `BrowserCrypto.layer` in `ApplicationLayer`.
 
@@ -680,7 +705,7 @@ Runtime.run(program)
 
 ### With routing
 
-The root's args are `{ url }` when the Program has routing. Parse that URL in the constructor and later URLs in the `ChangedUrl` handler, then store a typed `ApplicationRoute` in the Model. `Route.parseUrlWithFallback` accepts a full `Url`; `Route.parsePathWithFallback` accepts an origin-relative path with query parameters.
+The root's args are `{ url }` when the Program has routing. Parse that URL in the root's `init` and later URLs in the `ChangedUrl` handler, then store a typed `ApplicationRoute` in the Model. `Route.parseUrlWithFallback` accepts a full `Url`; `Route.parsePathWithFallback` accepts an origin-relative path with query parameters.
 
 ```ts
 export class Application extends Block<Application, Readonly<{ url: Url }>>()(

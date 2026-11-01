@@ -103,32 +103,34 @@ Imagine a chat room that needs a `WebSocket` only while the visitor has joined i
 
 ::Snippet{name="antiPatternLiveHandleBad" label="❌ A module variable owns the WebSocket" class="mb-4"}
 
-### Resource Blocks
+### Hold the Socket in a Subscription
 
 Storing the socket itself in a Model field does not help. The live connection cannot be recreated from the Model Schema after a development reload, and update would still be responsible for opening and closing it.
 
-Give the socket to a resource Block instead. ChatSocket opens the `WebSocket` in its constructor with `Effect.acquireRelease` and exposes a `send` function. ChatRoom holds the ChatSocket instance in an `Option` field while the visitor is in the room:
+Let the Model say whether the visitor is in the room, and let the Runtime own the connection. ChatRoom's Layer constructor creates an `RcMap` of sockets keyed by room id. Each entry opens its `WebSocket` with `Effect.acquireRelease` and closes it when the last holder lets go. A Subscription holds the room's entry while `isJoined` is true:
 
-::Snippet{name="antiPatternLiveHandleGood" label="✅ A ChatSocket instance owns the WebSocket lifetime"}
+::Snippet{name="antiPatternLiveHandleGood" label="✅ A Subscription holds the WebSocket while the visitor is in the room"}
 
-Putting the instance in `maybeSocket` constructs it, which opens the socket. Taking it out closes the instance's scope, which closes the socket. Update decides only whether the visitor is in the room. The `SendChatMessage` handler reads the live socket with `socket.use`, which fails with `NotConnected` while the instance is not in the Model.
+`ClickedJoin` sets `isJoined`, so the Subscription's dependencies change and the Runtime starts its Stream, which opens the socket. `ClickedLeave` clears it, so the Runtime stops the Stream, which closes the socket. The same happens when the ChatRoom instance leaves its parent's Model. Update decides only whether the visitor is in the room.
 
-When the socket only produces events and no Command sends through it, a Subscription can own the connection directly.
+The `SendChatMessage` handler reaches the socket through the room id that update passes in the Command's args. `RcMap.getOption` returns `None` when no Subscription holds that room's socket, so a send after leaving becomes `FailedSendChatMessage` instead of opening a new connection.
+
+When the socket only produces events and no Command sends through it, the Subscription can open the connection directly without an `RcMap`.
 
 ### Choose by Cause and Lifetime
 
 Choose the boundary whose lifetime matches the work:
 
-| Cause or lifetime                                                       | Boundary                                  |
-| ----------------------------------------------------------------------- | ----------------------------------------- |
-| One-time work started while handling a Message                          | [Command](/core/commands)                 |
-| Work that requires one rendered element                                 | [Mount](/core/mount)                      |
-| Ongoing work controlled by Model-derived dependencies                   | [Subscription](/core/subscriptions)       |
-| A typed handle that Commands use while a child instance is in the Model | [Resource Block](/core/managed-resources) |
-| A service shared for the entire application Runtime                     | [Layer](/core/layers)                     |
-| A native web component whose properties and events remain declarative   | [CustomElement](/core/custom-element)     |
+| Cause or lifetime                                                     | Boundary                              |
+| --------------------------------------------------------------------- | ------------------------------------- |
+| One-time work started while handling a Message                        | [Command](/core/commands)             |
+| Work that requires one rendered element                               | [Mount](/core/mount)                  |
+| Ongoing work controlled by Model-derived dependencies                 | [Subscription](/core/subscriptions)   |
+| A handle that Commands use while a Model condition holds              | [Resources](/core/managed-resources)  |
+| A service shared for the entire application Runtime                   | [Layer](/core/layers)                 |
+| A native web component whose properties and events remain declarative | [CustomElement](/core/custom-element) |
 
-If a Mount handler never uses its element, the work should not be tied to that element's lifetime. Choose the boundary based on what actually starts and stops the work. The [Mount comparison](/core/mount#when-to-reach-for-mount) and [Resource Blocks](/core/managed-resources) guides cover these choices in depth.
+If a Mount handler never uses its element, the work should not be tied to that element's lifetime. Choose the boundary based on what actually starts and stops the work. The [Mount comparison](/core/mount#when-to-reach-for-mount) and [Resources](/core/managed-resources) guides cover these choices in depth.
 
 ## Name Messages After Facts
 
@@ -192,7 +194,7 @@ The old `FetchSuggestions` Command may finish just before the Interrupt runs, le
 
 ## Preserve Block Boundaries
 
-A child Block owns its Model and every transition of it. The parent cannot write a child's Model: it changes the child by sending it a Message with `send`, and it learns facts from the child through OutMessages handled with `.on`. Two mistakes still cross that boundary.
+A child Block owns its Model and every transition of it. The parent cannot write a child's Model: it changes the child by sending it a Message with `send`, and it learns facts from the child through OutMessages it handles with `Child.on`. Two mistakes still cross that boundary.
 
 ### Send Requests, Not Impersonated Events
 
@@ -222,17 +224,17 @@ Handle an OutMessage when the parent has to react to the fact, such as saving it
 
 ## Load Data with start Commands
 
-A Block's constructor runs synchronously when its instance first appears in the parent's Model. It yields services and returns the starting Model. It cannot wait for storage, the network, or a timer:
+A Block's Layer constructor runs once, when the program's Layer is built, and returns the module every instance shares. Waiting for storage there reads the theme once for the whole program, before any instance exists:
 
-::Snippet{name="antiPatternChildInitBad" label="❌ The constructor waits for storage" class="mb-4"}
+::Snippet{name="antiPatternChildInitBad" label="❌ The Layer constructor waits for storage" class="mb-4"}
 
-When `themeStore.load` is asynchronous, the instance cannot be constructed, and the Runtime reports a construction error instead of rendering the application. Even a synchronous load hides the work from DevTools and leaves no Message to handle a failure.
+The application cannot start until `themeStore.load` finishes. Every ThemePreference instance starts from that one value, even one created an hour later after the stored theme changed. The load never appears in DevTools, and no Message reports a failure, so the fallback to `'System'` hides it.
 
-Return a starting Model the Block can render, and return the load as a `start` Command. The result comes back through update like any other Command result:
+Have `init` return a starting Model the Block can render, and return the load from `start`. Foldkit performs `start` Commands each time an instance appears in a Model, and the result comes back through update like any other Command result:
 
 ::Snippet{name="antiPatternChildInitGood" label="✅ A start Command loads the theme"}
 
-`SucceededLoadTheme` sets the theme and reports `RestoredTheme` to the parent. A parent that holds several children does not sequence their loads: each instance returns its own `start` Commands, and the Runtime performs them independently. Values the parent already has, such as a Route or a saved id, belong in the child's constructor args instead. See [Implement a Block](/core/block#implement-a-block).
+`SucceededLoadTheme` sets the theme and reports `RestoredTheme` to the parent. A parent that holds several children does not sequence their loads: each instance returns its own `start` Commands, and the Runtime performs them independently. Values the parent already has, such as a Route or a saved id, belong in the args the parent passes to `new ThemePreference(id, args)`, which `init` puts in the Model. See [Block](/core/block).
 
 ## Know What Linting Can Catch {#what-linting-can-catch}
 

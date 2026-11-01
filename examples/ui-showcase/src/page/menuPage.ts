@@ -23,18 +23,18 @@ type Model = typeof Model.Type
 
 export class MenuPage extends Block<MenuPage>()('MenuPage', { Model }) {}
 
-export const MenuPageLive = MenuPage.make(
-  Effect.fn(function* () {
-    const menuBasicDemo = yield* new DemoMenu('menuBasicDemo', {
-      id: 'menu-basic-demo',
-    })
-    const menuAnimatedDemo = yield* new DemoMenu('menuAnimatedDemo', {
-      id: 'menu-animated-demo',
-      isAnimated: true,
-    })
-
+export const MenuPageLive = MenuPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { menuBasicDemo, menuAnimatedDemo },
+      init: () => ({
+        menuBasicDemo: new DemoMenu('menuBasicDemo', {
+          id: 'menu-basic-demo',
+        }),
+        menuAnimatedDemo: new DemoMenu('menuAnimatedDemo', {
+          id: 'menu-animated-demo',
+          isAnimated: true,
+        }),
+      }),
       view,
     }
   }),

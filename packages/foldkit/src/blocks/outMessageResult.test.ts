@@ -20,10 +20,10 @@ class Editor extends Block<Editor>()('Editor', {
   OutMessage: defineMessageUnion({ RequestedSave: {} }),
 }) {}
 
-const EditorLive = Editor.make(
-  Effect.fn(function* () {
+const EditorLive = Editor.layer(
+  Effect.gen(function* () {
     return {
-      model: {},
+      init: () => ({}),
       update: {
         ClickedSave: model => ({
           model,
@@ -53,14 +53,12 @@ class Document extends Block<Document>()('Document', {
   Command: [SaveDocument],
 }) {}
 
-const DocumentLive = Document.make(
-  Effect.fn(function* () {
-    const editor = yield* new Editor('editor')
-
+const DocumentLive = Document.layer(
+  Effect.gen(function* () {
     return {
-      model: { editor },
+      init: () => ({ editor: new Editor('editor') }),
       update: {
-        ...editor.onAll({
+        ...Editor.onAll({
           RequestedSave: model => ({
             model,
             commands: [SaveDocument()],
@@ -96,14 +94,12 @@ describe('Block OutMessage handler results', () => {
   )
 
   it('rejects a Command the parent does not declare', () => {
-    const ShellLive = Shell.make(
-      Effect.fn(function* () {
-        const editor = yield* new Editor('editor')
-
+    const ShellLive = Shell.layer(
+      Effect.gen(function* () {
         return {
-          model: { editor },
+          init: () => ({ editor: new Editor('editor') }),
           update: {
-            ...editor.on({
+            ...Editor.on({
               // @ts-expect-error ForeignSave reports a Message Shell does not declare
               RequestedSave: model => ({
                 model,
@@ -118,14 +114,12 @@ describe('Block OutMessage handler results', () => {
   })
 
   it('rejects an OutMessage the parent does not declare', () => {
-    const ShellLive = Shell.make(
-      Effect.fn(function* () {
-        const editor = yield* new Editor('editor')
-
+    const ShellLive = Shell.layer(
+      Effect.gen(function* () {
         return {
-          model: { editor },
+          init: () => ({ editor: new Editor('editor') }),
           update: {
-            ...editor.onAll({
+            ...Editor.onAll({
               RequestedSave: model => ({
                 model,
                 // @ts-expect-error Shell declares no OutMessage

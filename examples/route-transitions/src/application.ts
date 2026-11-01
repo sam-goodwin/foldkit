@@ -214,13 +214,11 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
 
 // LIVE
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
-    const init_ = init(url)
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: init_.model,
-      start: init_.commands ?? [],
+      init: ({ url }) => init(url).model,
+      start: (_model, { url }) => init(url).commands ?? [],
 
       update: {
         CompletedNavigateInternal: model => ({ model }),

@@ -8,7 +8,6 @@ import {
   BaseModel,
   type BaseViewInputs,
   type Contract,
-  animationId,
   baseInit,
   commandHandlers,
   makeContract,
@@ -48,7 +47,6 @@ export interface Listbox<
   Item = string,
   Value extends string = Item extends string ? Item : string,
 > extends BlockTypes.Instance<
-  Listbox<Item, Value>,
   Contract<Value>,
   InitConfig,
   ViewInputs<Item, Value>
@@ -64,7 +62,6 @@ export type ListboxClass<
   'Listbox',
   InitConfig,
   ViewInputs<Item, Value>,
-  never,
   Contract<Value>
 > &
   Readonly<{ Live: Layer.Layer<Listbox<Item, Value>> }>
@@ -88,15 +85,11 @@ export const makeBlock = <
   >()('Listbox', makeContract<Value>())
   const arrayBasedView = internalView<unknown, Value>()
 
-  const ListboxLive = ListboxClass.make(
-    Effect.fn(function* (_instanceId, config) {
-      const animation = yield* new Animation.Animation('animation', {
-        id: animationId(config.id),
-      })
-
+  const ListboxLive = ListboxClass.layer(
+    Effect.gen(function* () {
       return {
-        model: baseInit(config, animation),
-        update: makeUpdate<Value>(animation, 'KeepOpen', (model, item) => ({
+        init: baseInit,
+        update: makeUpdate<Value>('KeepOpen', (model, item) => ({
           model,
           outMessage: selected<Value>(item),
         })),

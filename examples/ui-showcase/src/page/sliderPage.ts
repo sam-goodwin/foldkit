@@ -16,39 +16,33 @@ type Model = typeof Model.Type
 
 export class SliderPage extends Block<SliderPage>()('SliderPage', { Model }) {}
 
-export const SliderPageLive = SliderPage.make(
-  Effect.fn(function* () {
-    const sliderRatingDemo = yield* new Slider.Slider('sliderRatingDemo', {
-      id: 'slider-rating-demo',
-      min: 0,
-      max: 10,
-      step: 1,
-    })
-    const sliderVolumeDemo = yield* new Slider.Slider('sliderVolumeDemo', {
-      id: 'slider-volume-demo',
-      min: 0,
-      max: 1,
-      step: 0.05,
-    })
-
+export const SliderPageLive = SliderPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        sliderRatingDemo,
+      init: () => ({
+        sliderRatingDemo: new Slider.Slider('sliderRatingDemo', {
+          id: 'slider-rating-demo',
+          min: 0,
+          max: 10,
+          step: 1,
+        }),
         sliderRatingValue: 3,
-        sliderVolumeDemo,
+        sliderVolumeDemo: new Slider.Slider('sliderVolumeDemo', {
+          id: 'slider-volume-demo',
+          min: 0,
+          max: 1,
+          step: 0.05,
+        }),
         sliderVolumeValue: 0.5,
-      },
+      }),
 
       update: {
-        ...sliderRatingDemo.on({
-          ChangedValue: (model, { value }) => ({
-            model: modifyFields(model, { sliderRatingValue: () => value }),
-          }),
-        }),
-
-        ...sliderVolumeDemo.on({
-          ChangedValue: (model, { value }) => ({
-            model: modifyFields(model, { sliderVolumeValue: () => value }),
+        ...Slider.Slider.on({
+          ChangedValue: (model, { value }, { id }) => ({
+            model:
+              id === 'sliderRatingDemo'
+                ? modifyFields(model, { sliderRatingValue: () => value })
+                : modifyFields(model, { sliderVolumeValue: () => value }),
           }),
         }),
       },

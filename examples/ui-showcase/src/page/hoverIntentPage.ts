@@ -15,15 +15,12 @@ export class HoverIntentPage extends Block<HoverIntentPage>()(
   { Model },
 ) {}
 
-export const HoverIntentPageLive = HoverIntentPage.make(
-  Effect.fn(function* () {
-    const hoverIntentDemo = yield* new HoverIntent.HoverIntent(
-      'hoverIntentDemo',
-      {},
-    )
-
+export const HoverIntentPageLive = HoverIntentPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { hoverIntentDemo },
+      init: () => ({
+        hoverIntentDemo: new HoverIntent.HoverIntent('hoverIntentDemo', {}),
+      }),
       view,
     }
   }),

@@ -1,4 +1,14 @@
-import { Array, DateTime, Effect, Match, Option, Schema, String } from 'effect'
+import {
+  Array,
+  DateTime,
+  Effect,
+  Match,
+  Option,
+  RcMap,
+  Schema,
+  String,
+} from 'effect'
+import type { Socket } from 'effect/socket'
 import { Block, Command } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -7,7 +17,7 @@ import { modifyFields } from 'foldkit/struct'
 
 import { Button, Input } from '@foldkit/ui'
 
-import { ChatSocket } from './chatSocket'
+import { ChatSocket, ChatSockets } from './chatSocket'
 
 const ChatMessage = Schema.Struct({
   text: Schema.String,
@@ -64,7 +74,7 @@ export const TimestampReceivedMessage = Command.define(
 )
 
 export const SendMessage = Command.define('SendMessage', {
-  args: { text: Schema.String },
+  args: { socketKey: Schema.String, text: Schema.String },
   messages: [Message.SucceededSendMessage, Message.FailedSendMessage],
 })
 
@@ -76,28 +86,28 @@ const timestampMessage =
     )
 
 const sendMessage =
-  (chatSocket: ChatSocket) =>
-  ({ text }: Readonly<{ text: string }>) =>
-    chatSocket.use.pipe(
-      Effect.flatMap(socket =>
-        Effect.try({
-          try: () => {
-            socket.send(text)
-            return Message.SucceededSendMessage({ text })
-          },
-          catch: error =>
-            error instanceof Error ? error.message : 'Failed to send message',
-        }).pipe(
-          Effect.catch(error =>
-            Effect.succeed(Message.FailedSendMessage({ error })),
-          ),
-        ),
+  (sockets: RcMap.RcMap<string, Socket.Socket>) =>
+  ({ socketKey, text }: Readonly<{ socketKey: string; text: string }>) =>
+    RcMap.getOption(sockets, socketKey).pipe(
+      Effect.flatMap(
+        Option.match({
+          onNone: () =>
+            Effect.succeed(
+              Message.FailedSendMessage({ error: 'Socket unavailable' }),
+            ),
+          onSome: socket =>
+            socket.writer.pipe(
+              Effect.flatMap(writer => writer.write(text)),
+              Effect.as(Message.SucceededSendMessage({ text })),
+              Effect.catch(error =>
+                Effect.succeed(
+                  Message.FailedSendMessage({ error: error.message }),
+                ),
+              ),
+            ),
+        }),
       ),
-      Effect.catchTag('NotConnected', () =>
-        Effect.succeed(
-          Message.FailedSendMessage({ error: 'Socket unavailable' }),
-        ),
-      ),
+      Effect.scoped,
     )
 
 export class Application extends Block<Application>()('Application', {
@@ -106,23 +116,25 @@ export class Application extends Block<Application>()('Application', {
   Command: [TimestampSentMessage, TimestampReceivedMessage, SendMessage],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const chatSocket = yield* new ChatSocket('chatSocket')
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
+    const sockets = yield* ChatSockets
 
     return {
-      model: {
+      init: () => ({
         connection: ConnectionState.Disconnected(),
         maybeChatSocket: Option.none(),
         messages: [],
         messageInput: '',
-      },
+      }),
 
       update: {
         ClickedConnect: model => ({
           model: modifyFields(model, {
             connection: () => ConnectionState.Connecting(),
-            maybeChatSocket: Option.orElseSome(() => chatSocket),
+            maybeChatSocket: Option.orElseSome(
+              () => new ChatSocket('chatSocket'),
+            ),
           }),
         }),
 
@@ -145,10 +157,20 @@ export const ApplicationLive = Application.make(
           }
 
           return Match.value(model.connection).pipe(
-            Match.tag('Connected', () => ({
-              model: modifyFields(model, { messageInput: () => '' }),
-              commands: [SendMessage({ text: trimmedMessage })],
-            })),
+            Match.tag('Connected', () =>
+              Option.match(model.maybeChatSocket, {
+                onNone: () => ({ model }),
+                onSome: chatSocket => ({
+                  model: modifyFields(model, { messageInput: () => '' }),
+                  commands: [
+                    SendMessage({
+                      socketKey: chatSocket.model.socketKey,
+                      text: trimmedMessage,
+                    }),
+                  ],
+                }),
+              }),
+            ),
             Match.orElse(() => ({ model })),
           )
         },
@@ -168,7 +190,7 @@ export const ApplicationLive = Application.make(
           }
         },
 
-        ...chatSocket.on({
+        ...ChatSocket.on({
           Connected: model => ({
             model: modifyFields(model, {
               connection: () => ConnectionState.Connected(),
@@ -203,7 +225,7 @@ export const ApplicationLive = Application.make(
       commands: {
         TimestampSentMessage: timestampMessage(true),
         TimestampReceivedMessage: timestampMessage(false),
-        SendMessage: sendMessage(chatSocket),
+        SendMessage: sendMessage(sockets),
       },
 
       view,

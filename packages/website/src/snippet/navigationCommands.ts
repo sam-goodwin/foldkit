@@ -52,8 +52,8 @@ class Application extends Block<Application>()('Application', {
   ],
 }) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
       update: {
         CompletedNavigateInternal: model => ({ model }),

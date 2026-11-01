@@ -16,30 +16,32 @@ type CounterOutMessage = typeof CounterOutMessage.Type
 export class Counter extends Block<Counter, Readonly<{ max: number }>>()(
   'Counter',
   {
-    Model: Schema.Struct({ count: Schema.Number }),
+    Model: Schema.Struct({ count: Schema.Number, max: Schema.Number }),
     Message: CounterMessage,
     OutMessage: CounterOutMessage,
   },
 ) {}
 
-export const CounterLive = Counter.make(
-  Effect.fn(function* (_id, { max }) {
+export const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: ({ max }) => ({ count: 0, max }),
       update: {
         ClickedIncrement: model => {
           const nextCount = model.count + 1
 
-          if (nextCount === max) {
+          if (nextCount === model.max) {
             return {
-              model: { count: nextCount },
+              model: modifyFields(model, { count: () => nextCount }),
               outMessage: CounterOutMessage.ReachedMax(),
             }
           }
 
-          return { model: { count: nextCount } }
+          return { model: modifyFields(model, { count: () => nextCount }) }
         },
-        RequestedReset: () => ({ model: { count: 0 } }),
+        RequestedReset: model => ({
+          model: modifyFields(model, { count: () => 0 }),
+        }),
       },
       view: (model, h) =>
         h.button(
@@ -62,18 +64,19 @@ export class Dashboard extends Block<Dashboard>()('Dashboard', {
   Message: defineMessageUnion({ ClickedReset: {} }),
 }) {}
 
-export const DashboardLive = Dashboard.make(
-  Effect.fn(function* () {
-    const counter = yield* new Counter('counter', { max: 10 })
-
+export const DashboardLive = Dashboard.layer(
+  Effect.gen(function* () {
     return {
-      model: { counter, completedRounds: 0 },
+      init: () => ({
+        counter: new Counter('counter', { max: 10 }),
+        completedRounds: 0,
+      }),
       update: {
         ClickedReset: model => ({
           model,
           messages: [model.counter.send(Counter.Message.RequestedReset())],
         }),
-        ...counter.on({
+        ...Counter.on({
           ReachedMax: model => ({
             model: modifyFields(model, { completedRounds: Number.increment }),
             messages: [model.counter.send(Counter.Message.RequestedReset())],

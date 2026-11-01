@@ -70,12 +70,12 @@ export class Typing extends Block<Typing, void, TypingViewInput>()('Typing', {
   Command: [UpdatePlayerProgress, FocusUserGameTextInput],
 }) {}
 
-export const TypingLive = Typing.make(
-  Effect.fn(function* () {
+export const TypingLive = Typing.layer(
+  Effect.gen(function* () {
     const client = yield* RoomsClient
 
     return {
-      model: EMPTY_MODEL,
+      init: () => EMPTY_MODEL,
 
       update: {
         ChangedUserText: changedUserTextStep,

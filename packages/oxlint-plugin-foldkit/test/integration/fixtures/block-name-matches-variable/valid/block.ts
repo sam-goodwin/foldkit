@@ -10,10 +10,10 @@ export class Counter extends Block<Counter>()('Counter', {
   Message,
 }) {}
 
-export const CounterLive = Counter.make(
-  Effect.fn(function* () {
+export const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: () => ({ count: 0 }),
       update: {
         ClickedIncrement: model => ({ model: { count: model.count + 1 } }),
       },
@@ -26,16 +26,16 @@ export class Badge extends AliasedBlock<Badge, { readonly label: string }>()(
   {},
 ) {}
 
-export const BadgeLive = Badge.make(
-  Effect.fn(function* () {
+export const BadgeLive = Badge.layer(
+  Effect.gen(function* () {
     return {}
   }),
 ).pipe(Layer.provide(CounterLive))
 
 export class Panel extends Foldkit.Block<Panel>()('Panel', {}) {}
 
-export const PanelLive = Panel.make(
-  Effect.fn(function* () {
+export const PanelLive = Panel.layer(
+  Effect.gen(function* () {
     return {}
   }),
 )
@@ -46,8 +46,8 @@ export interface Tabs<Value> {
 
 export const makeTabs = <Value>() => {
   const TabsClass = Block<Tabs<Value>>()('Tabs', {})
-  const TabsLive = TabsClass.make(
-    Effect.fn(function* () {
+  const TabsLive = TabsClass.layer(
+    Effect.gen(function* () {
       return {}
     }),
   )
@@ -59,9 +59,9 @@ const blockName = 'Dynamic'
 export class DynamicName extends Block<DynamicName>()(blockName, {}) {}
 
 const registry = {
-  make: (build: unknown) => build,
+  layer: (build: unknown) => build,
 }
 
-export const unrelated = registry.make(() => ({}))
+export const unrelated = registry.layer(() => ({}))
 
 export class Unrelated extends Object {}

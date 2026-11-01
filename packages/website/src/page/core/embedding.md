@@ -30,7 +30,7 @@ Host interop maps onto primitives the architecture already has. Data crosses the
 
 ### Flags: Initial Data In {#flags}
 
-Data the app needs once, at startup, enters through `Flags`, exactly as in a page-owning app. The program declares the `Flags` Schema, the host passes a Flags Effect to `Runtime.embed`, and the root's constructor receives the value as `{ flags }` and folds it into its starting Model.
+Data the app needs once, at startup, enters through `Flags`, exactly as in a page-owning app. The program declares the `Flags` Schema, the host passes a Flags Effect to `Runtime.embed`, and the root's `init` receives the value as `{ flags }` and folds it into its starting Model.
 
 ### Inbound Ports: a Subscription {#inbound-ports}
 
@@ -38,7 +38,7 @@ Data the host pushes while the app runs arrives on an inbound Port, which the ap
 
 ::Snippet{name="embeddingInboundSubscription" label="Inbound Subscription"}
 
-The widget below returns this Stream as its `stream`, so it runs for as long as the widget exists.
+The widget below returns this Stream from a `subscriptions` entry whose dependencies never change, so it runs for as long as the widget exists.
 
 Values sent while no Stream for the Port is running are dropped, with one exception: values sent before the first Stream attaches are buffered and delivered to it in order, so sends issued right after `embed` are not lost during startup.
 

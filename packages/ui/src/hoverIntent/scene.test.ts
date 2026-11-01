@@ -10,12 +10,10 @@ class HoverIntentScene extends Block<HoverIntentScene>()('HoverIntentScene', {
   Model: Schema.Struct({ hoverIntent: HoverIntent }),
 }) {}
 
-const HoverIntentSceneLive = HoverIntentScene.make(
-  Effect.fn(function* () {
-    const hoverIntent = yield* new HoverIntent('hoverIntent', {})
-
+const HoverIntentSceneLive = HoverIntentScene.layer(
+  Effect.gen(function* () {
     return {
-      model: { hoverIntent },
+      init: () => ({ hoverIntent: new HoverIntent('hoverIntent', {}) }),
       view: (model, h) =>
         model.hoverIntent.view({
           toView: ({ trigger, panel, isVisible }) =>

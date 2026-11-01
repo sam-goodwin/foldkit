@@ -22,32 +22,31 @@ import { Message } from './message.js'
 
 type Overrides = Omit<ViewInputs, 'anchor' | 'toView'>
 
-class TooltipScene extends Block<TooltipScene, Overrides>()('TooltipScene', {
+class TooltipScene extends Block<TooltipScene>()('TooltipScene', {
   Model: Schema.Struct({ tooltip: Tooltip }),
 }) {}
 
-const TooltipSceneLive = TooltipScene.make(
-  Effect.fn(function* (_id, overrides) {
-    const tooltip = yield* new Tooltip('tooltip', { id: 'test' })
-
-    return {
-      model: { tooltip },
-      view: (model, h) =>
-        model.tooltip.view({
-          anchor: { placement: 'top' },
-          ...overrides,
-          toView: ({ trigger, panel, isVisible }) =>
-            h.div(
-              [],
-              [
-                h.button([...trigger]),
-                ...(isVisible ? [h.div([...panel])] : []),
-              ],
-            ),
-        }),
-    }
-  }),
-).pipe(Layer.provide(TooltipLive))
+const makeTooltipSceneLive = (overrides: Overrides) =>
+  TooltipScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ tooltip: new Tooltip('tooltip', { id: 'test' }) }),
+        view: (model, h) =>
+          model.tooltip.view({
+            anchor: { placement: 'top' },
+            ...overrides,
+            toView: ({ trigger, panel, isVisible }) =>
+              h.div(
+                [],
+                [
+                  h.button([...trigger]),
+                  ...(isVisible ? [h.div([...panel])] : []),
+                ],
+              ),
+          }),
+      }
+    }),
+  ).pipe(Layer.provide(TooltipLive))
 
 const acknowledgeAnchor = Mount.resolve(
   AnchorTooltip,
@@ -63,21 +62,19 @@ describe('Tooltip', () => {
       'renders the trigger with aria-describedby and no data-open when hidden',
       () =>
         scene(
-          TooltipSceneLive,
-          {},
+          makeTooltipSceneLive({}),
           sceneExpect(trigger).toHaveAttr('aria-describedby', 'test-panel'),
           sceneExpect(trigger).not.toHaveAttr('data-open'),
         ),
     )
 
     it.effect('does not render the panel when hidden', () =>
-      scene(TooltipSceneLive, {}, sceneExpect(panel).toBeAbsent()),
+      scene(makeTooltipSceneLive({}), sceneExpect(panel).toBeAbsent()),
     )
 
     it.effect('renders the panel with role=tooltip when open', () =>
       scene(
-        TooltipSceneLive,
-        {},
+        makeTooltipSceneLive({}),
         focus(trigger),
         sceneExpect(panel).toExist(),
         sceneExpect(panel).toHaveAttr('role', 'tooltip'),
@@ -88,8 +85,7 @@ describe('Tooltip', () => {
 
     it.effect('marks the trigger with data-open when visible', () =>
       scene(
-        TooltipSceneLive,
-        {},
+        makeTooltipSceneLive({}),
         focus(trigger),
         sceneExpect(trigger).toHaveAttr('data-open', ''),
         acknowledgeAnchor,
@@ -98,8 +94,7 @@ describe('Tooltip', () => {
 
     it.effect('adds anchor positioning styles and hooks to the panel', () =>
       scene(
-        TooltipSceneLive,
-        {},
+        makeTooltipSceneLive({}),
         focus(trigger),
         sceneExpect(panel).toHaveStyle('position', 'absolute'),
         sceneExpect(panel).toHaveStyle('margin', '0'),
@@ -113,8 +108,7 @@ describe('Tooltip', () => {
 
     it.effect('does not attach interaction handlers when disabled', () =>
       scene(
-        TooltipSceneLive,
-        { isDisabled: true },
+        makeTooltipSceneLive({ isDisabled: true }),
         sceneExpect(trigger).toHaveAttr('aria-disabled', 'true'),
         sceneExpect(trigger).toHaveAttr('data-disabled', ''),
         sceneExpect(trigger).not.toHaveHandler('mouseenter'),
@@ -128,8 +122,7 @@ describe('Tooltip', () => {
       'no aria-label or aria-labelledby on the trigger by default',
       () =>
         scene(
-          TooltipSceneLive,
-          {},
+          makeTooltipSceneLive({}),
           sceneExpect(trigger).not.toHaveAttr('aria-label'),
           sceneExpect(trigger).not.toHaveAttr('aria-labelledby'),
         ),
@@ -139,8 +132,7 @@ describe('Tooltip', () => {
       'applies aria-label to the trigger when ariaLabel is provided',
       () =>
         scene(
-          TooltipSceneLive,
-          { ariaLabel: 'More info' },
+          makeTooltipSceneLive({ ariaLabel: 'More info' }),
           sceneExpect(trigger).toHaveAttr('aria-label', 'More info'),
           sceneExpect(trigger).not.toHaveAttr('aria-labelledby'),
         ),
@@ -150,8 +142,7 @@ describe('Tooltip', () => {
       'applies aria-labelledby to the trigger when ariaLabelledBy is provided',
       () =>
         scene(
-          TooltipSceneLive,
-          { ariaLabelledBy: 'info-label' },
+          makeTooltipSceneLive({ ariaLabelledBy: 'info-label' }),
           sceneExpect(trigger).toHaveAttr('aria-labelledby', 'info-label'),
           sceneExpect(trigger).not.toHaveAttr('aria-label'),
         ),
@@ -161,8 +152,10 @@ describe('Tooltip', () => {
       'prefers aria-label over aria-labelledby when both are provided',
       () =>
         scene(
-          TooltipSceneLive,
-          { ariaLabel: 'More info', ariaLabelledBy: 'info-label' },
+          makeTooltipSceneLive({
+            ariaLabel: 'More info',
+            ariaLabelledBy: 'info-label',
+          }),
           sceneExpect(trigger).toHaveAttr('aria-label', 'More info'),
           sceneExpect(trigger).not.toHaveAttr('aria-labelledby'),
         ),

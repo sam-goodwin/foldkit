@@ -16,13 +16,13 @@ export class Application extends Block<
   Message: defineMessageUnion({ ClickedIncrement: {} }),
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ flags }) => ({
         count: Option.getOrElse(flags.savedCount, () => 0),
         maybeStartingCount: flags.savedCount,
-      },
+      }),
 
       update: {
         ClickedIncrement: model => ({

@@ -105,40 +105,38 @@ export class Application extends Block<
   Command: [NavigateInternal, LoadExternal],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags: { today }, url }) {
-    const navigation = yield* new Navigation('navigation')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ flags: { today }, url }) => ({
         route: urlToApplicationRoute(url),
-        navigation,
-        animationPage: yield* new AnimationPage('animationPage'),
-        buttonPage: yield* new ButtonPage('buttonPage'),
-        calendarPage: yield* new CalendarPage('calendarPage', { today }),
-        checkboxPage: yield* new CheckboxPage('checkboxPage'),
-        comboboxPage: yield* new ComboboxPage('comboboxPage'),
-        datePickerPage: yield* new DatePickerPage('datePickerPage', { today }),
-        dialogPage: yield* new DialogPage('dialogPage'),
-        disclosurePage: yield* new DisclosurePage('disclosurePage'),
-        dragAndDropPage: yield* new DragAndDropPage('dragAndDropPage'),
-        fieldsetPage: yield* new FieldsetPage('fieldsetPage'),
-        fileDropPage: yield* new FileDropPage('fileDropPage'),
-        hoverIntentPage: yield* new HoverIntentPage('hoverIntentPage'),
-        inputPage: yield* new InputPage('inputPage'),
-        listboxPage: yield* new ListboxPage('listboxPage'),
-        menuPage: yield* new MenuPage('menuPage'),
-        popoverPage: yield* new PopoverPage('popoverPage'),
-        radioGroupPage: yield* new RadioGroupPage('radioGroupPage'),
-        selectPage: yield* new SelectPage('selectPage'),
-        sliderPage: yield* new SliderPage('sliderPage'),
-        switchPage: yield* new SwitchPage('switchPage'),
-        tabsPage: yield* new TabsPage('tabsPage'),
-        textareaPage: yield* new TextareaPage('textareaPage'),
-        toastPage: yield* new ToastPage('toastPage'),
-        tooltipPage: yield* new TooltipPage('tooltipPage'),
-        virtualListPage: yield* new VirtualListPage('virtualListPage'),
-      },
+        navigation: new Navigation('navigation'),
+        animationPage: new AnimationPage('animationPage'),
+        buttonPage: new ButtonPage('buttonPage'),
+        calendarPage: new CalendarPage('calendarPage', { today }),
+        checkboxPage: new CheckboxPage('checkboxPage'),
+        comboboxPage: new ComboboxPage('comboboxPage'),
+        datePickerPage: new DatePickerPage('datePickerPage', { today }),
+        dialogPage: new DialogPage('dialogPage'),
+        disclosurePage: new DisclosurePage('disclosurePage'),
+        dragAndDropPage: new DragAndDropPage('dragAndDropPage'),
+        fieldsetPage: new FieldsetPage('fieldsetPage'),
+        fileDropPage: new FileDropPage('fileDropPage'),
+        hoverIntentPage: new HoverIntentPage('hoverIntentPage'),
+        inputPage: new InputPage('inputPage'),
+        listboxPage: new ListboxPage('listboxPage'),
+        menuPage: new MenuPage('menuPage'),
+        popoverPage: new PopoverPage('popoverPage'),
+        radioGroupPage: new RadioGroupPage('radioGroupPage'),
+        selectPage: new SelectPage('selectPage'),
+        sliderPage: new SliderPage('sliderPage'),
+        switchPage: new SwitchPage('switchPage'),
+        tabsPage: new TabsPage('tabsPage'),
+        textareaPage: new TextareaPage('textareaPage'),
+        toastPage: new ToastPage('toastPage'),
+        tooltipPage: new TooltipPage('tooltipPage'),
+        virtualListPage: new VirtualListPage('virtualListPage'),
+      }),
 
       update: {
         CompletedNavigateInternal: model => ({ model }),

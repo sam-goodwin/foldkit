@@ -161,7 +161,7 @@ describe('DevTools message list', () => {
         ...initialStoreState,
         entries: [
           { ...entry([], 'ClickedAddRow'), tag: 'ClickedAddRow' },
-          entry(['rows', 'row-3'], 'ClickedIncrement'),
+          entry(['board', 'row-3'], 'ClickedIncrement'),
         ],
       }),
     )
@@ -179,7 +179,7 @@ describe('DevTools message list', () => {
           row => row.querySelector('.truncate')?.textContent,
         )
         expect(labels.slice(0, 2)).toEqual([
-          'rows › row-3 › ClickedIncrement',
+          'board › row-3 › ClickedIncrement',
           'ClickedAddRow',
         ])
       })

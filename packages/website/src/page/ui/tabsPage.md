@@ -6,9 +6,9 @@ Tab panel navigation with roving tabindex keyboard support, horizontal and verti
 
 ### State Ownership and Typed Tabs
 
-A Tabs instance keeps its own keyboard-focus state, but the parent owns the active tab. Store the active value in your Model, pass it in as `selectedValue`, and store the value from the `Selected` OutMessage back into that field with `...tabs.on({ Selected })`.
+A Tabs instance keeps its own keyboard-focus state, but the parent owns the active tab. Store the active value in your Model, pass it in as `selectedValue`, and store the value from the `Selected` OutMessage back into that field with `...FrameworkTabs.on({ Selected })`.
 
-`Tabs.makeBlock<Value>()` returns a Block class with its Layer attached as `Live`. Create an instance in the parent's constructor with `yield* new FrameworkTabs('tabs', { id })` and provide `FrameworkTabs.Live` to the parent's Layer. The class type is [`TabsClass<Value>` from `@foldkit/ui/tabs`](/ui/selection-blocks#completed-type), and an instance is `Tabs<Value>`, for cases where either has to be named.
+`Tabs.makeBlock<Value>()` returns a Block class with its Layer attached as `Live`. Create an instance with `new FrameworkTabs('tabs', { id })` in the parent's `init` and provide `FrameworkTabs.Live` to the parent's Layer. The class type is [`TabsClass<Value>` from `@foldkit/ui/tabs`](/ui/selection-blocks#completed-type), and an instance is `Tabs<Value>`, for cases where either has to be named.
 
 :::Info{label="See it in an app"}
 Check out how Tabs is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/tabsPage.ts).
@@ -112,8 +112,8 @@ Each entry in `RenderInfo.tabs`. Carries the value, derived state flags, and att
 
 ### OutMessage {#out-message}
 
-Facts the component reports to its parent. Handle them by spreading the instance's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
+Facts the component reports to its parent. Handle them by spreading the class's `.on({ ... })`, such as `...FrameworkTabs.on({ ... })`, into the parent's update record. Variants without a handler are ignored.
 
-| Name       | Type                              | Default | Description                                                                                                                                                                                         |
-| ---------- | --------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Selected` | `{ value: Value; index: number }` | —       | Emitted when a tab is committed via click or keyboard. Carries both the tab’s value (typed as your `Value` union via `Tabs.makeBlock<Value>()`) and its index. Handle it with the instance's `.on`. |
+| Name       | Type                              | Default | Description                                                                                                                                                                                      |
+| ---------- | --------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Selected` | `{ value: Value; index: number }` | —       | Emitted when a tab is committed via click or keyboard. Carries both the tab’s value (typed as your `Value` union via `Tabs.makeBlock<Value>()`) and its index. Handle it with the class's `.on`. |

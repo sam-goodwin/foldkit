@@ -23,13 +23,13 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         checkout: checkoutMachine.initial,
         isHelpOpen: false,
-      },
+      }),
       update: {
         ToggledHelp: (model, { isOpen }) => ({
           model: modifyFields(model, { isHelpOpen: () => isOpen }),

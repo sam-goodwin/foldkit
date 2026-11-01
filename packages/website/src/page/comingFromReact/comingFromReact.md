@@ -83,7 +83,7 @@ The mappings below are starting points, not one-to-one replacements:
 | Event-driven side effect                         | A Command returned from update                                                                              |
 | External event source tied to state              | A Subscription gated by Model dependencies                                                                  |
 | DOM work tied to an element                      | A Mount defined with `Mount.define` or `Mount.defineStream`                                                 |
-| Stateful resource shared with Commands           | A child Block that acquires the resource in its constructor and exposes it                                  |
+| Stateful resource shared with Commands           | A Subscription that holds the resource, or a keyed service the Commands reach by an id stored in the Model  |
 | Context used for application state               | The Model                                                                                                   |
 | Context used for services                        | Effect services and Layers                                                                                  |
 | `useMemo` / `useCallback`                        | Often no equivalent; `createLazy` and `createKeyedLazy` skip expensive view work when needed                |
@@ -112,7 +112,7 @@ Represent each instance in the Model. Use separate fields for a fixed number of 
 
 ::Snippet{name="multipleInstances" label="Modeling multiple Block instances" class="mb-4"}
 
-`Accordion` is a Block. The parent creates instances with `new Accordion(...)` for fixed fields and an `Accordion.each` factory for the collection, then renders each with `view()`. Foldkit routes each instance's Messages back to that instance, so the parent does not delegate them. See the [Shopping Cart example](/example-apps/shopping-cart) for a larger composition.
+`Accordion` is a Block. An instance is plain data: the parent creates one with `new Accordion(id)` in `init` for each fixed field, and in an update handler when it appends to the collection. It renders each with `view()`. Foldkit routes each instance's Messages back to that instance, so the parent does not delegate them. Removing an instance from the Model discards its state. See the [Shopping Cart example](/example-apps/shopping-cart) for a larger composition.
 :::
 
 :::Faq{id="faq-routing" question="How does routing work?"}

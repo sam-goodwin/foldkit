@@ -1,18 +1,15 @@
 import { clsx } from 'clsx'
 import {
   Array,
-  Deferred,
   Effect,
-  FiberMap,
   Layer,
   Match,
   Option,
   Order,
   Record,
-  Schema,
   pipe,
 } from 'effect'
-import { Block, Command, type Mount } from 'foldkit'
+import { Block, type Mount } from 'foldkit'
 import { Html, type HtmlBuilder, inertHtml as ih } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
 import filesBySlug from 'virtual:playground-files'
@@ -21,7 +18,6 @@ import { Icon } from '../../icon'
 import { exampleDetailRouter, examplesRouter } from '../../route'
 import { type ExampleMeta, findBySlug } from '../example/meta'
 import * as PlaygroundPreview from '../playgroundPreview'
-import { reasonFromError } from '../playgroundWebContainer'
 import { PlaygroundContainer, PlaygroundContainerLive } from './container'
 import { PlaygroundFileTabs } from './fileTabs'
 import { Message, Model, PlaygroundState } from './model'
@@ -61,31 +57,6 @@ const initialActiveFile = (files: Readonly<Record<string, string>>): string =>
     Option.getOrElse(() => ''),
   )
 
-// NOTE: Vite's HMR for a content file (`src/application.ts`) doesn't reliably
-// invalidate Tailwind's CSS module in the WebContainer. After writing the
-// content file, we write `src/styles.css` back to itself so Vite emits a
-// CSS HMR update; that re-runs the Tailwind plugin against the latest
-// content tree and the new utility classes show up in the preview.
-const STYLES_CSS_PATH = 'src/styles.css'
-
-const WRITE_DEBOUNCE_MILLIS = 250
-
-export const WaitForPlaygroundServerFailure = Command.define(
-  'WaitForPlaygroundServerFailure',
-  { messages: [Message.CompletedWaitForPlaygroundServerFailure] },
-)
-
-export const SchedulePlaygroundFileWrite = Command.define(
-  'SchedulePlaygroundFileWrite',
-  {
-    args: { path: Schema.String, content: Schema.String },
-    messages: [
-      Message.SucceededSchedulePlaygroundFileWrite,
-      Message.FailedSchedulePlaygroundFileWrite,
-    ],
-  },
-)
-
 const hasPlaygroundFiles = (slug: string): boolean =>
   Record.has(filesBySlug, slug)
 
@@ -105,16 +76,22 @@ const appendDeduped = (
 ): ReadonlyArray<string> =>
   Array.contains(paths, path) ? paths : [...paths, path]
 
-const flushDirtyPaths = (
-  model: Model,
-): ReadonlyArray<ReturnType<typeof SchedulePlaygroundFileWrite>> =>
-  model.dirtyPaths.flatMap(path =>
-    pipe(
-      Record.get(model.files, path),
-      Option.map(content => SchedulePlaygroundFileWrite({ path, content })),
-      Option.toArray,
-    ),
-  )
+const flushDirtyPaths = (model: Model) =>
+  Option.match(model.maybeContainer, {
+    onNone: () => [],
+    onSome: container =>
+      Array.flatMap(model.dirtyPaths, path =>
+        pipe(
+          Record.get(model.files, path),
+          Option.map(content =>
+            container.send(
+              PlaygroundContainer.Message.RequestedFileWrite({ path, content }),
+            ),
+          ),
+          Option.toArray,
+        ),
+      ),
+  })
 
 const markPreviewLoaded = (
   state: PlaygroundState,
@@ -522,62 +499,30 @@ export class Playground extends Block<Playground, PlaygroundArgs, ViewInputs>()(
   {
     Model,
     Message,
-    Command: [WaitForPlaygroundServerFailure, SchedulePlaygroundFileWrite],
     Mount: [MountPlaygroundEditor],
   },
 ) {}
 
-export const PlaygroundLive = Playground.make(
-  Effect.fn(function* (slug, { maybeIsSupported }) {
-    const fileTabs = yield* new PlaygroundFileTabs('fileTabs', {
-      id: 'playground-files',
-    })
-    const files = Option.getOrElse(maybeFilesForSlug(slug), () => ({}))
-    const container = yield* new PlaygroundContainer('container', { files })
-
-    const syncContainer = (model: Model): Model => {
-      const isRequired = isContainerRequired(model)
-
-      if (isRequired && Option.isNone(model.maybeContainer)) {
-        return modifyFields(model, {
-          maybeContainer: () => Option.some(container),
-        })
-      } else if (!isRequired && Option.isSome(model.maybeContainer)) {
-        return modifyFields(model, {
-          maybeContainer: () => Option.none(),
-          state: state =>
-            state._tag === 'Failed' ? state : PlaygroundState.Idle(),
-        })
-      } else {
-        return model
-      }
-    }
-
-    const failPlayground = (model: Model, reason: string) => ({
-      model: syncContainer(
-        modifyFields(model, {
-          state: () => PlaygroundState.Failed({ reason }),
-        }),
-      ),
-    })
-
-    const currentContainer = container.use.pipe(
-      Effect.flatMap(({ current }) => current),
-      Effect.flatMap(Effect.fromOption),
-    )
-
+export const PlaygroundLive = Playground.layer(
+  Effect.gen(function* () {
     return {
-      model: syncContainer({
-        slug,
-        state: PlaygroundState.Booting(),
-        files,
-        fileTabs,
-        activeFilePath: initialActiveFile(files),
-        dirtyPaths: [],
-        lastWriteError: Option.none(),
-        maybeIsSupported,
-        maybeContainer: Option.none(),
-      }),
+      init: ({ maybeIsSupported }, { id }) => {
+        const files = filesForSlug(id)
+
+        return syncContainer({
+          slug: id,
+          state: PlaygroundState.Booting(),
+          files,
+          fileTabs: new PlaygroundFileTabs('fileTabs', {
+            id: 'playground-files',
+          }),
+          activeFilePath: initialActiveFile(files),
+          dirtyPaths: [],
+          lastWriteError: Option.none(),
+          maybeIsSupported,
+          maybeContainer: Option.none(),
+        })
+      },
 
       update: {
         InformedOfSupport: (model, { isSupported }) => ({
@@ -603,7 +548,7 @@ export const PlaygroundLive = Playground.make(
           if (isBooted) {
             return {
               model: nextModel,
-              commands: [SchedulePlaygroundFileWrite({ path, content })],
+              messages: requestFileWrite(model, path, content),
             }
           } else {
             return { model: nextModel }
@@ -611,18 +556,8 @@ export const PlaygroundLive = Playground.make(
         },
         FailedMountPlaygroundEditor: (model, { reason }) =>
           failPlayground(model, reason),
-        SucceededSchedulePlaygroundFileWrite: model => ({
-          model: modifyFields(model, { lastWriteError: () => Option.none() }),
-        }),
-        FailedSchedulePlaygroundFileWrite: (model, { reason }) => ({
-          model: modifyFields(model, {
-            lastWriteError: () => Option.some(reason),
-          }),
-        }),
-        CompletedWaitForPlaygroundServerFailure: (model, { reason }) =>
-          failPlayground(model, reason),
         SucceededMountPlaygroundEditor: model => ({ model }),
-        ...container.on({
+        ...PlaygroundContainer.on({
           Booted: (model, { previewUrl }) => ({
             model: modifyFields(model, {
               state: () =>
@@ -632,85 +567,23 @@ export const PlaygroundLive = Playground.make(
               dirtyPaths: () => [],
               lastWriteError: () => Option.none(),
             }),
-            commands: [
-              WaitForPlaygroundServerFailure(),
-              ...flushDirtyPaths(model),
-            ],
+            messages: flushDirtyPaths(model),
           }),
-          FailedBoot: (model, { reason }) => failPlayground(model, reason),
+          Failed: (model, { reason }) => failPlayground(model, reason),
+          ScheduledFileWrite: model => ({
+            model: modifyFields(model, { lastWriteError: () => Option.none() }),
+          }),
+          FailedFileWrite: (model, { reason }) => ({
+            model: modifyFields(model, {
+              lastWriteError: () => Option.some(reason),
+            }),
+          }),
         }),
-        ...fileTabs.on({
+        ...PlaygroundFileTabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeFilePath: () => value }),
           }),
         }),
-      },
-
-      commands: {
-        WaitForPlaygroundServerFailure: () =>
-          currentContainer.pipe(
-            Effect.flatMap(({ serverFailure }) =>
-              Deferred.await(serverFailure).pipe(
-                Effect.catch(error =>
-                  Effect.succeed(
-                    Message.CompletedWaitForPlaygroundServerFailure({
-                      reason: reasonFromError(error),
-                    }),
-                  ),
-                ),
-              ),
-            ),
-            Effect.catchTags({
-              NotConnected: () => Effect.interrupt,
-              NoSuchElementError: () => Effect.interrupt,
-            }),
-          ),
-        SchedulePlaygroundFileWrite: ({ path, content }) =>
-          currentContainer.pipe(
-            Effect.flatMap(({ container: webContainer, pendingWrites }) =>
-              FiberMap.run(
-                pendingWrites,
-                path,
-                Effect.gen(function* () {
-                  yield* Effect.sleep(WRITE_DEBOUNCE_MILLIS)
-                  yield* Effect.tryPromise(() =>
-                    webContainer.fs.writeFile(path, content),
-                  )
-                  if (path !== STYLES_CSS_PATH) {
-                    const stylesContent = yield* Effect.tryPromise(() =>
-                      webContainer.fs.readFile(STYLES_CSS_PATH, 'utf-8'),
-                    )
-                    yield* Effect.tryPromise(() =>
-                      webContainer.fs.writeFile(STYLES_CSS_PATH, stylesContent),
-                    )
-                  }
-                }).pipe(
-                  Effect.catch(error =>
-                    Effect.logError(
-                      `[playground] Debounced write failed for ${path}:`,
-                      error,
-                    ),
-                  ),
-                ),
-                { startImmediately: true },
-              ),
-            ),
-            Effect.as(Message.SucceededSchedulePlaygroundFileWrite()),
-            Effect.catchTags({
-              NotConnected: () =>
-                Effect.succeed(
-                  Message.FailedSchedulePlaygroundFileWrite({
-                    reason: 'WebContainer not yet ready',
-                  }),
-                ),
-              NoSuchElementError: () =>
-                Effect.succeed(
-                  Message.FailedSchedulePlaygroundFileWrite({
-                    reason: 'WebContainer not yet ready',
-                  }),
-                ),
-            }),
-          ),
       },
 
       mounts: {
@@ -738,3 +611,47 @@ export const PlaygroundLive = Playground.make(
     Layer.mergeAll(PlaygroundFileTabs.Live, PlaygroundContainerLive),
   ),
 )
+
+const filesForSlug = (slug: string): Readonly<Record<string, string>> =>
+  Option.getOrElse(maybeFilesForSlug(slug), () => ({}))
+
+const syncContainer = (model: Model): Model => {
+  const isRequired = isContainerRequired(model)
+
+  if (isRequired && Option.isNone(model.maybeContainer)) {
+    return modifyFields(model, {
+      maybeContainer: () =>
+        Option.some(
+          new PlaygroundContainer('container', {
+            files: filesForSlug(model.slug),
+          }),
+        ),
+    })
+  } else if (!isRequired && Option.isSome(model.maybeContainer)) {
+    return modifyFields(model, {
+      maybeContainer: () => Option.none(),
+      state: state =>
+        state._tag === 'Failed' ? state : PlaygroundState.Idle(),
+    })
+  } else {
+    return model
+  }
+}
+
+const failPlayground = (model: Model, reason: string) => ({
+  model: syncContainer(
+    modifyFields(model, {
+      state: () => PlaygroundState.Failed({ reason }),
+    }),
+  ),
+})
+
+const requestFileWrite = (model: Model, path: string, content: string) =>
+  Option.match(model.maybeContainer, {
+    onNone: () => [],
+    onSome: container => [
+      container.send(
+        PlaygroundContainer.Message.RequestedFileWrite({ path, content }),
+      ),
+    ],
+  })

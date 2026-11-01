@@ -6,7 +6,7 @@
 
 Scene operates on VNodes directly. It needs no DOM, jsdom, or browser.
 
-`scene` takes the same arguments as `story`: the Block's Layer, the root's constructor args when it has any, and then the steps. The Scene starts from the Model the constructor returns and renders it before the first step.
+`scene` takes the same arguments as `story`: the Block's Layer, the root's args when it has any, and then the steps. The Scene starts from the Model the Block's `init` returns and renders it before the first step.
 
 Import the steps you need from `foldkit/scene`. Use named imports when the file contains only Scene tests. If a file contains both Story and Scene tests, import the namespaces from `foldkit` so `Story.given` and `Scene.given` stay distinct.
 
@@ -213,7 +213,7 @@ The kept Command stays visible to `expectHas`, `expectExact`, and every resolver
 | Step                                                 | Effect                                                                                                                                                                                                                   |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Command.argsOf(Def)(pending)`                       | Returns `Some` of the captured args when `pending` came from the Definition, and `None` otherwise. It leaves the pending Command unchanged and does not choose among several matches.                                    |
-| `Command.at(path, Def)`                              | Narrows a matcher to the Block instance at `path`: an instance id, or `[collection, key]`. Use it when sibling instances have identical pending Commands.                                                                |
+| `Command.at(path, Def)`                              | Narrows a matcher to the Block instance at `path`: an instance id, or an array of ids from the root. Use it when sibling instances have pending Commands of the same Definition.                                         |
 | `Command.resolve(Def, ResultMessage)`                | Resolves the pending Command from the given Definition by feeding `ResultMessage` through update. For a child Block's Command, pass the child’s own result Message; Foldkit routes it back to that instance.             |
 | `Command.resolveAll([Def, ResultMessage], ...)`      | Resolves a batch of pending Commands, walking cascades. Each entry resolves exactly one matching dispatch in declaration order and unmatched entries carry forward; compose with Array.makeBy for N identical responses. |
 | `Command.resolveAllExact([Def, ResultMessage], ...)` | Resolves a batch and throws unless every listed resolver matches within the call and no actual Commands remain unresolved. Repeated Definition entries consume repeated dispatches in declaration order.                 |
@@ -232,7 +232,7 @@ When a Scene helper needs to read captured args before resolving a Command, use 
 
 ## URL Changes
 
-A routed root receives URL changes as Messages, through the `routing.onUrlChange` option of its Program. Scene does not run a Program, so it has no routing configuration. Deliver the URL change Message yourself with `deliver`, and pass the starting URL as the root's `{ url }` constructor arg.
+A routed root receives URL changes as Messages, through the `routing.onUrlChange` option of its Program. Scene does not run a Program, so it has no routing configuration. Deliver the URL change Message yourself with `deliver`, and pass the starting URL as the root's `{ url }` args.
 
 ::Snippet{name="sceneNavigation" label="Delivering a URL change"}
 
@@ -271,7 +271,7 @@ UI components export their Mount Definitions as `Popover.test.AnchorPopover`, `L
 
 ## Streams and Subscriptions
 
-Scene does not run a Block's `stream` or `subscriptions`. Deliver the Message the source would produce with `deliver`, such as a timer tick or a WebSocket frame. Scene runs update and renders the next view. For a child instance's source, address the Message with `Block.deliver(Child, path, message)`.
+Scene does not run a Block's `subscriptions`. Deliver the Message the Subscription would produce with `deliver`, such as a timer tick or a WebSocket frame. Scene runs update and renders the next view. For a child instance's source, address the Message with `Block.deliver(Child, path, message)`.
 
 ::Snippet{name="testingSubscription" label="Delivering a Message a Subscription produces"}
 
@@ -299,7 +299,7 @@ Scene replaces the tracked sequence after every step that drives update. A step 
 
 ## Blocks with a View Input
 
-A Block whose view takes an input from its parent cannot be the root of a Scene, because nothing would supply that input. Test it through a small test-only parent Block. The parent creates the child in its constructor and renders it with an input built from its own constructor args, so each test passes the input it needs as the Scene's args.
+A Block whose view takes an input from its parent cannot be the root of a Scene, because nothing would supply that input. Test it through a small test-only parent Block. The parent's `init` creates the child and stores its own args in its Model, and its view renders the child with that stored input, so each test passes the input it needs as the Scene's args.
 
 ::Snippet{name="sceneWithViewInputs" label="Testing a Block with a view input"}
 

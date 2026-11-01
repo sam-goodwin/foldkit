@@ -55,44 +55,38 @@ export class Sidebar extends Block<Sidebar, void, ViewInput>()('Sidebar', {
   OutMessage,
 }) {}
 
-export const SidebarLive = Sidebar.make(
-  Effect.fn(function* () {
-    const chartModeRadioGroup = yield* new ChartModeRadioGroup(
-      'chartModeRadioGroup',
-      { id: CHART_MODE_RADIO_GROUP_ID },
-    )
-    const periodRadioGroup = yield* new PeriodRadioGroup('periodRadioGroup', {
-      id: PERIOD_RADIO_GROUP_ID,
-    })
-    const packageRadioGroup = yield* new PackageRadioGroup(
-      'packageRadioGroup',
-      { id: PACKAGE_RADIO_GROUP_ID },
-    )
-
+export const SidebarLive = Sidebar.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         chartMode: 'Adoption',
-        chartModeRadioGroup,
+        chartModeRadioGroup: new ChartModeRadioGroup('chartModeRadioGroup', {
+          id: CHART_MODE_RADIO_GROUP_ID,
+        }),
         selectedPackageId: 'Core',
-        packageRadioGroup,
+        packageRadioGroup: new PackageRadioGroup('packageRadioGroup', {
+          id: PACKAGE_RADIO_GROUP_ID,
+        }),
         period: 'LastSixteenWeeks',
-        periodRadioGroup,
-      },
+        periodRadioGroup: new PeriodRadioGroup('periodRadioGroup', {
+          id: PERIOD_RADIO_GROUP_ID,
+        }),
+      }),
 
       update: {
-        ...chartModeRadioGroup.on({
+        ...ChartModeRadioGroup.on({
           Selected: (model, { value }) =>
             updatedChartControls(
               modifyFields(model, { chartMode: () => value }),
             ),
         }),
 
-        ...periodRadioGroup.on({
+        ...PeriodRadioGroup.on({
           Selected: (model, { value }) =>
             updatedChartControls(modifyFields(model, { period: () => value })),
         }),
 
-        ...packageRadioGroup.on({
+        ...PackageRadioGroup.on({
           Selected: (model, { value }) =>
             updatedChartControls(
               modifyFields(model, { selectedPackageId: () => value }),

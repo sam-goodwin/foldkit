@@ -72,13 +72,14 @@ class Parent extends Block<Parent>()('QueryParent', {
   Message: ParentMessage,
 }) {}
 
-const ParentLive = Parent.make(
-  Effect.fn(function* () {
-    const notes = yield* new Notes('notes', {})
-    const noteById = yield* new NoteById('noteById', {})
-
+const ParentLive = Parent.layer(
+  Effect.gen(function* () {
     return {
-      model: { notes, noteById, maybeLastLoadedId: Option.none() },
+      init: () => ({
+        notes: new Notes('notes', {}),
+        noteById: new NoteById('noteById', {}),
+        maybeLastLoadedId: Option.none(),
+      }),
       update: {
         ClickedLoad: model => ({
           model,
@@ -94,7 +95,7 @@ const ParentLive = Parent.make(
             ),
           ],
         }),
-        ...noteById.on({
+        ...NoteById.on({
           CompletedFetch: (model, { args, result }) => ({
             model: {
               ...model,
@@ -274,15 +275,13 @@ describe('Query Block in a running program', () => {
           Message: ProgramMessage,
         }) {}
 
-        const RootLive = Root.make(
-          Effect.fn(function* () {
-            const first = yield* new Gated('first', { isLoadingOnStart: true })
-            const second = yield* new Gated('second', {
-              isLoadingOnStart: true,
-            })
-
+        const RootLive = Root.layer(
+          Effect.gen(function* () {
             return {
-              model: { first, second },
+              init: () => ({
+                first: new Gated('first', { isLoadingOnStart: true }),
+                second: new Gated('second', { isLoadingOnStart: true }),
+              }),
               update: {
                 ClickedCancel: model => ({
                   model,

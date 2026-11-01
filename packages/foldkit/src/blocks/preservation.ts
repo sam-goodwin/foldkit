@@ -1,5 +1,6 @@
 import {
   Effect,
+  Option,
   Schema,
   type SchemaAST,
   SchemaParser,
@@ -9,20 +10,18 @@ import {
 import {
   type RuntimeBlock,
   type RuntimeInstance,
-  instancePath,
-  makePreserved,
+  makeInstance,
 } from './engine.js'
 
 const PreservedInstance = Schema.Struct({
   id: Schema.String,
-  path: Schema.Array(Schema.String),
   model: Schema.Unknown,
 })
 
-/** @internal The JSON form of a Block instance: its id, its path, and its
- *  Model encoded with the Block's Model Schema. Child instances inside that
- *  Model encode the same way. Decoding produces stand-ins that a program
- *  restores onto a freshly constructed graph. */
+/** @internal The JSON form of a Block instance: its id and its Model encoded
+ *  with the Block's Model Schema. Child instances inside that Model encode
+ *  the same way. Decoding produces the instance value again; what runs for
+ *  it starts when a Model holds it. */
 export const instanceJsonLink = (
   block: RuntimeBlock,
   maybeModel: Schema.Top | undefined,
@@ -36,13 +35,13 @@ export const instanceJsonLink = (
   return Schema.link<RuntimeInstance>()(
     PreservedInstance,
     SchemaTransformation.transformEffect({
-      decode: ({ id, path, model }, options) => {
+      decode: ({ id, model }, options) => {
         const codec = modelCodec()
         return Effect.map(
           codec === undefined
             ? Effect.succeed(undefined)
             : SchemaParser.decodeUnknownEffect(codec)(model, options),
-          decoded => makePreserved(block, id, { path, model: decoded }),
+          decoded => makeInstance(block, id, undefined, Option.some(decoded)),
         )
       },
       encode: (instance, options) => {
@@ -51,7 +50,7 @@ export const instanceJsonLink = (
           codec === undefined
             ? Effect.succeed(null)
             : SchemaParser.encodeUnknownEffect(codec)(instance.model, options),
-          model => ({ id: instance.id, path: instancePath(instance), model }),
+          model => ({ id: instance.id, model }),
         )
       },
     }),

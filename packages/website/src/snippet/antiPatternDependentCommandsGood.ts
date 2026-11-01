@@ -33,12 +33,12 @@ export class Editor extends Block<Editor>()('Editor', {
   Command: [SaveDraft, NavigateToDocuments],
 }) {}
 
-export const EditorLive = Editor.make(
-  Effect.fn(function* () {
+export const EditorLive = Editor.layer(
+  Effect.gen(function* () {
     const draftStore = yield* DraftStore
 
     return {
-      model: { draft: '', maybeSaveError: Option.none() },
+      init: () => ({ draft: '', maybeSaveError: Option.none() }),
 
       update: {
         ClickedSave: model => ({

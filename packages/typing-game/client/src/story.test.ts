@@ -84,19 +84,20 @@ const selectActionHome: HomeModel = {
   formError: Option.none(),
 }
 
-const initialRoom: RoomModel = {
+const initialRoom = (roomId: string): RoomModel => ({
+  roomId,
   roomAsyncData: RoomAsyncData.Idle(),
   maybeSession: Option.none(),
   typing: { userGameText: '', charsTyped: 0 },
-  joinForm: { username: '' },
-  copyableRoomId: { isCopiedIndicatorVisible: false },
+  joinForm: { roomId, username: '' },
+  copyableRoomId: { roomId, isCopiedIndicatorVisible: false },
   exitCountdownSecondsLeft: 0,
-}
+})
 
-const joinedRoom: RoomModel = modifyFields(initialRoom, {
+const joinedRoom: RoomModel = modifyFields(initialRoom(ROOM_A), {
   roomAsyncData: () => RoomAsyncData.Success({ data: waitingRoom }),
   maybeSession: () => Option.some({ roomId: ROOM_A, player: alice }),
-  joinForm: () => ({ username: 'alice' }),
+  joinForm: () => ({ roomId: ROOM_A, username: 'alice' }),
 })
 
 const roomUrl = (roomId: string): Url.Url =>
@@ -123,12 +124,12 @@ const makeRoom = (roomId: string, createdAt: number): Shared.Room =>
   })
 
 const dirtyRoomModel = (roomId: string): RoomModel =>
-  modifyFields(initialRoom, {
+  modifyFields(initialRoom(roomId), {
     roomAsyncData: () => RoomAsyncData.Success({ data: makeRoom(roomId, 37) }),
     maybeSession: () => Option.some({ roomId, player: alice }),
     typing: () => ({ userGameText: 'typed text', charsTyped: 10 }),
-    joinForm: () => ({ username: 'prior username' }),
-    copyableRoomId: () => ({ isCopiedIndicatorVisible: true }),
+    joinForm: () => ({ roomId, username: 'prior username' }),
+    copyableRoomId: () => ({ roomId, isCopiedIndicatorVisible: true }),
     exitCountdownSecondsLeft: () => 4,
   })
 
@@ -148,13 +149,13 @@ const deliverHomeMessage = (homeMessage: typeof Home.Message.Type) =>
   message(Block.deliver(Home, 'home', homeMessage))
 
 const toRoom = (roomId: string, roomMessage: RoomMessage): BlockMessage =>
-  Block.deliver(Room, ['room', roomId], roomMessage)
+  Block.deliver(Room, roomId, roomMessage)
 
 const toJoinForm = (
   roomId: string,
   joinFormMessage: typeof JoinForm.Message.Type,
 ): BlockMessage =>
-  Block.deliver(JoinForm, ['room', roomId, 'joinForm'], joinFormMessage)
+  Block.deliver(JoinForm, [roomId, 'joinForm'], joinFormMessage)
 
 const toCopyableRoomId = (
   roomId: string,
@@ -162,7 +163,7 @@ const toCopyableRoomId = (
 ): BlockMessage =>
   Block.deliver(
     CopyableRoomId,
-    ['room', roomId, 'copyableRoomId'],
+    [roomId, 'copyableRoomId'],
     copyableRoomIdMessage,
   )
 
@@ -282,7 +283,7 @@ describe('Room navigation', () => {
         message(Message.ChangedUrl({ url: roomUrl(ROOM_B) })),
         model(model => {
           expect(model.route).toEqual(ApplicationRoute.Room({ roomId: ROOM_B }))
-          expect(getRoom(model)).toEqual(initialRoom)
+          expect(getRoom(model)).toEqual(initialRoom(ROOM_B))
         }),
         Command.resolveAllExact(
           [
@@ -545,7 +546,7 @@ describe('Home and Room coordination', () => {
 
       expect(model.route).toEqual(ApplicationRoute.Home())
       expect(room).toEqual(
-        modifyFields(initialRoom, {
+        modifyFields(initialRoom(ROOM_A), {
           maybeSession: () => Option.some({ roomId: ROOM_A, player: alice }),
         }),
       )

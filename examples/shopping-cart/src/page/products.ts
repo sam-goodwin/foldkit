@@ -52,10 +52,10 @@ export class Products extends Block<
   Command: [ReplaceSearchUrl],
 }) {}
 
-export const ProductsLive = Products.make(
-  Effect.fn(function* (_id, { products }) {
+export const ProductsLive = Products.layer(
+  Effect.gen(function* () {
     return {
-      model: { products, searchText: '' },
+      init: ({ products }) => ({ products, searchText: '' }),
 
       update: {
         CompletedReplaceSearchUrl: model => ({ model }),

@@ -77,13 +77,13 @@ export class Review extends Block<Review, void, ReviewViewInput>()('Review', {
   Command: [SubmitApplication],
 }) {}
 
-export const ReviewLive = Review.make(
-  Effect.fn(function* () {
+export const ReviewLive = Review.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         submission: Submission.NotSubmitted(),
         isSubmitAttempted: false,
-      },
+      }),
 
       update: {
         ClickedSubmit: model => ({

@@ -354,12 +354,7 @@ type Contract<Value extends string> = Readonly<{
  *  and render it with `tabs.view(viewInputs)`. */
 export interface Tabs<
   Value extends string = string,
-> extends BlockTypes.Instance<
-  Tabs<Value>,
-  Contract<Value>,
-  InitConfig,
-  ViewInputs<Value>
-> {}
+> extends BlockTypes.Instance<Contract<Value>, InitConfig, ViewInputs<Value>> {}
 
 /** A Tabs class refined to one Value type, with its Layer as `Live`. */
 export type TabsClass<Value extends string = string> = BlockTypes.BlockClass<
@@ -367,7 +362,6 @@ export type TabsClass<Value extends string = string> = BlockTypes.BlockClass<
   'Tabs',
   InitConfig,
   ViewInputs<Value>,
-  never,
   Contract<Value>
 > &
   Readonly<{ Live: Layer.Layer<Tabs<Value>> }>
@@ -375,8 +369,8 @@ export type TabsClass<Value extends string = string> = BlockTypes.BlockClass<
 /**
  * Creates a Tabs class refined to one Value type, with its Layer attached as
  * `Live`. Declare `Tabs.makeBlock<DemoTab>()` once at module scope, create
- * instances with `yield* new DemoTabs(id, { id })` in a parent constructor,
- * and provide `DemoTabs.Live` to the parent's Layer. Its view input and
+ * instances with `new DemoTabs(id, { id })` in a parent's Model, and provide
+ * `DemoTabs.Live` to the parent's Layer. Its view input and
  * `Selected.value` share the Value type; the parent Model owns the active tab.
  */
 export const makeBlock = <
@@ -399,14 +393,14 @@ export const makeBlock = <
     /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
     contract.OutMessage.Selected({ value: value as Value, index })
 
-  const TabsLive = TabsClass.make(
-    Effect.fn(function* (_instanceId, config) {
+  const TabsLive = TabsClass.layer(
+    Effect.gen(function* () {
       return {
-        model: {
+        init: config => ({
           id: config.id,
           maybeFocusedIndex: Option.none(),
           activationMode: config.activationMode ?? 'Automatic',
-        },
+        }),
         update: {
           SelectedTab: (model, { index, value }) => ({
             model: modifyFields(model, {

@@ -12,17 +12,34 @@ class Ticker extends Block<Ticker>()('Ticker', {
   OutMessage: defineMessageUnion({ Ticked: {} }),
 }) {}
 
-const released: Array<string> = []
+const tickerEvents: Array<string> = []
 
-const TickerLive = Ticker.make(
-  Effect.fn(function* (id) {
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => {
-        released.push(id)
-      }),
-    )
+const TickerLive = Ticker.layer(
+  Effect.gen(function* () {
     return {
-      stream: Stream.tick('5 millis').pipe(Stream.as(Ticker.Message.Ticked())),
+      subscriptions: {
+        ticks: {
+          dependencies: () => 'ticks',
+          stream: () =>
+            Stream.unwrap(
+              Effect.acquireRelease(
+                Effect.sync(() => {
+                  tickerEvents.push('acquired')
+                }),
+                () =>
+                  Effect.sync(() => {
+                    tickerEvents.push('released')
+                  }),
+              ).pipe(
+                Effect.as(
+                  Stream.tick('5 millis').pipe(
+                    Stream.as(Ticker.Message.Ticked()),
+                  ),
+                ),
+              ),
+            ),
+        },
+      },
       update: {
         Ticked: model => ({ model, outMessage: Ticker.OutMessage.Ticked() }),
       },
@@ -55,20 +72,22 @@ class AutoCounter extends Block<AutoCounter>()('AutoCounter', {
   Command: [Save],
 }) {}
 
-const AutoCounterLive = AutoCounter.make(
-  Effect.fn(function* () {
+const AutoCounterLive = AutoCounter.layer(
+  Effect.gen(function* () {
     const saved = yield* Saved
-    const ticker = yield* new Ticker('ticker')
 
     return {
-      model: { count: 0, maybeTicker: Option.some(ticker) },
+      init: () => ({
+        count: 0,
+        maybeTicker: Option.some(new Ticker('ticker')),
+      }),
       update: {
         ClickedToggle: model => ({
           model: {
             ...model,
             maybeTicker: Option.isSome(model.maybeTicker)
               ? Option.none()
-              : Option.some(ticker),
+              : Option.some(new Ticker('ticker')),
           },
         }),
         ClickedSave: model => ({
@@ -76,7 +95,7 @@ const AutoCounterLive = AutoCounter.make(
           commands: [Save({ count: model.count })],
         }),
         CompletedSave: model => ({ model }),
-        ...ticker.on({
+        ...Ticker.on({
           Ticked: model => ({ model: { ...model, count: model.count + 1 } }),
         }),
       },
@@ -119,7 +138,7 @@ const waitFor = (predicate: () => boolean) =>
 
 describe('Block program', () => {
   it.live(
-    'runs streams, executes Commands, and releases removed instances',
+    'runs child Subscriptions, executes Commands, and releases what a removed instance holds',
     () =>
       Effect.gen(function* () {
         const container = document.createElement('div')
@@ -142,9 +161,10 @@ describe('Block program', () => {
           )
 
         yield* waitFor(() => countText() >= 2)
+        expect(tickerEvents).toEqual(['acquired'])
 
         document.getElementById('toggle')?.click()
-        yield* waitFor(() => released.includes('ticker'))
+        yield* waitFor(() => tickerEvents.includes('released'))
         const stoppedAt = countText()
         yield* Effect.sleep('30 millis')
         expect(countText()).toBe(stoppedAt)
@@ -173,11 +193,11 @@ class Clock extends Block<Clock>()('Clock', {
   Command: [Load],
 }) {}
 
-const ClockLive = Clock.make(
-  Effect.fn(function* () {
+const ClockLive = Clock.layer(
+  Effect.gen(function* () {
     return {
-      model: { ticks: 0, isPaused: false },
-      start: [Load()],
+      init: () => ({ ticks: 0, isPaused: false }),
+      start: () => [Load()],
       update: {
         ClickedPause: model => ({ model: { ...model, isPaused: true } }),
         Ticked: model => ({ model: { ...model, ticks: model.ticks + 1 } }),
@@ -246,10 +266,10 @@ class Probe extends Block<Probe>()('Probe', {
   Model: Schema.Struct({ label: Schema.String }),
 }) {}
 
-const ProbeLive = Probe.make(
-  Effect.fn(function* () {
+const ProbeLive = Probe.layer(
+  Effect.gen(function* () {
     return {
-      model: { label: 'probe' },
+      init: () => ({ label: 'probe' }),
       view: (model, h) => h.div([h.Id('probe')], [model.label]),
     }
   }),

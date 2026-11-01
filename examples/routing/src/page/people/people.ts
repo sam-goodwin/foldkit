@@ -63,18 +63,19 @@ export class People extends Block<People, Readonly<{ route: PeopleRoute }>>()(
   },
 ) {}
 
-export const PeopleLive = People.make(
-  Effect.fn(function* (_id, { route }) {
-    const searchText = routeSearchText(route)
-
+export const PeopleLive = People.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        searchInput: searchText,
-        searchHistory: addSearchToHistory([], searchText),
-        results: SearchResults.Loading(),
+      init: ({ route }) => {
+        const searchText = routeSearchText(route)
+        return {
+          searchInput: searchText,
+          searchHistory: addSearchToHistory([], searchText),
+          results: SearchResults.Loading(),
+        }
       },
 
-      start: [FetchPeople({ searchText })],
+      start: model => [FetchPeople({ searchText: model.searchInput })],
 
       update: {
         ChangedSearchInput: (model, { value }) => ({

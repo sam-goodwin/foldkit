@@ -12,12 +12,10 @@ class DragAndDropScene extends Block<DragAndDropScene>()('DragAndDropScene', {
   Model: Schema.Struct({ dragAndDrop: DragAndDrop }),
 }) {}
 
-const DragAndDropSceneLive = DragAndDropScene.make(
-  Effect.fn(function* () {
-    const dragAndDrop = yield* new DragAndDrop('board', {})
-
+const DragAndDropSceneLive = DragAndDropScene.layer(
+  Effect.gen(function* () {
     return {
-      model: { dragAndDrop },
+      init: () => ({ dragAndDrop: new DragAndDrop('board', {}) }),
       view: (model, h) =>
         h.div(
           [],

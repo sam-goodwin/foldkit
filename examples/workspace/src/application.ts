@@ -182,44 +182,31 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
-    const memberSwitcher = yield* new MemberSwitcher('memberSwitcher')
-    const issueList = yield* new IssueList('issueList')
-    const createIssue = yield* new CreateIssue('createIssue')
-    const issueMove = yield* new IssueMove('issueMove')
-    const commandPalette = yield* new CommandPalette('commandPalette')
-    const memberDirectory = yield* new MemberDirectory('memberDirectory')
-    const notificationCenter = yield* new NotificationCenter(
-      'notificationCenter',
-    )
-    const teammateActivity = yield* new TeammateActivity('teammateActivity')
-    const issuePane = yield* new IssuePane('issuePane')
-    const issueBoard = yield* IssueBoard.each('issueBoards')
-    const projectSettings = yield* ProjectSettings.each('projectSettings')
 
     return {
-      model: {
+      init: ({ url }) => ({
         route: urlToApplicationRoute(url),
         workspaceAsyncData: WorkspaceAsyncData.Loading(),
-        memberSwitcher,
-        issueList,
-        createIssue,
+        memberSwitcher: new MemberSwitcher('memberSwitcher'),
+        issueList: new IssueList('issueList'),
+        createIssue: new CreateIssue('createIssue'),
         issueBoards: {},
-        issueMove,
-        commandPalette,
-        memberDirectory,
-        notificationCenter,
-        teammateActivity,
-        issuePane,
+        issueMove: new IssueMove('issueMove'),
+        commandPalette: new CommandPalette('commandPalette'),
+        memberDirectory: new MemberDirectory('memberDirectory'),
+        notificationCenter: new NotificationCenter('notificationCenter'),
+        teammateActivity: new TeammateActivity('teammateActivity'),
+        issuePane: new IssuePane('issuePane'),
         maybeNotice: Option.none(),
         savedViews: [],
         nextSavedViewId: 1,
         projectSettings: {},
-      },
+      }),
 
-      start: [LoadWorkspace()],
+      start: () => [LoadWorkspace()],
 
       update: {
         ClickedLink: (model, { request }) => ({
@@ -239,7 +226,7 @@ export const ApplicationLive = Application.make(
                 maybeNotice: () => Option.none(),
               }),
             }),
-            initChildrenStep(issueBoard, projectSettings),
+            initChildrenStep,
           ]),
         CompletedNavigateInternal: model => ({ model }),
         CompletedLoadExternal: model => ({ model }),
@@ -247,7 +234,7 @@ export const ApplicationLive = Application.make(
         SucceededLoadWorkspace: (model, { workspace }) =>
           combineSteps(model, [
             applyWorkspaceSnapshotStep(workspace),
-            initChildrenStep(issueBoard, projectSettings),
+            initChildrenStep,
             informRetainedIssueDetailsStep,
           ]),
         FailedLoadWorkspace: (model, { error }) => ({
@@ -274,7 +261,7 @@ export const ApplicationLive = Application.make(
         CompletedSimulateSaveFailure: showNoticeStep(
           'The next save will fail. Your draft will be kept so you can retry.',
         ),
-        ...teammateActivity.on({
+        ...TeammateActivity.on({
           AddedComment: (model, { issueId, comment }) =>
             applyIssueCommentStep(issueId, comment)(model),
           AssignedIssue: (model, { savedIssue, actorId, createdAt }) => {
@@ -303,7 +290,7 @@ export const ApplicationLive = Application.make(
             ])
           },
         }),
-        ...createIssue.on({
+        ...CreateIssue.on({
           Created: (model, { issue }) =>
             openIssue(
               modifyFields(model, {
@@ -315,10 +302,10 @@ export const ApplicationLive = Application.make(
               issue.id,
             ),
         }),
-        ...notificationCenter.on({
+        ...NotificationCenter.on({
           SelectedIssue: (model, { issueId }) => openIssue(model, issueId),
         }),
-        ...issuePane.on({
+        ...IssuePane.on({
           Saved: (model, { savedIssue }) =>
             combineSteps(model, [
               applySavedIssueStep(savedIssue),
@@ -330,7 +317,7 @@ export const ApplicationLive = Application.make(
             applyIssueSnapshotStep(issue)(model),
           Closed: closeIssue,
         }),
-        ...issueList.on({
+        ...IssueList.on({
           SavedFilter: (model, { name, filters }) => ({
             model: modifyFields(model, {
               savedViews: Array.append(
@@ -378,7 +365,7 @@ export const ApplicationLive = Application.make(
             ),
           RequestedCreation: requestCreation,
         }),
-        ...issueBoard.on({
+        ...IssueBoard.on({
           RequestedCreation: (model, { status }, board) => ({
             model,
             messages: [
@@ -393,7 +380,7 @@ export const ApplicationLive = Application.make(
           RequestedMove: (model, { issueId, status, insertionIndex }) =>
             requestIssueMoveStep(issueId, status, insertionIndex)(model),
         }),
-        ...issueMove.on({
+        ...IssueMove.on({
           Moved: (model, { movedIssue }) =>
             combineSteps(model, [
               applyMovedIssueStep(movedIssue),
@@ -410,14 +397,14 @@ export const ApplicationLive = Application.make(
           RequestedRetry: (model, { issueId, status, insertionIndex }) =>
             requestIssueMoveStep(issueId, status, insertionIndex)(model),
         }),
-        ...commandPalette.on({
+        ...CommandPalette.on({
           SelectedIssue: (model, { issueId }) => openIssue(model, issueId),
           SelectedProject: (model, { projectId }) => ({
             model,
             commands: [NavigateInternal({ url: projectRouter({ projectId }) })],
           }),
         }),
-        ...projectSettings.on({
+        ...ProjectSettings.on({
           Saved: (model, { project }) =>
             updateWorkspaceStep(workspace =>
               modifyFields(workspace, {
@@ -516,12 +503,6 @@ type ApplicationStep = (model: Model) => Readonly<{
 }>
 
 type ApplicationViewBuilder = HtmlBuilder<Message, unknown>
-
-type IssueBoardFactory = (projectId: string) => Model['issueBoards'][string]
-type ProjectSettingsFactory = (
-  projectId: string,
-  args: Readonly<{ project: Project }>,
-) => Model['projectSettings'][string]
 
 // SELECTORS
 
@@ -805,21 +786,18 @@ const informAssignmentStep =
 // NAVIGATION
 
 const initIssueBoardIfMissingStep =
-  (issueBoard: IssueBoardFactory, project: Project): ApplicationStep =>
+  (project: Project): ApplicationStep =>
   model =>
     Record.has(model.issueBoards, project.id)
       ? { model }
       : {
           model: modifyFields(model, {
-            issueBoards: Record.set(project.id, issueBoard(project.id)),
+            issueBoards: Record.set(project.id, new IssueBoard(project.id)),
           }),
         }
 
 const initProjectSettingsIfMissingStep =
-  (
-    projectSettings: ProjectSettingsFactory,
-    project: Project,
-  ): ApplicationStep =>
+  (project: Project): ApplicationStep =>
   model =>
     Record.has(model.projectSettings, project.id)
       ? { model }
@@ -827,69 +805,61 @@ const initProjectSettingsIfMissingStep =
           model: modifyFields(model, {
             projectSettings: Record.set(
               project.id,
-              projectSettings(project.id, { project }),
+              new ProjectSettings(project.id, { project }),
             ),
           }),
         }
 
 const noopStep: ApplicationStep = model => ({ model })
 
-const initChildrenStep =
-  (
-    issueBoard: IssueBoardFactory,
-    projectSettings: ProjectSettingsFactory,
-  ): ApplicationStep =>
-  model => {
-    const maybeWorkspace = AsyncData.getData(model.workspaceAsyncData)
+const initChildrenStep: ApplicationStep = model => {
+  const maybeWorkspace = AsyncData.getData(model.workspaceAsyncData)
 
-    if (Option.isNone(maybeWorkspace)) {
-      return { model }
-    }
-
-    const workspace = maybeWorkspace.value
-    const { route } = model
-
-    const openIssueDetailStep: ApplicationStep = stepModel => ({
-      model: stepModel,
-      messages: pipe(
-        maybeIssueId(route),
-        Option.flatMap(issueId =>
-          Array.findFirst(workspace.issues, issue => issue.id === issueId),
-        ),
-        Option.match({
-          onNone: () => [],
-          onSome: issue => [
-            stepModel.issuePane.send(
-              IssuePane.Message.RequestedOpen({ issue }),
-            ),
-          ],
-        }),
-      ),
-    })
-
-    const findProject = (projectId: string) =>
-      Array.findFirst(workspace.projects, project => project.id === projectId)
-
-    const initChildrenForRouteStep = ApplicationRoute.matchOrElse(
-      route,
-      {
-        Board: ({ projectId }) =>
-          Option.match(findProject(projectId), {
-            onNone: () => noopStep,
-            onSome: project => initIssueBoardIfMissingStep(issueBoard, project),
-          }),
-        ProjectSettings: ({ projectId }) =>
-          Option.match(findProject(projectId), {
-            onNone: () => noopStep,
-            onSome: project =>
-              initProjectSettingsIfMissingStep(projectSettings, project),
-          }),
-      },
-      () => noopStep,
-    )
-
-    return combineSteps(model, [openIssueDetailStep, initChildrenForRouteStep])
+  if (Option.isNone(maybeWorkspace)) {
+    return { model }
   }
+
+  const workspace = maybeWorkspace.value
+  const { route } = model
+
+  const openIssueDetailStep: ApplicationStep = stepModel => ({
+    model: stepModel,
+    messages: pipe(
+      maybeIssueId(route),
+      Option.flatMap(issueId =>
+        Array.findFirst(workspace.issues, issue => issue.id === issueId),
+      ),
+      Option.match({
+        onNone: () => [],
+        onSome: issue => [
+          stepModel.issuePane.send(IssuePane.Message.RequestedOpen({ issue })),
+        ],
+      }),
+    ),
+  })
+
+  const findProject = (projectId: string) =>
+    Array.findFirst(workspace.projects, project => project.id === projectId)
+
+  const initChildrenForRouteStep = ApplicationRoute.matchOrElse(
+    route,
+    {
+      Board: ({ projectId }) =>
+        Option.match(findProject(projectId), {
+          onNone: () => noopStep,
+          onSome: project => initIssueBoardIfMissingStep(project),
+        }),
+      ProjectSettings: ({ projectId }) =>
+        Option.match(findProject(projectId), {
+          onNone: () => noopStep,
+          onSome: project => initProjectSettingsIfMissingStep(project),
+        }),
+    },
+    () => noopStep,
+  )
+
+  return combineSteps(model, [openIssueDetailStep, initChildrenForRouteStep])
+}
 
 const openIssue = (model: Model, issueId: string) => ({
   model,

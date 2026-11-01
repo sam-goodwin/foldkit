@@ -1,7 +1,10 @@
 import clsx from 'clsx'
 import { Array, Effect, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
-import type { CalendarDate } from 'foldkit/calendar'
+import {
+  type CalendarDate,
+  CalendarDate as CalendarDateSchema,
+} from 'foldkit/calendar'
 import {
   Field,
   NotValidated,
@@ -23,6 +26,7 @@ const GraduationYearListbox = Listbox.makeBlock()
 
 const Model = Schema.Struct({
   id: Schema.String,
+  today: CalendarDateSchema,
   school: Field(Schema.String),
   degree: Field(Schema.String),
   fieldOfStudy: Field(Schema.String),
@@ -52,23 +56,22 @@ export class EducationEntry extends Block<EducationEntry, EducationEntryArgs>()(
   { Model, Message, OutMessage },
 ) {}
 
-export const EducationEntryLive = EducationEntry.make(
-  Effect.fn(function* (entryId, { today }) {
-    const graduationYearListbox = yield* new GraduationYearListbox(
-      'graduationYearListbox',
-      { id: `${entryId}-graduation-year` },
-    )
-
+export const EducationEntryLive = EducationEntry.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        id: entryId,
+      init: ({ today }, { id }) => ({
+        id,
+        today,
         school: NotValidated({ value: '' }),
         degree: NotValidated({ value: '' }),
         fieldOfStudy: NotValidated({ value: '' }),
         maybeGraduationYear: Option.none(),
-        graduationYearListbox,
+        graduationYearListbox: new GraduationYearListbox(
+          'graduationYearListbox',
+          { id: `${id}-graduation-year` },
+        ),
         isCurrentlyEnrolled: false,
-      },
+      }),
 
       update: {
         UpdatedSchool: (model, { value }) => ({
@@ -102,7 +105,7 @@ export const EducationEntryLive = EducationEntry.make(
           outMessage: OutMessage.Removed(),
         }),
 
-        ...graduationYearListbox.on({
+        ...GraduationYearListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeGraduationYear: () => Option.some(value),
@@ -123,7 +126,7 @@ export const EducationEntryLive = EducationEntry.make(
               ['Graduation Year'],
             ),
             model.graduationYearListbox.view({
-              items: graduationYears(today),
+              items: graduationYears(model.today),
               maybeSelectedValue: model.maybeGraduationYear,
               buttonContent: h.div(
                 [h.Class('flex w-full items-center justify-between gap-2')],

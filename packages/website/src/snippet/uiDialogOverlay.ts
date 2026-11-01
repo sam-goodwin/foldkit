@@ -31,13 +31,14 @@ export class FilterDialog extends Block<FilterDialog>()('FilterDialog', {
   Message,
 }) {}
 
-export const FilterDialogLive = FilterDialog.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', { id: 'edit-filters' })
-    const combobox = yield* new CityCombobox('combobox', { id: 'city' })
-
+export const FilterDialogLive = FilterDialog.layer(
+  Effect.gen(function* () {
     return {
-      model: { dialog, combobox, maybeCity: Option.none() },
+      init: () => ({
+        dialog: new Dialog.Dialog('dialog', { id: 'edit-filters' }),
+        combobox: new CityCombobox('combobox', { id: 'city' }),
+        maybeCity: Option.none(),
+      }),
 
       update: {
         ClickedEditFilters: model => ({
@@ -45,7 +46,7 @@ export const FilterDialogLive = FilterDialog.make(
           messages: [model.dialog.send(Dialog.Dialog.Message.RequestedOpen())],
         }),
 
-        ...combobox.on({
+        ...CityCombobox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { maybeCity: () => Option.some(value) }),
           }),

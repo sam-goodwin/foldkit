@@ -100,17 +100,17 @@ export class Home extends Block<Home>()('Home', {
 
 // LIVE
 
-export const HomeLive = Home.make(
-  Effect.fn(function* () {
+export const HomeLive = Home.layer(
+  Effect.gen(function* () {
     const client = yield* RoomsClient
 
     return {
-      model: {
+      init: () => ({
         homeStep: HomeStep.EnterUsername({ username: '' }),
         formError: Option.none(),
-      },
+      }),
 
-      start: [FocusUsernameInput()],
+      start: () => [FocusUsernameInput()],
 
       update: {
         CompletedFocusUsernameInput: model => ({ model }),

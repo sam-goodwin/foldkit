@@ -12,7 +12,7 @@ The parent tells the child by sending it a Message. The child declares an `Infor
 The parent never writes the child's Model, even when it knows exactly what the child would do. Keeping the transition in the child's update means one handler owns it, whether the fact arrives at startup, after a navigation, or from a Command result.
 
 :::Info{label="Complete application"}
-The [Routing example](/example-apps/routing) runs on this pattern. Its People page Block takes the starting Route as a constructor argument, loads results with a `start` Command, and reloads them when the root sends it `InformedOfRouteChange` after a navigation.
+The [Routing example](/example-apps/routing) runs on this pattern. Its People page Block takes the starting Route as an argument, loads results with a `start` Command, and reloads them when the root sends it `InformedOfRouteChange` after a navigation.
 :::
 
 ## When to Inform a Child
@@ -35,11 +35,11 @@ People declares `InformedOfRouteChange` beside its other Messages. The Message c
 
 ::Snippet{name="informingBlocksCommand" label="FetchPeople Command"}
 
-The People constructor takes the starting Route as an argument. It builds the starting Model from that Route and returns `FetchPeople` under `start`, so a cold load fetches results as soon as the instance appears. The `InformedOfRouteChange` handler performs the same transition for later navigations:
+People takes the starting Route as its args. Its `init` builds the starting Model from that Route, and its `start` returns `FetchPeople` for the query in that Model, so a cold load fetches results as soon as the instance appears. The `InformedOfRouteChange` handler performs the same transition for later navigations:
 
 ::Snippet{name="informingBlocksChild" label="People reacting to InformedOfRouteChange"}
 
-Both paths produce the same Model shape and the same Command. The constructor covers the Route the application starts on, and the handler covers every Route after it.
+Both paths produce the same Model shape and the same Command. `init` and `start` cover the Route the application starts on, and the handler covers every Route after it.
 
 :::Warning{label="Not an OutMessage"}
 `InformedOfRouteChange` moves a fact from parent to child. An [OutMessage](/core/block#surfacing-facts) moves a fact from child to parent.
@@ -47,7 +47,7 @@ Both paths produce the same Model shape and the same Command. The constructor co
 
 ### The Parent
 
-The root takes the URL as its constructor argument. It parses the starting Route, passes the People Route to `new People(...)`, and holds the instance in its Model. When `ChangedUrl` arrives, it compares the previous and next Routes with `Transition` and sends `InformedOfRouteChange` when the application enters a People Route or stays on one with a different query:
+The root takes the URL as its args. Its `init` parses the starting Route, passes the People Route to `new People('people', { route })`, and puts the instance in its Model. When `ChangedUrl` arrives, it compares the previous and next Routes with `Transition` and sends `InformedOfRouteChange` when the application enters a People Route or stays on one with a different query:
 
 ::Snippet{name="informingBlocksParent" label="Root sending InformedOfRouteChange"}
 

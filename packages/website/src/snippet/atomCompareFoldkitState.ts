@@ -32,10 +32,10 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { todos: [], draft: '', filter: 'All' },
+      init: () => ({ todos: [], draft: '', filter: 'All' }),
 
       // Every way the Model can change, one handler per Message
       update: {

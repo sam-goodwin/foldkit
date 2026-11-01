@@ -40,12 +40,12 @@ export class Application extends Block<Application>()('Application', {
   Command: [FetchUser],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const api = yield* Api
 
     return {
-      model: { user: UserAsyncData.Idle() },
+      init: () => ({ user: UserAsyncData.Idle() }),
 
       update: {
         ClickedLoadUser: model => ({

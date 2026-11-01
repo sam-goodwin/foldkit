@@ -7,20 +7,26 @@ export class LinkedCounters extends Block<LinkedCounters>()('LinkedCounters', {
   Model: Schema.Struct({ left: Counter, right: Counter }),
 }) {}
 
-export const LinkedCountersLive = LinkedCounters.make(
-  Effect.fn(function* () {
-    const left = yield* new Counter('left', { max: 10 })
-    const right = yield* new Counter('right', { max: 3 })
-
+export const LinkedCountersLive = LinkedCounters.layer(
+  Effect.gen(function* () {
     return {
-      model: { left, right },
+      init: () => ({
+        left: new Counter('left', { max: 10 }),
+        right: new Counter('right', { max: 3 }),
+      }),
 
       update: {
-        ...left.on({
-          ReachedMax: model => ({
-            model,
-            messages: [model.right.send(Counter.Message.RequestedReset())],
-          }),
+        ...Counter.on({
+          ReachedMax: (model, _outMessage, counter) => {
+            if (counter.id === 'left') {
+              return {
+                model,
+                messages: [model.right.send(Counter.Message.RequestedReset())],
+              }
+            } else {
+              return { model }
+            }
+          },
         }),
       },
 

@@ -17,10 +17,10 @@ export class Panel extends Block<Panel>()('Panel', {
   Mount: [TrackPointer],
 }) {}
 
-export const PanelLive = Panel.make(
-  Effect.fn(function* () {
+export const PanelLive = Panel.layer(
+  Effect.gen(function* () {
     return {
-      model: { clientX: 0, clientY: 0 },
+      init: () => ({ clientX: 0, clientY: 0 }),
 
       update: {
         MovedPointer: (model, { clientX, clientY }) => ({

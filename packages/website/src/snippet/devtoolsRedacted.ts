@@ -36,10 +36,12 @@ export class Profile extends Block<
   Command: [FetchProfile],
 }) {}
 
-export const ProfileLive = Profile.make(
-  Effect.fn(function* (_id, { rawAccessToken }) {
+export const ProfileLive = Profile.layer(
+  Effect.gen(function* () {
     return {
-      model: { accessToken: makeAccessToken(rawAccessToken) },
+      init: ({ rawAccessToken }) => ({
+        accessToken: makeAccessToken(rawAccessToken),
+      }),
 
       update: {
         ClickedLoadProfile: model => ({

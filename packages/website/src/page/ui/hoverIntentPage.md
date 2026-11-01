@@ -4,7 +4,7 @@
 
 HoverIntent keeps a related panel open while the pointer or focus moves between it and a trigger. Pointer entry and departure use configurable delays. Focus opens the panel immediately; if focus is the last thing keeping it open, moving focus away closes it without the pointer grace period. Escape also closes immediately and prevents reopening until the pointer and focus have both left.
 
-HoverIntent is headless. Create a `HoverIntent.HoverIntent` instance in the parent's constructor, hold it in the parent Model, and provide `HoverIntent.HoverIntentLive` to the parent's Layer. It does not render elements, position the panel, assign ARIA roles, or choose styles. Use it when those choices belong to the component you are building. For example, a Hover Card can pair HoverIntent with [Anchor](/ui/anchor), while a hover menu can keep its items available as the pointer moves from the trigger into the panel.
+HoverIntent is headless. Create an instance with `new HoverIntent.HoverIntent('hoverIntent', { ... })` in the parent's `init`, hold it in the parent Model, and provide `HoverIntent.HoverIntentLive` to the parent's Layer. It does not render elements, position the panel, assign ARIA roles, or choose styles. Use it when those choices belong to the component you are building. For example, a Hover Card can pair HoverIntent with [Anchor](/ui/anchor), while a hover menu can keep its items available as the pointer moves from the trigger into the panel.
 
 ## Examples
 
@@ -78,7 +78,7 @@ Pass these fields to the instance's `view`, as in `model.hoverIntent.view({ ... 
 
 ### OutMessage {#out-message}
 
-Handle these by spreading `...hoverIntent.on({ ... })` into the parent's update record. Both are reported only when visibility changes.
+Handle these by spreading `...HoverIntent.HoverIntent.on({ ... })` into the parent's update record. Both are reported only when visibility changes.
 
 | Name     | Description                                             |
 | -------- | ------------------------------------------------------- |

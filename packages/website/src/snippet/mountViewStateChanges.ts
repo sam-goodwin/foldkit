@@ -26,12 +26,12 @@ export class Notes extends Block<Notes>()('Notes', {
   Mount: [MountEditor],
 }) {}
 
-export const NotesLive = Notes.make(
-  Effect.fn(function* () {
+export const NotesLive = Notes.layer(
+  Effect.gen(function* () {
     const editors = yield* RichTextEditors
 
     return {
-      model: {},
+      init: () => ({}),
 
       update: {
         CompletedMountEditor: model => ({ model }),

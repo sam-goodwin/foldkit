@@ -55,7 +55,7 @@ Then replace this file whole. Foldkit's conventions change with its APIs, and a 
 
 ## Blocks
 
-A Block is a class. The class declares the contract: its Model, Message, OutMessage, and the Commands and Mounts it owns. `make` implements it and returns an Effect Layer. Every app has at least one Block, the root `Application`.
+A Block is a class. The class declares the contract: its Model, Message, OutMessage, and the Commands and Mounts it owns. `layer` implements it and returns an Effect Layer. Every app has at least one Block, the root `Application`.
 
 ```ts
 const Message = defineMessageUnion({
@@ -66,37 +66,41 @@ const Message = defineMessageUnion({
 type Message = typeof Message.Type
 
 const Save = Command.define('Save', {
-  args: { count: Schema.Number },
+  args: { counterId: Schema.String, count: Schema.Number },
   messages: [Message.SucceededSave, Message.FailedSave],
 })
 
 export class Counter extends Block<Counter, Readonly<{ max: number }>>()(
   'Counter',
   {
-    Model: Schema.Struct({ count: Schema.Number }),
+    Model: Schema.Struct({
+      counterId: Schema.String,
+      max: Schema.Number,
+      count: Schema.Number,
+    }),
     Message,
     OutMessage: defineMessageUnion({ ReachedMax: {} }),
     Command: [Save],
   },
 ) {}
 
-export const CounterLive = Counter.make(
-  Effect.fn(function* (id, { max }) {
+export const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     const store = yield* CountStore
 
     return {
-      model: { count: 0 },
+      init: ({ max }, { id }) => ({ counterId: id, max, count: 0 }),
       update: {
         ClickedSave: model => ({
           model,
-          commands: [Save({ count: model.count })],
+          commands: [Save({ counterId: model.counterId, count: model.count })],
         }),
         SucceededSave: model => ({ model }),
         FailedSave: model => ({ model }),
       },
       commands: {
-        Save: ({ count }) =>
-          store.save(id, count).pipe(
+        Save: ({ counterId, count }) =>
+          store.save(counterId, count).pipe(
             Effect.as(Message.SucceededSave()),
             Effect.catch(error =>
               Effect.succeed(Message.FailedSave({ reason: String(error) })),
@@ -111,19 +115,19 @@ export const CounterLive = Counter.make(
 ```
 
 - Declare Messages, OutMessages, Commands, and Mounts at module level, before the class. The class lists them; nothing else registers them.
-- The type parameters of `Block<Self, Args, ViewInput, Exposed>()` are the class itself, its constructor args (default `void`), the input its view takes from a parent (default `void`), and the value it exposes to its parent's Commands (default `never`).
-- The constructor passed to `make` is an `Effect.fn` that receives the instance id and args. It runs once per instance, synchronously, when the instance enters its parent's Model. Yield Services there and close over them in handlers.
-- The constructor returns `{ model, start?, update, commands?, mounts?, stream?, subscriptions?, expose?, view }`. Omit `model` for a Block without state and `update` for a Block without Messages.
-- Constructors do no asynchronous work. Load data with a Command listed in `start`, which runs when the instance appears.
+- The type parameters of `Block<Self, Args, ViewInput>()` are the class itself, its instances' args (default `void`), and the input its view takes from a parent (default `void`).
+- The Effect passed to `layer` runs once per Block, when the program's Layer is built. Yield Services there and close over them in handlers. It returns the Block's module, which every instance shares: `{ init, start?, update, commands?, mounts?, subscriptions?, view }`. Omit `init` for a Block without state and `update` for a Block without Messages.
+- `init(args, { id, path })` turns an instance's args into its starting Model. Anything that differs between instances, such as args or the id, goes into the Model here. Handlers read it from the Model, and Command handlers receive it through Command args.
+- `start(model, args)` returns the Commands to run when an instance appears in the Model. Load data there. The Layer constructor and `init` do no asynchronous work.
 - `update` has one handler per Message tag. Each receives the Model and the exact Message and returns `{ model, commands?, outMessage?, messages? }`.
-- `commands` has one handler per listed Command and `mounts` one per listed Mount. Handlers get their argument types from the definition and must return an Effect with no remaining requirements, which is why they close over constructor Services. A listed Command or Mount without a handler fails at runtime.
+- `commands` has one handler per listed Command and `mounts` one per listed Mount. Handlers get their argument types from the definition and must return an Effect with no remaining requirements, which is why they close over the Services the Layer constructor yields. A listed Command or Mount without a handler fails at runtime.
 - The root view returns `{ title, body }`. Every other view returns `Html`.
 
 Use a Block when a feature owns interaction state, effects, or lifecycle. Pure domain functions and render-only helpers remain ordinary functions. Do not turn a render helper into a Block for structural symmetry.
 
 ## Children
 
-A parent holds child instances in its Model. The child class itself is the Schema for that field.
+A parent holds child instances in its Model. The child class itself is the Schema for that field. An instance is plain data: `new Child(id, args)` creates one wherever the value is needed, usually in the parent's `init` or in an update handler.
 
 ```ts
 export class Board extends Block<Board>()('Board', {
@@ -135,34 +139,37 @@ export class Board extends Block<Board>()('Board', {
   Message,
 }) {}
 
-export const BoardLive = Board.make(
-  Effect.fn(function* () {
-    const search = yield* new Search('search', { placeholder: 'Find' })
-    const dialog = yield* new Dialog('dialog', { id: 'confirm' })
-    const column = yield* Column.each('columns', { isCollapsible: true })
-
+export const BoardLive = Board.layer(
+  Effect.gen(function* () {
     return {
-      model: { search, maybeDialog: Option.none(), columns: [] },
+      init: () => ({
+        search: new Search('search', { placeholder: 'Find' }),
+        maybeDialog: Option.none(),
+        columns: [],
+      }),
       update: {
         ClickedOpenDialog: model => ({
           model: modifyFields(model, {
-            maybeDialog: () => Option.some(dialog),
+            maybeDialog: () =>
+              Option.some(new Dialog('dialog', { id: 'confirm' })),
           }),
         }),
         ClickedAddColumn: (model, { columnId }) => ({
           model: modifyFields(model, {
-            columns: Array.append(column(columnId)),
-          }),
-        }),
-        ...search.on({
-          SubmittedQuery: (model, { query }) => ({
-            model,
-            messages: Array.map(model.columns, boardColumn =>
-              boardColumn.send(Column.Message.InformedOfQuery({ query })),
+            columns: Array.append(
+              new Column(columnId, { isCollapsible: true }),
             ),
           }),
         }),
-        ...column.on({
+        ...Search.on({
+          SubmittedQuery: (model, { query }) => ({
+            model,
+            messages: Array.map(model.columns, column =>
+              column.send(Column.Message.InformedOfQuery({ query })),
+            ),
+          }),
+        }),
+        ...Column.on({
           RequestedRemove: (model, _, removedColumn) => ({
             model: modifyFields(model, {
               columns: Array.filter(({ id }) => id !== removedColumn.id),
@@ -175,8 +182,8 @@ export const BoardLive = Board.make(
           [],
           [
             model.search.view(),
-            ...Array.map(model.columns, boardColumn =>
-              h.keyed('section')(boardColumn.id, [], [boardColumn.view()]),
+            ...Array.map(model.columns, column =>
+              h.keyed('section')(column.id, [], [column.view()]),
             ),
           ],
         ),
@@ -185,11 +192,13 @@ export const BoardLive = Board.make(
 )
 ```
 
-- `yield* new Child(id, args)` declares one instance. `yield* Child.each(collection, args)` returns a factory; `factory(key)` declares a keyed instance whose id is the key, and `factory(key, args)` overrides the factory's args for that instance. Ids are unique within the parent.
-- An instance is live while it is in the Model. Putting it in the Model constructs it; removing it closes its scope, which stops its Streams and Subscriptions and runs finalizers registered in its constructor. Putting the same declared instance back constructs it fresh, and replacing an instance at the same path closes the old one.
+- Name a single child for its role and use that name for both the Model field and the id: `search: new Search('search', args)`. A collection item takes its key as the id: `new Column(columnId, args)`.
+- Ids are unique among one parent's children; a duplicate id throws. An instance's path is its parent's path plus its id.
+- Foldkit compares the Model before and after every update. When an instance appears, Foldkit calls `init`, runs its `start` Commands, and starts its Subscriptions. When it leaves the Model, Foldkit stops its Subscriptions and in-flight Commands.
 - Instances can live in Struct fields, `Option`, arrays, Records, and tagged union variants. Not in HashMap, HashSet, or class instances; convert those to arrays or Records.
 - The parent reads child state through `model.search.model`. It changes the child only by sending it a Message: return `messages: [model.search.send(Search.Message.RequestedClear())]`. Name those Messages as facts: `RequestedClear` for a request, `InformedOfQuery` for a notification.
-- The parent receives child facts by spreading `...instance.on({ Tag: (model, outMessage, instance) => result })` or `...factory.on({ ... })` into its update record. An `.on` handler can return `outMessage` to report a fact to its own parent.
+- The parent receives child facts by spreading `...Child.on({ Tag: (model, outMessage, instance) => result })` into its update record. One entry covers every instance of that Block the parent's Model holds. When two instances need different handling, branch on `instance.id` inside the handler. `Child.onAll` requires a handler for every OutMessage tag. A handler can return `outMessage` to report a fact to its own parent.
+- A parent that must refuse some of a child's Messages while its own state forbids them spreads `...Child.when((model, message) => boolean)`.
 - Render a child with `model.search.view()`. Never reach into a child's Model fields to change them from the parent.
 
 ### View input
@@ -212,9 +221,9 @@ export class Dialog extends Block<Dialog, DialogArgs, DialogViewInput>()(
 
 Functions in the input run as the parent, so Messages they create are the parent's. Attributes the child builds for the parent to spread use `childAttributes(...)`, so they keep the child's dispatch. Pass stable functions (module-level or memoized) when the child caches on their identity.
 
-### Exposed values
+### Per-instance resources
 
-A Block can expose a value to its parent's Commands with `expose`. A parent Command handler reads it with `instance.use`, which fails with `NotConnected` while the instance is not in the Model. This is how a stateful handle such as a socket is shared: a child Block acquires it in its constructor with `Effect.acquireRelease`, exposes it, and the parent holds the child in an `Option` field while the handle should exist.
+A stateful resource that belongs to one instance, such as a socket, lives as long as that instance is in the Model. When only a Stream reads the resource, a Subscription acquires it: Foldkit runs the Stream while the instance is in the Model and interrupts it when the instance leaves. When Commands also use the resource, create an Effect `RcMap` once in the Layer constructor, keyed by a value stored in the Model. A Subscription holds the key's reference while the instance is in the Model, and Command handlers borrow the resource with `RcMap.get` using the key from their args.
 
 ## Foldkit Patterns
 
@@ -246,7 +255,7 @@ Omit `commands` when a handler statically creates none. Return a computed collec
 
 ### Routing
 
-The root Block's args are `{ url }` when the Program has routing. Parse that URL in the constructor and later URLs in the `ChangedUrl` handler, then store a typed `ApplicationRoute` in the Model. Use `Route.parseUrlWithFallback` for a full `Url` and `Route.parsePathWithFallback` for an origin-relative path, including query parameters.
+The root Block's args are `{ url }` when the Program has routing. Parse that URL in `init` and later URLs in the `ChangedUrl` handler, then store a typed `ApplicationRoute` in the Model. Use `Route.parseUrlWithFallback` for a full `Url` and `Route.parsePathWithFallback` for an origin-relative path, including query parameters.
 
 When a page Block needs to react to a route change, the root sends it an `InformedOfRouteChange` Message from `ChangedUrl`. `Transition.make` and `Transition.matchOrElse` from `foldkit/route` describe entered, stayed, and exited pages.
 
@@ -262,7 +271,7 @@ Omit the children argument when an element has none: `h.div([h.Class('divider')]
 
 ### Commands
 
-Define a Command at module level with `Command.define(name, { args, messages })`; omit `args` when it takes none. Assign definitions to PascalCase constants and list them under the class's `Command`. Implement each under the constructor's `commands` record. Name the work the handler performs, not the later Model transition caused by its result: a timer that waits before update begins dismissal is `WaitBeforeDismissal`. Convert expected failures to result Messages with `Effect.catch(() => Effect.succeed(Message.FailedX(...)))`. Defects follow the application's crash handling. Commands belong to the Block whose update returns them.
+Define a Command at module level with `Command.define(name, { args, messages })`; omit `args` when it takes none. Assign definitions to PascalCase constants and list them under the class's `Command`. Implement each under the `commands` record of the Block's Layer. Name the work the handler performs, not the later Model transition caused by its result: a timer that waits before update begins dismissal is `WaitBeforeDismissal`. Convert expected failures to result Messages with `Effect.catch(() => Effect.succeed(Message.FailedX(...)))`. Defects follow the application's crash handling. Commands belong to the Block whose update returns them.
 
 Command args contain values already in the Model or Message. Read time, randomness, and UUIDs inside the handler Effect and return them in result Messages. Use `Dom` for browser operations and Effect's `Clock`, `Random`, `Crypto.Crypto`, and `Effect.sleep`. Avoid raw `document.querySelector`, `setTimeout`, `Date.now()`, or `Math.random()` in app transitions.
 
@@ -274,16 +283,16 @@ Pick the primitive by what causes the side effect:
 
 - A Message just dispatched: a Command.
 - An element exists in the rendered tree, and the handler uses that element: a Mount. Define it with `Mount.define(name, { messages })` or `Mount.defineStream` for continuous events, list it under `Mount`, implement it under `mounts`, and attach it in the view with `h.OnMount(FocusInput())`.
-- An external event source that runs for the whole life of the instance: `stream`, a Stream of the Block's own Messages.
-- An event source gated by Model state: `subscriptions: { name: { dependencies: model => ..., stream: dependencies => Stream } }`. The runtime recomputes dependencies after every update and restarts the Stream when they change. Return `Stream.empty` when the condition is off.
-- A stateful handle that Commands need: a child Block that acquires it in its constructor and exposes it.
+- An instance just appeared in the Model: a `start` Command.
+- An external event source: `subscriptions: { name: { dependencies: model => ..., stream: dependencies => Stream } }`. Foldkit runs the Stream while the instance is in the Model, recomputes dependencies after every update, and restarts the Stream when they change. A source that runs for the whole life of the instance uses dependencies that never change. A source gated by Model state returns `Stream.empty` when the condition is off.
+- A stateful resource for one instance: a Subscription that acquires it, or an `RcMap` keyed service when Commands use it too. See Per-instance resources above.
 - A native web component: `CustomElement`.
 
 If a Mount's handler doesn't read or write its element, you've misidentified the cause. Mount args are captured at mount, not refreshed across renders.
 
-Services yielded in a constructor last as long as the instance. A Command Effect lasts for one dispatch. Subscription Streams follow their dependencies. A Mount follows one DOM element. A handler must not capture current time, Command args, Subscription dependencies, or a DOM element in the constructor.
+Services yielded in a Layer constructor last as long as the program and are shared by every instance of the Block. A Command Effect lasts for one dispatch. Subscription Streams follow their instance and their dependencies. A Mount follows one DOM element. The Layer constructor must not capture current time, per-instance data, Command args, Subscription dependencies, or a DOM element.
 
-Handlers and Services may own mutable execution bookkeeping, such as worker availability or protocol request IDs. The Model and update own pending work shown to the user, selections, and submission rules. A `Ref` created in the constructor must not become the source of truth for workflow decisions or state read by view.
+Handlers and Services may own mutable execution bookkeeping, such as worker availability or protocol request IDs. The Model and update own pending work shown to the user, selections, and submission rules. A `Ref` created in the Layer constructor is shared by every instance and must not become the source of truth for workflow decisions or state read by view.
 
 `Effect.acquireRelease` registers the release only after the acquire body completes. Construct the resource inside the acquire Effect, never before it.
 
@@ -308,13 +317,13 @@ const program = Program.make(Application, {
 Runtime.run(program)
 ```
 
-The `layer` provides the root Block, every Block the graph creates, and their Services. A child Block's Layer must be provided to every parent Layer that creates it. The root's args are `{ url }` with `routing`, `{ flags }` with `Flags`, both, or none. `Program.makeElement` creates a container-scoped program whose view returns `Html`.
+The `layer` provides the root Block, every Block the graph creates, and their Services. A parent Block's Layer requires the Layers of the Blocks its Model holds, so provide each child Layer to its parent with `Layer.provide`. The root's args are `{ url }` with `routing`, `{ flags }` with `Flags`, both, or none. `Program.makeElement` creates a container-scoped program whose view returns `Html`.
 
 ### File organization
 
 One file, one Block. A Block's file holds everything that defines it: its Message and OutMessage unions, Model Schema, Command and Mount definitions, the class, and its `Live` Layer with update, Command handlers, and view. Name the file for the Block in camelCase; the root is `application.ts`, and `IssueBoard` lives in `issueBoard.ts`. Never split one Block across `message.ts`, `model.ts`, `update.ts`, `command.ts`, or `view.ts`. When a Block grows too large to read in one file, extract a feature that owns its own state, effects, or lifecycle into a child Block in its own file. Markup that only renders the parent's state and sends the parent's Messages stays in the parent's file as view functions.
 
-Order the file so it reads top to bottom: the contract (Messages, Model, Commands, Mounts, and the class), then the `Live` Layer directly after the class, then the Steps, selectors, and view helpers the Layer uses. Create child instances with `yield*` at the top of the Layer constructor, not in a separate helper.
+Order the file so it reads top to bottom: the contract (Messages, Model, Commands, Mounts, and the class), then the `Live` Layer directly after the class, then the Steps, selectors, and view helpers the Layer uses.
 
 The only source files that are not Blocks are entries (`entry.ts`, `entry.server.ts`), `services.ts` for the root `ApplicationLayer` of ordinary Services (a test provider is `ApplicationTestLayer`), `route.ts` when several Blocks share the root Route union `ApplicationRoute`, and `domain/` modules of Schemas and pure functions used by more than one Block. Tests sit beside the Block they test. Group a page with the child Blocks only it uses in a folder named for the page: `page/settings/settings.ts` and `page/settings/themePicker.ts`.
 
@@ -350,10 +359,10 @@ it.effect('ClickedSave saves the count', () =>
 )
 ```
 
-- `story(layer, args?, ...steps)` and `scene(layer, args?, ...steps)` build the instance from its Layer and start from the Model its constructor returns. Pass constructor args after the Layer when the Block takes them. `start` Commands are not in the ledger.
-- The Layer must provide exactly one root Block. Provide children with `Layer.provide`, not `Layer.merge`. Provide Services the constructor yields with `.pipe(Effect.provide(TestLayer))` on the returned Effect.
-- In tests the Model is resolved: every instance appears as its own Model (`model.search.query`). `given` can set child state but cannot add or remove instances; do that with Messages.
-- Deliver a child's Message with `message(Block.deliver(Search, 'search', Search.Message.SubmittedQuery({ query })))`. Keyed instances use the path form `['columns', 'todo']`. Stream and Subscription emissions are Messages too: deliver them the same way.
+- `story(layer, args?, ...steps)` and `scene(layer, args?, ...steps)` create a root instance and start from the Model its `init` returns. Pass the instance args after the Layer when the Block takes them. `start` Commands are not in the ledger.
+- The Layer must provide exactly one root Block. Provide children with `Layer.provide`, not `Layer.merge`. Provide Services the Layer constructor yields with `.pipe(Effect.provide(TestLayer))` on the returned Effect.
+- In tests the Model is resolved: every instance appears as its own Model (`model.search.query`). `given` sets the Model in that resolved form and may also hold `new Child(id, args)` values.
+- Deliver a child's Message with `message(Block.deliver(Search, 'search', Search.Message.SubmittedQuery({ query })))`. The path is the ids from the root: a column in the board is `'todo'`, and a child of a nested instance is `['board', 'search']`. Subscription emissions are Messages too: deliver them the same way.
 - A child's Command result routes back to the child automatically when you resolve it.
 
 Import the steps as named imports from `foldkit/story` or `foldkit/scene`. A test file needs only one of the two modules. If a single file ever tests both, import the namespaces instead (`import { Scene, Story } from 'foldkit'`) so `Story.given` and `Scene.given` stay distinguishable.

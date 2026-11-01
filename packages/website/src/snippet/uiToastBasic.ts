@@ -32,17 +32,18 @@ export class Notifications extends Block<Notifications>()('Notifications', {
   Message,
 }) {}
 
-export const NotificationsLive = Notifications.make(
-  Effect.fn(function* () {
-    // Swipe is opt-in. Omit swipeToDismiss to leave it disabled, or pass {}
-    // for the default rightward 40px gesture.
-    const toast = yield* new Toast('toast', {
-      id: 'app-toast',
-      swipeToDismiss: {},
-    })
-
+export const NotificationsLive = Notifications.layer(
+  Effect.gen(function* () {
     return {
-      model: { toast, maybeLastDismissedBody: Option.none() },
+      init: () => ({
+        // Swipe is opt-in. Omit swipeToDismiss to leave it disabled, or pass {}
+        // for the default rightward 40px gesture.
+        toast: new Toast('toast', {
+          id: 'app-toast',
+          swipeToDismiss: {},
+        }),
+        maybeLastDismissedBody: Option.none(),
+      }),
 
       update: {
         // `Toast.requestShow` builds the Message that adds an entry
@@ -64,7 +65,7 @@ export const NotificationsLive = Notifications.make(
           ],
         }),
 
-        ...toast.on({
+        ...Toast.on({
           DismissedToast: (model, { payload }) => ({
             model: modifyFields(model, {
               maybeLastDismissedBody: () => Option.some(payload.bodyText),

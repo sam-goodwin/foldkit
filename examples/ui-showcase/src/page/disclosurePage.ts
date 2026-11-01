@@ -28,14 +28,14 @@ export class DisclosurePage extends Block<DisclosurePage>()('DisclosurePage', {
   Message,
 }) {}
 
-export const DisclosurePageLive = DisclosurePage.make(
-  Effect.fn(function* () {
+export const DisclosurePageLive = DisclosurePage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         isDisclosureBasicDemoOpen: false,
         isDisclosureAnimatedDemoOpen: false,
         isDisclosureCollapsedPreviewDemoOpen: false,
-      },
+      }),
 
       update: {
         ToggledDisclosureBasicDemo: (model, { isOpen }) => ({

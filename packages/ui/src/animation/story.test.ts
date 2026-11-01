@@ -643,20 +643,17 @@ describe('Animation', () => {
       Message: PanelMessage,
     }) {}
 
-    const PanelLive = Panel.make(
-      Effect.fn(function* () {
-        const animation = yield* new Animation('animation', {
-          id: 'panel-content',
-        })
-        const entry = yield* Animation.each('entries', { isShowing: true })
-
+    const PanelLive = Panel.layer(
+      Effect.gen(function* () {
         return {
-          model: {
-            animation,
+          init: () => ({
+            animation: new Animation('animation', {
+              id: 'panel-content',
+            }),
             entries: [],
             transitionedOutCount: 0,
             nextEntryKey: 0,
-          },
+          }),
           update: {
             ClickedShow: model => ({
               model,
@@ -671,12 +668,14 @@ describe('Animation', () => {
                 ...model,
                 entries: Array.append(
                   model.entries,
-                  entry(`entry-${model.nextEntryKey}`),
+                  new Animation(`entry-${model.nextEntryKey}`, {
+                    isShowing: true,
+                  }),
                 ),
                 nextEntryKey: model.nextEntryKey + 1,
               },
             }),
-            ...animation.on({
+            ...Animation.on({
               StartedLeaveAnimating: model => ({
                 model,
                 messages: [

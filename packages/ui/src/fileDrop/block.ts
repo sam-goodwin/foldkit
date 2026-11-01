@@ -87,10 +87,10 @@ const dispatchDroppedFiles = (files: ReadonlyArray<File.File>) =>
 
 /** The FileDrop implementation. Provide it to every parent that creates a
  *  FileDrop instance. */
-export const FileDropLive = FileDrop.make(
-  Effect.fn(function* (_instanceId, { id }) {
+export const FileDropLive = FileDrop.layer(
+  Effect.gen(function* () {
     return {
-      model: { id, isDragOver: false },
+      init: ({ id }) => ({ id, isDragOver: false }),
 
       update: {
         EnteredDragZone: model => ({

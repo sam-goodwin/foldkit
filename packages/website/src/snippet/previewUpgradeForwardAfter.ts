@@ -9,16 +9,14 @@ export class Preferences extends Block<Preferences>()('Preferences', {
   OutMessage: defineMessageUnion({ ChangedTheme: { theme: Theme } }),
 }) {}
 
-export const PreferencesLive = Preferences.make(
-  Effect.fn(function* () {
-    const settings = yield* new Settings('settings')
-
+export const PreferencesLive = Preferences.layer(
+  Effect.gen(function* () {
     return {
-      model: { settings },
+      init: () => ({ settings: new Settings('settings') }),
 
       update: {
         // Forwarding is an `.on` handler that returns the parent's OutMessage.
-        ...settings.on({
+        ...Settings.on({
           ChangedTheme: (model, { theme }) => ({
             model,
             outMessage: Preferences.OutMessage.ChangedTheme({ theme }),

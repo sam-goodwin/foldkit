@@ -81,61 +81,63 @@ type ToastSceneArgs = Readonly<{
   ariaLabel: string | undefined
 }>
 
-class ToastScene extends Block<ToastScene, ToastSceneArgs>()('ToastScene', {
+class ToastScene extends Block<ToastScene>()('ToastScene', {
   Model: Schema.Struct({ toast: Toast }),
   Message: defineMessageUnion({ ClickedSeed: {} }),
 }) {}
 
-const ToastSceneLive = ToastScene.make(
-  Effect.fn(function* (_id, { seed, entryView, ariaLabel }) {
-    const toast = yield* new Toast('toast', { id: 'test' })
-
-    return {
-      model: { toast },
-      update: {
-        ClickedSeed: model => ({
-          model,
-          messages: Array.map(seed, entry =>
-            model.toast.send(Toast.Message.Added({ entry })),
-          ),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.button(
-              [h.Id('toast-seed'), h.OnClick(ToastScene.Message.ClickedSeed())],
-              ['Seed'],
+const makeToastSceneLive = ({ seed, entryView, ariaLabel }: ToastSceneArgs) =>
+  ToastScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ toast: new Toast('toast', { id: 'test' }) }),
+        update: {
+          ClickedSeed: model => ({
+            model,
+            messages: Array.map(seed, entry =>
+              model.toast.send(Toast.Message.Added({ entry })),
             ),
-            model.toast.view({
-              position: 'BottomRight',
-              ...(ariaLabel === undefined ? {} : { ariaLabel }),
-              entryToView: (entry, handlers) => {
-                if (entryView === 'DismissButton') {
-                  return h.button(handlers.dismiss, ['Dismiss'])
-                } else if (entryView === 'SwipeTargets') {
-                  return ih.div(
-                    [],
-                    [
-                      ih.button([ih.AriaLabel('Close')], ['Close']),
-                      ih.span(
-                        [ih.DataAttribute('toast-swipe-ignore', '')],
-                        ['Selectable'],
-                      ),
-                      ih.div([ih.DataAttribute('swipe-area', '')], ['Drag']),
-                    ],
-                  )
-                } else {
-                  return ih.div([], [ih.span([], [entry.payload.body])])
-                }
-              },
-            }),
-          ],
-        ),
-    }
-  }),
-).pipe(Layer.provide(Toast.Live))
+          }),
+        },
+        view: (model, h) =>
+          h.div(
+            [],
+            [
+              h.button(
+                [
+                  h.Id('toast-seed'),
+                  h.OnClick(ToastScene.Message.ClickedSeed()),
+                ],
+                ['Seed'],
+              ),
+              model.toast.view({
+                position: 'BottomRight',
+                ...(ariaLabel === undefined ? {} : { ariaLabel }),
+                entryToView: (entry, handlers) => {
+                  if (entryView === 'DismissButton') {
+                    return h.button(handlers.dismiss, ['Dismiss'])
+                  } else if (entryView === 'SwipeTargets') {
+                    return ih.div(
+                      [],
+                      [
+                        ih.button([ih.AriaLabel('Close')], ['Close']),
+                        ih.span(
+                          [ih.DataAttribute('toast-swipe-ignore', '')],
+                          ['Selectable'],
+                        ),
+                        ih.div([ih.DataAttribute('swipe-area', '')], ['Drag']),
+                      ],
+                    )
+                  } else {
+                    return ih.div([], [ih.span([], [entry.payload.body])])
+                  }
+                },
+              }),
+            ],
+          ),
+      }
+    }),
+  ).pipe(Layer.provide(Toast.Live))
 
 const discardSeedCommands = <SimulationModel, SimulationMessage, OutMessage>(
   simulation: Scene.SceneSimulation<
@@ -194,8 +196,7 @@ describe('Toast', () => {
       'renders the container with role=region and aria-live=polite',
       () =>
         Scene.scene(
-          ToastSceneLive,
-          sceneArgs(toastModel(false)),
+          makeToastSceneLive(sceneArgs(toastModel(false))),
           Scene.expect(container).toExist(),
           Scene.expect(container).toHaveAttr('role', 'region'),
           Scene.expect(container).toHaveAttr('aria-live', 'polite'),
@@ -206,8 +207,7 @@ describe('Toast', () => {
       'renders the container even when empty, for a11y live-region setup',
       () =>
         Scene.scene(
-          ToastSceneLive,
-          sceneArgs(toastModel(false)),
+          makeToastSceneLive(sceneArgs(toastModel(false))),
           Scene.expect(container).toExist(),
         ),
     )
@@ -215,8 +215,7 @@ describe('Toast', () => {
     it.effect('renders an Info entry with role=status', () => {
       const model = withEntry({ variant: 'Info' })
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).toExist(),
         Scene.expect(entryZero).toHaveAttr('role', 'status'),
@@ -226,8 +225,7 @@ describe('Toast', () => {
     it.effect('renders an Error entry with role=alert', () => {
       const model = withEntry({ variant: 'Error' })
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).toHaveAttr('role', 'alert'),
       )
@@ -236,8 +234,7 @@ describe('Toast', () => {
     it.effect('surfaces the entry variant via data-variant', () => {
       const model = withEntry({ variant: 'Warning' })
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).toHaveAttr('data-variant', 'Warning'),
       )
@@ -251,8 +248,7 @@ describe('Toast', () => {
         ),
       })
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).toHaveAttr('data-enter', ''),
         Scene.expect(entryZero).toHaveAttr('data-transition', ''),
@@ -267,8 +263,7 @@ describe('Toast', () => {
         ),
       })
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).toHaveAttr('data-leave', ''),
         Scene.expect(entryZero).toHaveAttr('data-closed', ''),
@@ -280,8 +275,7 @@ describe('Toast', () => {
       () => {
         const model = withEntry()
         return Scene.scene(
-          ToastSceneLive,
-          sceneArgs(model),
+          makeToastSceneLive(sceneArgs(model)),
           givenModel(model),
           Scene.expect(entryZero).toHaveHandler('mouseenter'),
           Scene.expect(entryZero).toHaveHandler('mouseleave'),
@@ -292,8 +286,7 @@ describe('Toast', () => {
     it.effect('dispatches dismiss from interactive entry content', () => {
       const model = withEntry()
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model, 'DismissButton'),
+        makeToastSceneLive(sceneArgs(model, 'DismissButton')),
         givenModel(model),
         Scene.click(Scene.role('button', { name: 'Dismiss' })),
         Scene.expect(entryZero).toHaveAttr('data-leave', ''),
@@ -318,8 +311,7 @@ describe('Toast', () => {
 
     it.effect('uses a custom aria-label when provided', () =>
       Scene.scene(
-        ToastSceneLive,
-        sceneArgs(toastModel(false), 'Body', 'Toasts'),
+        makeToastSceneLive(sceneArgs(toastModel(false), 'Body', 'Toasts')),
         Scene.expect(container).toHaveAttr('aria-label', 'Toasts'),
       ),
     )
@@ -327,8 +319,7 @@ describe('Toast', () => {
     it.effect('attaches a pointerdown handler when swipe is enabled', () => {
       const model = withEntry()
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).toHaveHandler('pointerdown'),
       )
@@ -339,8 +330,7 @@ describe('Toast', () => {
       () => {
         const model = withEntry()
         return Scene.scene(
-          ToastSceneLive,
-          sceneArgs(model, 'SwipeTargets'),
+          makeToastSceneLive(sceneArgs(model, 'SwipeTargets')),
           givenModel(model),
           Scene.pointerDown(Scene.label('Close')),
           Scene.expectIgnored(),
@@ -363,8 +353,7 @@ describe('Toast', () => {
         }),
       })
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).toHaveAttr('data-swipe', 'move'),
         Scene.expect(entryZero).toHaveStyle('translate', '80px'),
@@ -377,8 +366,7 @@ describe('Toast', () => {
     it.effect('omits data-swipe while idle', () => {
       const model = withEntry()
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).not.toHaveAttr('data-swipe'),
       )
@@ -387,8 +375,7 @@ describe('Toast', () => {
     it.effect('attaches no pointerdown handler when swipe is disabled', () => {
       const model = withDisabledEntry()
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).not.toHaveHandler('pointerdown'),
       )
@@ -397,8 +384,7 @@ describe('Toast', () => {
     it.effect('does not restrict touch behavior when swipe is disabled', () => {
       const model = withDisabledEntry()
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).not.toHaveStyle('touchAction'),
       )
@@ -407,8 +393,7 @@ describe('Toast', () => {
     it.effect('allows vertical panning when swipe is enabled', () => {
       const model = withEntry()
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.expect(entryZero).toHaveStyle('touchAction', 'pan-y'),
       )
@@ -437,8 +422,7 @@ describe('Toast', () => {
           })
 
         return Scene.scene(
-          ToastSceneLive,
-          sceneArgs(model),
+          makeToastSceneLive(sceneArgs(model)),
           givenModel(model),
           Scene.pointerDown(entryZero, { clientX: 100 }),
           Scene.expect(entryZero).toHaveAttr('data-swipe', 'move'),
@@ -468,8 +452,7 @@ describe('Toast', () => {
     it.effect('returns a short swipe to zero while settling', () => {
       const model = withEntry()
       return Scene.scene(
-        ToastSceneLive,
-        sceneArgs(model),
+        makeToastSceneLive(sceneArgs(model)),
         givenModel(model),
         Scene.pointerDown(entryZero, { clientX: 100 }),
         Scene.given({
@@ -506,8 +489,7 @@ describe('Toast', () => {
           },
         })
         return Scene.scene(
-          ToastSceneLive,
-          sceneArgs(model),
+          makeToastSceneLive(sceneArgs(model)),
           givenModel(model),
           Scene.expect(entryZero).toHaveAttr('data-swipe', 'end'),
           Scene.expect(entryZero).toHaveStyle('translate', '100vw'),
@@ -531,8 +513,7 @@ describe('Toast', () => {
           },
         })
         return Scene.scene(
-          ToastSceneLive,
-          sceneArgs(model),
+          makeToastSceneLive(sceneArgs(model)),
           givenModel(model),
           Scene.expect(entryZero).toHaveAttr('data-swipe', 'end'),
           Scene.expect(entryZero).toHaveStyle('translate', '-100vw'),
@@ -552,8 +533,7 @@ describe('Toast', () => {
       it.effect(`maps ${variant} to role=${expectedRole}`, () => {
         const model = withEntry({ variant })
         return Scene.scene(
-          ToastSceneLive,
-          sceneArgs(model),
+          makeToastSceneLive(sceneArgs(model)),
           givenModel(model),
           Scene.expect(entryZero).toHaveAttr('role', expectedRole),
         )

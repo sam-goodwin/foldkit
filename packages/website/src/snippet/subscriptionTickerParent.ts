@@ -1,4 +1,4 @@
-import { Effect, Number, Option, Schema } from 'effect'
+import { Duration, Effect, Number, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -13,22 +13,24 @@ export class AutoCounter extends Block<AutoCounter>()('AutoCounter', {
   Message: defineMessageUnion({ ClickedToggleAutoCount: {} }),
 }) {}
 
-export const AutoCounterLive = AutoCounter.make(
-  Effect.fn(function* () {
-    const ticker = yield* new Ticker('ticker', { every: '1 second' })
-
+export const AutoCounterLive = AutoCounter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0, maybeTicker: Option.none() },
+      init: () => ({ count: 0, maybeTicker: Option.none() }),
 
       update: {
         ClickedToggleAutoCount: model => ({
           model: modifyFields(model, {
             maybeTicker: maybeTicker =>
-              Option.isSome(maybeTicker) ? Option.none() : Option.some(ticker),
+              Option.isSome(maybeTicker)
+                ? Option.none()
+                : Option.some(
+                    new Ticker('ticker', { every: Duration.seconds(1) }),
+                  ),
           }),
         }),
 
-        ...ticker.on({
+        ...Ticker.on({
           Ticked: model => ({
             model: modifyFields(model, { count: Number.increment }),
           }),

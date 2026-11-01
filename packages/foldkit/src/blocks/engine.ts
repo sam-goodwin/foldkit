@@ -1,8 +1,6 @@
 import {
   Array,
-  Cause,
   Context,
-  Data,
   Deferred,
   Effect,
   Equal,
@@ -30,22 +28,20 @@ import {
   requireDispatch,
 } from '../html/runtimeSingleton.js'
 
-/** The position of a Block instance in the graph, from the root. */
+/** The position of a Block instance in the graph, from the root: the ids of
+ *  its ancestors and its own id. The root's path is empty. */
 export type Path = ReadonlyArray<string>
 
-/** @internal Marks every Block instance, connected or not. */
+/** @internal Marks every Block instance. */
 export const InstanceTypeId = Symbol.for('foldkit/Block/Instance')
 
-/** @internal Holds the live node of a connected instance. */
-export const NodeTypeId = Symbol.for('foldkit/Block/Node')
+/** @internal Holds the engine view of an instance's Block class on its
+ *  prototype. */
+export const BlockTypeId = Symbol.for('foldkit/Block/Block')
 
-/** @internal Holds the construction recipe of an instance that is not yet
- *  connected. */
-export const PendingTypeId = Symbol.for('foldkit/Block/Pending')
-
-/** @internal Holds the preserved data of an instance decoded from a
- *  development reload, before it is restored onto a live graph. */
-export const PreservedTypeId = Symbol.for('foldkit/Block/Preserved')
+/** @internal Marks an instance whose `init` has run, so its `model` is its
+ *  state. */
+export const InitializedTypeId = Symbol.for('foldkit/Block/Initialized')
 
 /** @internal Marks an OutMessage handler entry spread into an update record. */
 export const OnEntryTypeId = Symbol.for('foldkit/Block/OnEntry')
@@ -77,11 +73,6 @@ export const isBlockMessage = (value: unknown): value is BlockMessage =>
   Predicate.hasProperty(value, 'path') &&
   Predicate.hasProperty(value, 'message')
 
-/** Fails `use` when the instance is not in its parent's Model. */
-export class NotConnected extends Data.TaggedError('NotConnected')<{
-  readonly path: Path
-}> {}
-
 /** @internal A Command invocation as the engine sees it. */
 export type AnyCommand = Readonly<{
   name: string
@@ -97,17 +88,24 @@ export type AnyHandlerDefinition = Readonly<{
   ) => Layer.Layer<never, never, never>
 }>
 
-/** @internal The value a Block constructor returns, as the engine sees it. */
+/** What `init` receives besides the instance's args. */
+export type InitContext = Readonly<{
+  /** The instance id, unique among its parent's children. */
+  id: string
+  /** The instance's path from the root. */
+  path: Path
+}>
+
+/** @internal The value a Block's Layer constructor returns, as the engine
+ *  sees it. */
 export type RuntimeImplementation = Readonly<{
-  model?: unknown
+  init?: (args: unknown, context: InitContext) => unknown
+  start?: (model: unknown, args: unknown) => ReadonlyArray<AnyCommand>
   update?: Readonly<Record<PropertyKey, unknown>>
   view?: (model: unknown, h: unknown, input: unknown) => unknown
   commands?: Readonly<Record<string, (input: unknown) => unknown>>
   mounts?: Readonly<Record<string, (input: unknown) => unknown>>
-  stream?: Stream.Stream<unknown>
   subscriptions?: Readonly<Record<string, RuntimeSubscription>>
-  start?: ReadonlyArray<AnyCommand>
-  expose?: unknown
 }>
 
 /** @internal A Model-dependent Stream as the engine sees it. */
@@ -120,11 +118,17 @@ export type RuntimeSubscription = Readonly<{
   keepAliveEquivalence?: (previous: unknown, next: unknown) => boolean
 }>
 
-/** @internal A Block constructor registered by `make`. */
-export type RuntimeConstructor = (
-  id: string,
-  args: unknown,
-) => Effect.Effect<RuntimeImplementation, unknown, unknown>
+/** @internal A Block implementation built once from its Layer: the
+ *  implementation, the context its Layer was built in, which provides the
+ *  Blocks its Model holds, and its Command and Mount handlers. */
+export type RuntimeModule = Readonly<{
+  block: RuntimeBlock
+  impl: RuntimeImplementation
+  context: Context.Context<never>
+  handlerContext: Context.Context<never>
+  onEntries: ReadonlyArray<OnEntry>
+  gateEntries: ReadonlyArray<GateEntry>
+}>
 
 /** @internal The static side of a Block class as the engine sees it. */
 export type RuntimeBlock = Readonly<{
@@ -132,36 +136,36 @@ export type RuntimeBlock = Readonly<{
   prototype: object
   Command: ReadonlyArray<AnyHandlerDefinition>
   Mount: ReadonlyArray<AnyHandlerDefinition>
-  service: Context.Key<unknown, RuntimeConstructor>
+  service: Context.Key<unknown, RuntimeModule>
 }>
 
 /** @internal Shared state for one running graph: a program or a test. */
 export type Graph = {
   readonly isSimulation: boolean
-  readonly nodes: Map<string, Node>
+  readonly running: Map<string, Running>
   readonly pending: Array<unknown>
   readonly started: Array<AnyCommand>
-  readonly recipes: Map<string, Pending>
-  readonly collections: Map<string, Pending>
-  readonly messageOrigins: WeakMap<BlockMessage, Node>
+  readonly messageOrigins: WeakMap<BlockMessage, Running>
+  rootModule: RuntimeModule | undefined
   emit: ((message: unknown) => void) | undefined
   rootDispatch: DispatchSync | undefined
   runtimeContext: Deferred.Deferred<Context.Context<never>>
 }
 
-/** @internal The live part of a connected instance. Kept off the Model so the
- *  Model stays plain data. */
-export type Node = Readonly<{
+/** @internal What runs for one instance while the Model holds it: its
+ *  Subscriptions and in-flight Commands. The instance's state is not here;
+ *  it is in the Model. */
+export type Running = Readonly<{
   graph: Graph
-  block: RuntimeBlock
   path: Path
-  impl: RuntimeImplementation
+  module: RuntimeModule
   scope: Scope.Closeable
-  handlerContext: Context.Context<never>
-  onEntries: ReadonlyArray<OnEntry>
-  gateEntries: ReadonlyArray<GateEntry>
-  running: Map<string, { dependencies: unknown; fiber: Fiber.Fiber<void> }>
   commandFibers: CommandFibers
+  interruptRegistry: unknown
+  subscriptions: Map<
+    string,
+    { dependencies: unknown; fiber: Fiber.Fiber<void> }
+  >
   viewState: ViewState
 }>
 
@@ -180,20 +184,16 @@ type CommandFibers = {
 type ViewState = {
   parentFrame: Frame | undefined
   childFrame: Frame | undefined
+  parentRunning: Running | undefined
   readonly asParent: WeakMap<Function, Function>
   readonly asChild: WeakMap<Function, Function>
 }
 
-/** @internal Who an OutMessage handler entry listens to. A collection target
- *  matches every instance created by one `each` factory. */
-export type OnTarget = Readonly<
-  { kind: 'Instance'; path: Path } | { kind: 'Collection'; path: Path }
->
-
-/** @internal An OutMessage handler entry. */
+/** @internal An OutMessage handler entry. It handles the OutMessages of every
+ *  child of `block` under the parent whose update record holds it. */
 export type OnEntry = Readonly<{
   [OnEntryTypeId]: true
-  target: OnTarget
+  block: RuntimeBlock
   handlers: Readonly<
     Record<
       string,
@@ -202,29 +202,19 @@ export type OnEntry = Readonly<{
   >
 }>
 
-/** @internal A Message gate entry. Messages addressed to a matching child
- *  instance reach its update only when the predicate returns true. */
+/** @internal A Message gate entry. Messages addressed to a child of `block`
+ *  reach its update only when the predicate returns true. */
 export type GateEntry = Readonly<{
   [GateEntryTypeId]: true
-  target: OnTarget
+  block: RuntimeBlock
   predicate: (model: unknown, message: unknown) => boolean
 }>
 
-/** @internal A Message a parent sends to a child instance from update. */
+/** @internal A Message a parent sends to one of its children from update. */
 export type Send = Readonly<{
   [SendTypeId]: true
-  target: Path
+  childId: string
   message: unknown
-}>
-
-/** @internal The recipe for an instance that is constructed when it first
- *  appears in a Model. */
-export type Pending = Readonly<{
-  graph: Graph
-  block: RuntimeBlock
-  path: Path
-  args: unknown
-  context: Context.Context<never>
 }>
 
 /** @internal An instance object as the engine sees it. */
@@ -232,33 +222,8 @@ export type RuntimeInstance = Readonly<{
   id: string
   model: unknown
   [InstanceTypeId]: true
-  [NodeTypeId]?: Node
-  [PendingTypeId]?: Pending
-  [PreservedTypeId]?: Preserved
+  [InitializedTypeId]?: true
 }>
-
-/** @internal The data of an instance preserved across a development
- *  reload: its path and its Model, whose child instances are preserved too. */
-export type Preserved = Readonly<{
-  path: Path
-  model: unknown
-}>
-
-/** @internal Provides the graph and the current instance path to a Block
- *  constructor, so the child instances it creates know where they live. */
-export class BlockParent extends Context.Service<
-  BlockParent,
-  Readonly<{ graph: Graph; path: Path }>
->()('foldkit/Block/BlockParent') {}
-
-/** The path of the Block instance being constructed, from the root. The
- *  root's path is empty, and a child's path ends with its id: a keyed
- *  instance's path is its collection field followed by its key. Yield it in
- *  a constructor to derive identifiers that must be unique across the
- *  program. */
-export class InstancePath extends Context.Service<InstancePath, Path>()(
-  'foldkit/Block/InstancePath',
-) {}
 
 const noCommands: ReadonlyArray<AnyCommand> = []
 
@@ -275,6 +240,14 @@ type UpdateResult = Readonly<{
   messages?: ReadonlyArray<Send>
 }>
 
+const makeViewState = (): ViewState => ({
+  parentFrame: undefined,
+  childFrame: undefined,
+  parentRunning: undefined,
+  asParent: new WeakMap(),
+  asChild: new WeakMap(),
+})
+
 // GRAPH
 
 /** @internal Creates the shared state for a running graph. */
@@ -282,38 +255,38 @@ export const makeGraph = (
   options: Readonly<{ isSimulation: boolean }>,
 ): Graph => ({
   isSimulation: options.isSimulation,
-  nodes: new Map(),
+  running: new Map(),
   pending: [],
   started: [],
-  recipes: new Map(),
-  collections: new Map(),
   messageOrigins: new WeakMap(),
+  rootModule: undefined,
   emit: undefined,
   rootDispatch: undefined,
   runtimeContext: Deferred.makeUnsafe(),
 })
 
-/** @internal Closes every instance in a graph and forgets its state, so the
+/** @internal Stops everything running in a graph and forgets it, so the
  *  program that owns it can start again from nothing. */
 export const disposeGraph = (graph: Graph): Effect.Effect<void> =>
   Effect.suspend(() => {
-    const scopes = Array.map(Array.fromIterable(graph.nodes.values()), node =>
-      Scope.close(node.scope, Exit.void),
+    const scopes = Array.map(
+      Array.fromIterable(graph.running.values()),
+      running => Scope.close(running.scope, Exit.void),
     )
-    graph.nodes.clear()
-    graph.recipes.clear()
-    graph.collections.clear()
+    graph.running.clear()
     graph.pending.length = 0
     graph.started.length = 0
+    graph.rootModule = undefined
     graph.emit = undefined
     graph.rootDispatch = undefined
     graph.runtimeContext = Deferred.makeUnsafe()
     return Effect.all(scopes, { discard: true })
   })
 
-/** @internal A Stream of the Messages that instance Streams emit. The runtime
- *  consumes it as one Subscription, and the context it runs in, which carries
- *  the program's Ports, becomes the context of every instance Stream. */
+/** @internal A Stream of the Messages that instance Subscriptions emit. The
+ *  runtime consumes it as one Subscription, and the context it runs in,
+ *  which carries the program's Ports, becomes the context of every instance
+ *  Subscription. */
 export const graphMessages = (graph: Graph): Stream.Stream<unknown> =>
   Stream.callback<unknown>(queue =>
     Effect.acquireRelease(
@@ -345,130 +318,85 @@ const emit = (graph: Graph, message: unknown): void => {
 
 const pathKey = (path: Path): string => JSON.stringify(path)
 
-const instanceMessage = (node: Node, message: unknown): BlockMessage => {
-  const wrapped = blockMessage(node.path, message)
-  node.graph.messageOrigins.set(wrapped, node)
-  return wrapped
-}
+const runningAt = (graph: Graph, path: Path): Option.Option<Running> =>
+  Option.fromNullishOr(graph.running.get(pathKey(path)))
 
-const runInstanceStream = (
-  node: Node,
-  stream: Stream.Stream<unknown>,
-): Effect.Effect<void> =>
-  Effect.flatMap(Deferred.await(node.graph.runtimeContext), runtimeContext =>
-    Stream.runForEach(stream, message =>
-      Effect.sync(() => emit(node.graph, instanceMessage(node, message))),
-    ).pipe(
-      Effect.updateContext((context: Context.Context<never>) =>
-        Context.merge(runtimeContext, context),
-      ),
-    ),
-  )
+// INSTANCES
 
 /** @internal Returns whether a value is a Block instance. */
 export const isInstance = (value: unknown): value is RuntimeInstance =>
   Predicate.hasProperty(value, InstanceTypeId)
 
-/** @internal Returns the live node of a connected instance. */
-export const nodeOf = (instance: RuntimeInstance): Node => {
-  const node = instance[NodeTypeId]
-  if (node === undefined) {
-    throw new Error(
-      `[foldkit] Block instance "${instance.id}" is not connected. An instance renders and receives Messages only while it is in its parent's Model.`,
-    )
+/** @internal Returns whether an instance's `init` has run. */
+export const isInitialized = (instance: RuntimeInstance): boolean =>
+  instance[InitializedTypeId] === true
+
+const isRuntimeBlock = (value: unknown): value is RuntimeBlock =>
+  Predicate.hasProperty(value, 'service') &&
+  Predicate.hasProperty(value, 'prototype')
+
+/** @internal Returns the engine view of an instance's Block class. */
+export const blockOf = (instance: RuntimeInstance): RuntimeBlock => {
+  const block: unknown = Reflect.get(instance, BlockTypeId)
+  if (!isRuntimeBlock(block)) {
+    throw new Error('[foldkit] Expected a Block instance.')
   }
-  return node
+  return block
 }
 
-/** @internal Returns the path of an instance, connected or not. */
-export const instancePath = (instance: RuntimeInstance): Path => {
-  const pending = instance[PendingTypeId]
-  return pending === undefined ? nodeOf(instance).path : pending.path
-}
+const argsOf = (instance: RuntimeInstance): unknown =>
+  Reflect.get(instance, 'args')
 
-/** @internal Returns the graph of an instance, connected or not. */
-export const instanceGraph = (instance: RuntimeInstance): Graph => {
-  const pending = instance[PendingTypeId]
-  return pending === undefined ? nodeOf(instance).graph : pending.graph
-}
-
-const isPathPrefix = (prefix: Path, path: Path): boolean =>
-  prefix.length <= path.length &&
-  Array.every(prefix, (segment, index) => path[index] === segment)
-
-const isPathEqual = (left: Path, right: Path): boolean =>
-  left.length === right.length && isPathPrefix(left, right)
-
-const defineHidden = (
-  target: object,
-  key: PropertyKey,
-  value: unknown,
-): void => {
-  Object.defineProperty(target, key, {
-    value,
-    enumerable: false,
-    writable: false,
-    configurable: false,
-  })
-}
-
-const isRuntimeInstance = (value: unknown): value is RuntimeInstance =>
-  isInstance(value)
-
-const makeInstanceObject = (
-  prototype: object,
+/** @internal Defines the own fields of an instance value. A value without a
+ *  Model is waiting for its `init`, which runs when it first appears in a
+ *  Model. */
+export const defineInstanceFields = (
+  instance: object,
   id: string,
   args: unknown,
-  fields: ReadonlyArray<readonly [PropertyKey, unknown, boolean]>,
-): RuntimeInstance => {
-  const instance: object = Object.create(prototype)
+  maybeModel: Option.Option<unknown>,
+): void => {
   Object.defineProperty(instance, 'id', { value: id, enumerable: true })
-  defineHidden(instance, 'args', args)
-  for (const [key, value, isEnumerable] of fields) {
-    Object.defineProperty(instance, key, { value, enumerable: isEnumerable })
+  Object.defineProperty(instance, 'args', { value: args, enumerable: false })
+  if (Option.isSome(maybeModel)) {
+    Object.defineProperty(instance, 'model', {
+      value: maybeModel.value,
+      enumerable: true,
+    })
+    Object.defineProperty(instance, InitializedTypeId, {
+      value: true,
+      enumerable: false,
+    })
   }
-  if (!isRuntimeInstance(instance)) {
+}
+
+/** @internal Creates an instance value of a Block. */
+export const makeInstance = (
+  block: RuntimeBlock,
+  id: string,
+  args: unknown,
+  maybeModel: Option.Option<unknown>,
+): RuntimeInstance => {
+  const instance: object = Object.create(block.prototype)
+  defineInstanceFields(instance, id, args, maybeModel)
+  if (!isInstance(instance)) {
     throw new Error('[foldkit] Block prototype is missing its brand.')
   }
   return instance
 }
 
-const bind = (
-  node: Node,
-  id: string,
-  args: unknown,
-  model: unknown,
-): RuntimeInstance =>
-  makeInstanceObject(node.block.prototype, id, args, [
-    ['model', model, true],
-    [NodeTypeId, node, false],
-  ])
-
 const withModel = (
   instance: RuntimeInstance,
   model: unknown,
 ): RuntimeInstance =>
-  model === instance.model
+  isInitialized(instance) && model === instance.model
     ? instance
-    : bind(nodeOf(instance), instance.id, Reflect.get(instance, 'args'), model)
-
-/** @internal Creates an instance that is constructed the first time it
- *  appears in a Model. */
-export const makePending = (pending: Pending, id: string): RuntimeInstance => {
-  const { graph, path } = pending
-  if (!graph.collections.has(pathKey(Array.dropRight(path, 1)))) {
-    graph.recipes.set(pathKey(path), pending)
-  }
-  return makeInstanceObject(pending.block.prototype, id, pending.args, [
-    [PendingTypeId, pending, false],
-  ])
-}
-
-/** @internal Records the recipe of an `each` factory, whose `path` is the
- *  collection path, so a restore can construct any of its keyed instances. */
-export const registerCollection = (collection: Pending): void => {
-  collection.graph.collections.set(pathKey(collection.path), collection)
-}
+    : makeInstance(
+        blockOf(instance),
+        instance.id,
+        argsOf(instance),
+        Option.some(model),
+      )
 
 // MODEL TRAVERSAL
 
@@ -552,24 +480,6 @@ export const directInstances = (
   return instances
 }
 
-/** Collects the connected instances of one graph. A Model can hold another
- *  program's instances as plain values, such as a devtools Model holding the
- *  inspected application's Model; those belong to their own graph. */
-const collectLive = (
-  graph: Graph,
-  instance: RuntimeInstance,
-  live: Map<string, RuntimeInstance>,
-): void => {
-  const node = instance[NodeTypeId]
-  if (node === undefined || node.graph !== graph) {
-    return
-  }
-  live.set(pathKey(node.path), instance)
-  for (const child of directInstances(instance.model)) {
-    collectLive(graph, child, live)
-  }
-}
-
 const containsInstances = (value: unknown): boolean =>
   Array.isReadonlyArrayNonEmpty(directInstances(value))
 
@@ -579,10 +489,11 @@ export const resolve = (value: unknown): unknown =>
   mapInstances(value, instance => resolve(instance.model))
 
 /** @internal Applies resolved data onto a Model tree that holds instances.
- *  Where the template holds an instance, the data is that instance's Model. */
+ *  Where the template holds an instance, the data is that instance's Model.
+ *  Instances in the data are kept as they are, so a test can add children. */
 export const hydrate = (data: unknown, template: unknown): unknown => {
-  if (data === template) {
-    return template
+  if (data === template || isInstance(data)) {
+    return data
   }
 
   if (!isInstance(template) && !containsInstances(template)) {
@@ -594,12 +505,6 @@ export const hydrate = (data: unknown, template: unknown): unknown => {
   }
 
   if (globalThis.Array.isArray(template) && globalThis.Array.isArray(data)) {
-    const instanceCount = directInstances(template).length
-    if (instanceCount > 0 && data.length !== template.length) {
-      throw new Error(
-        '[foldkit] A test Model changes the length of an array that holds Block instances. Add or remove instances with Messages instead of `given`.',
-      )
-    }
     return data.map((item, index) => hydrate(item, template[index]))
   }
 
@@ -629,45 +534,25 @@ export const hydrate = (data: unknown, template: unknown): unknown => {
   return data
 }
 
-// CONSTRUCTION
+// MODULES
 
-const handlerLayers = (
+const lookupModule = (
+  context: Context.Context<never>,
   block: RuntimeBlock,
-  kind: 'Command' | 'Mount',
-  definitions: ReadonlyArray<AnyHandlerDefinition>,
-  handlers: Readonly<Record<string, (input: unknown) => unknown>> | undefined,
-): ReadonlyArray<Layer.Layer<never>> =>
-  Array.map(definitions, definition => {
-    const handler = handlers?.[definition.name]
-    if (handler === undefined) {
-      throw new Error(
-        `[foldkit] Block "${block.id}" declares ${kind} "${definition.name}" but its constructor returned no handler for it under \`${kind === 'Command' ? 'commands' : 'mounts'}\`.`,
-      )
-    }
-    return definition.toLayer(Effect.succeed(handler))
-  })
+): Option.Option<RuntimeModule> => Context.getOption(context, block.service)
 
-const buildHandlerContext = (
+const requireModule = (
+  context: Context.Context<never>,
   block: RuntimeBlock,
-  impl: RuntimeImplementation,
-  scope: Scope.Scope,
-): Effect.Effect<Context.Context<never>> => {
-  const layers = [
-    ...handlerLayers(block, 'Command', block.Command, impl.commands),
-    ...handlerLayers(block, 'Mount', block.Mount, impl.mounts),
-  ]
-
-  if (Array.isReadonlyArrayEmpty(layers)) {
-    return Effect.succeed(Context.empty())
-  }
-
-  const merged = Array.reduce(
-    layers,
-    Layer.empty,
-    (combined: Layer.Layer<never>, layer) => Layer.merge(combined, layer),
+  ownerId: string,
+): RuntimeModule =>
+  Option.getOrThrowWith(
+    lookupModule(context, block),
+    () =>
+      new Error(
+        `[foldkit] Block "${block.id}" is not provided to ${ownerId}. Provide its Layer to the Layer of the Block whose Model holds it.`,
+      ),
   )
-  return Layer.buildWithScope(merged, scope)
-}
 
 const isOnEntry = (value: unknown): value is OnEntry =>
   Predicate.hasProperty(value, OnEntryTypeId)
@@ -682,36 +567,179 @@ const symbolEntries = (
     ? []
     : Array.map(Object.getOwnPropertySymbols(update), key => update[key])
 
-const construct = (
+const handlerLayers = (
+  block: RuntimeBlock,
+  kind: 'Command' | 'Mount',
+  definitions: ReadonlyArray<AnyHandlerDefinition>,
+  handlers: Readonly<Record<string, (input: unknown) => unknown>> | undefined,
+): ReadonlyArray<Layer.Layer<never>> =>
+  Array.map(definitions, definition => {
+    const handler = handlers?.[definition.name]
+    if (handler === undefined) {
+      throw new Error(
+        `[foldkit] Block "${block.id}" declares ${kind} "${definition.name}" but its Layer returned no handler for it under \`${kind === 'Command' ? 'commands' : 'mounts'}\`.`,
+      )
+    }
+    return definition.toLayer(Effect.succeed(handler))
+  })
+
+/** @internal Builds a Block's module from the implementation its Layer
+ *  constructor returned. Runs once, while the program's Layer is built. */
+export const makeModule = (
+  block: RuntimeBlock,
+  impl: RuntimeImplementation,
+): Effect.Effect<RuntimeModule, never, Scope.Scope> =>
+  Effect.gen(function* () {
+    const context = yield* Effect.context<never>()
+    const layers = [
+      ...handlerLayers(block, 'Command', block.Command, impl.commands),
+      ...handlerLayers(block, 'Mount', block.Mount, impl.mounts),
+    ]
+    const handlerContext = Array.isReadonlyArrayEmpty(layers)
+      ? Context.empty()
+      : yield* Layer.build(
+          Array.reduce(
+            layers,
+            Layer.empty,
+            (combined: Layer.Layer<never>, layer) =>
+              Layer.merge(combined, layer),
+          ),
+        )
+    const entries = symbolEntries(impl.update)
+    return {
+      block,
+      impl,
+      context,
+      handlerContext,
+      onEntries: Array.filter(entries, isOnEntry),
+      gateEntries: Array.filter(entries, isGateEntry),
+    }
+  })
+
+// INITIALIZATION
+
+/** Runs `init` for every instance in a value that has not been initialized,
+ *  giving each the path its position under `parentPath` makes. */
+const initializeIn = (
+  parent: RuntimeModule,
+  parentPath: Path,
+  value: unknown,
+): unknown =>
+  mapInstances(value, child => {
+    const block = blockOf(child)
+    const path = [...parentPath, child.id]
+
+    if (isInitialized(child)) {
+      return Option.match(lookupModule(parent.context, block), {
+        onNone: () => child,
+        onSome: module =>
+          withModel(child, initializeIn(module, path, child.model)),
+      })
+    }
+
+    const module = requireModule(parent.context, block, `"${parent.block.id}"`)
+    const model = module.impl.init?.(argsOf(child), { id: child.id, path })
+    return withModel(child, initializeIn(module, path, model))
+  })
+
+const rootModuleOf = (graph: Graph): RuntimeModule => {
+  if (graph.rootModule === undefined) {
+    throw new Error('[foldkit] The Block graph has no root.')
+  }
+  return graph.rootModule
+}
+
+/** @internal Creates and initializes the root instance of a graph from the
+ *  context the program's Layer built, and starts everything its Model
+ *  holds. The root's `start` Commands wait in {@link takeStarted}. */
+export const constructRoot = (
   graph: Graph,
   block: RuntimeBlock,
-  path: Path,
-  id: string,
   args: unknown,
-): Effect.Effect<RuntimeInstance, unknown, unknown> =>
-  Effect.gen(function* () {
-    const constructor = yield* block.service
-    const scope = yield* Scope.make()
+  context: Context.Context<never>,
+): RuntimeInstance => {
+  const module = requireModule(context, block, 'the program')
+  graph.rootModule = module
+  const model = module.impl.init?.(args, { id: block.id, path: [] })
+  const root = makeInstance(
+    block,
+    block.id,
+    args,
+    Option.some(initializeIn(module, [], model)),
+  )
+  reconcile(graph, root)
+  return root
+}
 
-    const closeScopeOnError = Effect.onError(() =>
-      Scope.close(scope, Exit.void),
-    )
+/** @internal Replaces the root's Model with a preserved one and starts what
+ *  it holds, dropping the `start` Commands of every instance that starts:
+ *  the preserved Model already reflects their results. */
+export const restore = (
+  graph: Graph,
+  root: RuntimeInstance,
+  preservedModel: unknown,
+): RuntimeInstance => {
+  const module = rootModuleOf(graph)
+  const restored = withModel(root, initializeIn(module, [], preservedModel))
+  reconcile(graph, restored)
+  takeStarted(graph)
+  return restored
+}
 
-    const impl = yield* constructor(id, args).pipe(
-      Effect.provideService(BlockParent, { graph, path }),
-      Effect.provideService(InstancePath, path),
-      Scope.provide(scope),
-      closeScopeOnError,
-    )
+/** @internal Runs `init` for every instance in the root's Model that has not
+ *  been initialized, such as children a test's `given` adds, and starts
+ *  them. Their `start` Commands are dropped: `given` sets up state, it is
+ *  not an update. */
+export const settle = (
+  graph: Graph,
+  root: RuntimeInstance,
+): RuntimeInstance => {
+  const settled = withModel(
+    root,
+    initializeIn(rootModuleOf(graph), [], root.model),
+  )
+  reconcile(graph, settled)
+  takeStarted(graph)
+  return settled
+}
 
-    const handlerContext = Context.add(
-      yield* buildHandlerContext(block, impl, scope).pipe(closeScopeOnError),
-      CurrentInterruptRegistry,
-      makeInterruptRegistry(),
-    )
+// RECONCILIATION
 
-    const commandFibers: CommandFibers = { isClosed: false, fibers: new Set() }
-    yield* Scope.addFinalizer(
+type Wanted = Readonly<{
+  path: Path
+  module: RuntimeModule
+  instance: RuntimeInstance
+}>
+
+const collectWanted = (
+  module: RuntimeModule,
+  path: Path,
+  instance: RuntimeInstance,
+  wanted: Map<string, Wanted>,
+): void => {
+  wanted.set(pathKey(path), { path, module, instance })
+  const ids = new Set<string>()
+  for (const child of directInstances(instance.model)) {
+    const maybeModule = lookupModule(module.context, blockOf(child))
+    if (Option.isNone(maybeModule) || !isInitialized(child)) {
+      continue
+    }
+
+    if (ids.has(child.id)) {
+      throw new Error(
+        `[foldkit] Block "${module.block.id}" holds two children with id "${child.id}". Ids must be unique among one parent's children.`,
+      )
+    }
+    ids.add(child.id)
+    collectWanted(maybeModule.value, [...path, child.id], child, wanted)
+  }
+}
+
+const startRunning = (graph: Graph, entry: Wanted): Running => {
+  const scope = Scope.makeUnsafe()
+  const commandFibers: CommandFibers = { isClosed: false, fibers: new Set() }
+  Effect.runSync(
+    Scope.addFinalizer(
       scope,
       Effect.sync(() => {
         commandFibers.isClosed = true
@@ -719,220 +747,80 @@ const construct = (
           Effect.runFork(Fiber.interrupt(fiber))
         }
       }),
-    )
-
-    const node: Node = {
-      graph,
-      block,
-      path,
-      impl,
-      scope,
-      handlerContext,
-      onEntries: Array.filter(symbolEntries(impl.update), isOnEntry),
-      gateEntries: Array.filter(symbolEntries(impl.update), isGateEntry),
-      running: new Map(),
-      commandFibers,
-      viewState: {
-        parentFrame: undefined,
-        childFrame: undefined,
-        asParent: new WeakMap(),
-        asChild: new WeakMap(),
-      },
-    }
-
-    const maybeReplaced = graph.nodes.get(pathKey(path))
-    if (maybeReplaced !== undefined) {
-      Effect.runFork(Scope.close(maybeReplaced.scope, Exit.void))
-    }
-    graph.nodes.set(pathKey(path), node)
-
-    const { stream } = impl
-    if (stream !== undefined && !graph.isSimulation) {
-      yield* runInstanceStream(node, stream).pipe(Effect.forkIn(scope))
-    }
-
-    graph.started.push(
-      ...Array.map(impl.start ?? noCommands, command =>
-        bindCommand(node, command),
-      ),
-    )
-
-    return bind(node, id, args, materialize(impl.model))
-  })
-
-/** @internal Constructs an instance synchronously. Block constructors run
- *  inside `update` when an instance enters the Model, so they cannot wait on
- *  asynchronous work. */
-export const constructSync = (
-  graph: Graph,
-  block: RuntimeBlock,
-  path: Path,
-  id: string,
-  args: unknown,
-  context: Context.Context<never>,
-): RuntimeInstance => {
-  const exit = Effect.runSyncExit(
-    Effect.provideContext(
-      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-      construct(graph, block, path, id, args) as Effect.Effect<
-        RuntimeInstance,
-        unknown
-      >,
-      context,
     ),
   )
-
-  if (Exit.isSuccess(exit)) {
-    return exit.value
-  }
-
-  throw new Error(
-    `[foldkit] Block "${block.id}" instance "${id}" could not be constructed. Block constructors run synchronously when an instance enters the Model, so they cannot wait on asynchronous work; load data with a Command instead.\n\n${Cause.pretty(exit.cause)}`,
-  )
-}
-
-/** @internal Constructs every instance in a value that is not yet
- *  connected. */
-export const materialize = (value: unknown): unknown =>
-  mapInstances(value, instance => {
-    const pending = instance[PendingTypeId]
-    return instance[NodeTypeId] === undefined && pending !== undefined
-      ? constructSync(
-          pending.graph,
-          pending.block,
-          pending.path,
-          instance.id,
-          pending.args,
-          pending.context,
-        )
-      : instance
-  })
-
-// PRESERVATION
-
-/** @internal Creates the decoded stand-in for an instance preserved across a
- *  development reload. It renders nothing and receives no Messages; `restore`
- *  replaces it with a live instance. */
-export const makePreserved = (
-  block: RuntimeBlock,
-  id: string,
-  preserved: Preserved,
-): RuntimeInstance =>
-  makeInstanceObject(block.prototype, id, undefined, [
-    ['model', preserved.model, true],
-    [PreservedTypeId, preserved, false],
-  ])
-
-const preservedOf = (instance: RuntimeInstance): Preserved => {
-  const preserved = instance[PreservedTypeId]
-  if (preserved === undefined) {
-    throw new Error(
-      `[foldkit] Block instance "${instance.id}" in a preserved Model was not decoded from preserved data.`,
-    )
-  }
-  return preserved
-}
-
-const constructFromRecipe = (
-  graph: Graph,
-  stand: RuntimeInstance,
-  path: Path,
-): RuntimeInstance => {
-  const collectionPath = Array.dropRight(path, 1)
-  const recipe =
-    graph.recipes.get(pathKey(path)) ??
-    graph.collections.get(pathKey(collectionPath))
-
-  if (
-    recipe === undefined ||
-    recipe.block.prototype !== Object.getPrototypeOf(stand)
-  ) {
-    throw new Error(
-      `[foldkit] A preserved Model holds a Block instance at ${pathKey(path)} that the current Blocks do not create.`,
-    )
-  }
-
-  return constructSync(
+  const running: Running = {
     graph,
-    recipe.block,
-    path,
-    stand.id,
-    recipe.args,
-    recipe.context,
+    path: entry.path,
+    module: entry.module,
+    scope,
+    commandFibers,
+    interruptRegistry: makeInterruptRegistry(),
+    subscriptions: new Map(),
+    viewState: makeViewState(),
+  }
+  graph.running.set(pathKey(entry.path), running)
+  graph.started.push(
+    ...Array.map(
+      entry.module.impl.start?.(entry.instance.model, argsOf(entry.instance)) ??
+        noCommands,
+      command => bindCommand(graph, entry.path, command),
+    ),
   )
+  return running
 }
 
-const restoreInstance = (
-  graph: Graph,
-  live: RuntimeInstance,
-  stand: RuntimeInstance,
-): RuntimeInstance => {
-  const preserved = preservedOf(stand)
-  const liveChildren = new Map<string, RuntimeInstance>()
-  for (const child of directInstances(live.model)) {
-    const node = child[NodeTypeId]
-    if (node !== undefined) {
-      liveChildren.set(pathKey(node.path), child)
+/** @internal Makes what runs match the Model. An instance that appeared
+ *  starts: its `start` Commands are queued and its Subscriptions run. An
+ *  instance that left stops: its Subscriptions end and its in-flight
+ *  Commands are interrupted. An instance that stayed keeps running, and its
+ *  Subscriptions restart when their dependencies change. */
+export const reconcile = (graph: Graph, root: RuntimeInstance): void => {
+  const wanted = new Map<string, Wanted>()
+  collectWanted(rootModuleOf(graph), [], root, wanted)
+
+  for (const [key, running] of graph.running) {
+    const maybeWanted = wanted.get(key)
+    if (
+      maybeWanted === undefined ||
+      maybeWanted.module.block !== running.module.block
+    ) {
+      graph.running.delete(key)
+      Effect.runFork(Scope.close(running.scope, Exit.void))
     }
   }
 
-  const model = mapInstances(preserved.model, childStand => {
-    const { path } = preservedOf(childStand)
-    const childLive =
-      liveChildren.get(pathKey(path)) ??
-      constructFromRecipe(graph, childStand, path)
-    return restoreInstance(graph, childLive, childStand)
-  })
-
-  return withModel(live, model)
-}
-
-/** @internal Restores a preserved Model tree onto a freshly constructed root.
- *  Instances the fresh root already holds are reused; the others are
- *  constructed from the recipes their parents registered. Startup Commands of
- *  every instance constructed here are dropped, because the preserved Model
- *  already reflects their results. Closes every constructed instance and
- *  rethrows when the preserved data does not fit the current Blocks. */
-export const restore = (
-  graph: Graph,
-  root: RuntimeInstance,
-  stand: RuntimeInstance,
-): RuntimeInstance => {
-  try {
-    const restored = restoreInstance(graph, root, stand)
-    takeStarted(graph)
-    reconcile(graph, restored)
-    return restored
-  } catch (error) {
-    takeStarted(graph)
-    for (const node of graph.nodes.values()) {
-      Effect.runFork(Scope.close(node.scope, Exit.void))
-    }
-    graph.nodes.clear()
-    throw error
+  for (const [key, entry] of wanted) {
+    const running = graph.running.get(key) ?? startRunning(graph, entry)
+    syncSubscriptions(running, entry.instance.model)
   }
 }
 
-// UPDATE
+/** @internal Returns the `start` Commands of instances that started since
+ *  the last call. */
+export const takeStarted = (graph: Graph): ReadonlyArray<AnyCommand> =>
+  graph.started.splice(0)
+
+// COMMANDS
 
 // NOTE: the fiber is interrupted from outside, never by `Effect.interrupt`.
 // The runtime catches every failure cause of a Command to crash the app, and
 // that includes a fiber interrupting itself. An outside interrupt ends the
 // fiber before the runtime's handler runs.
 const runWhileLive = <A, E, R>(
-  { commandFibers }: Node,
+  { commandFibers }: Running,
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
   Effect.withFiber(fiber =>
-    Effect.uninterruptibleMask(restore =>
+    Effect.uninterruptibleMask(restoreInterruption =>
       Effect.suspend(() => {
         if (commandFibers.isClosed) {
           Effect.runFork(Fiber.interrupt(fiber))
-          return restore(Effect.never)
+          return restoreInterruption(Effect.never)
         }
 
         commandFibers.fibers.add(fiber)
-        return restore(effect).pipe(
+        return restoreInterruption(effect).pipe(
           Effect.ensuring(
             Effect.sync(() => commandFibers.fibers.delete(fiber)),
           ),
@@ -941,59 +829,75 @@ const runWhileLive = <A, E, R>(
     ),
   )
 
-const bindCommand = (node: Node, command: AnyCommand): AnyCommand => {
+const makeClosedRunning = (graph: Graph, path: Path): Running => ({
+  graph,
+  path,
+  module: rootModuleOf(graph),
+  scope: Scope.makeUnsafe(),
+  commandFibers: { isClosed: true, fibers: new Set() },
+  interruptRegistry: makeInterruptRegistry(),
+  subscriptions: new Map(),
+  viewState: makeViewState(),
+})
+
+// NOTE: a Command belongs to the instance running at its path when update
+// returns it. An instance created in that same update is not running yet,
+// so its Command belongs to whatever runs at the path when it starts.
+const bindCommand = (
+  graph: Graph,
+  path: Path,
+  command: AnyCommand,
+): AnyCommand => {
+  const maybeOwner = runningAt(graph, path)
+
+  const owner = (): Running =>
+    Option.match(maybeOwner, {
+      onNone: () =>
+        Option.getOrElse(runningAt(graph, path), () =>
+          makeClosedRunning(graph, path),
+        ),
+      onSome: bound =>
+        graph.running.get(pathKey(path)) === bound
+          ? bound
+          : makeClosedRunning(graph, path),
+    })
+
   /* eslint-disable @typescript-eslint/consistent-type-assertions */
   const provided = mapEffect(command as never, effect =>
-    runWhileLive(
-      node,
-      Effect.updateContext(effect as Effect.Effect<unknown>, context =>
-        Context.merge(context, node.handlerContext),
-      ),
-    ),
+    Effect.suspend(() => {
+      const running = owner()
+      return runWhileLive(
+        running,
+        Effect.updateContext(effect as Effect.Effect<unknown>, context =>
+          Context.add(
+            Context.merge(context, running.module.handlerContext),
+            CurrentInterruptRegistry,
+            running.interruptRegistry as never,
+          ),
+        ),
+      )
+    }),
   ) as AnyCommand
 
-  return Array.isReadonlyArrayEmpty(node.path)
+  return Array.isReadonlyArrayEmpty(path)
     ? provided
-    : (mapMessage(provided as never, message =>
-        instanceMessage(node, message),
-      ) as AnyCommand)
+    : (mapMessage(provided as never, message => {
+        const wrapped = blockMessage(path, message)
+        Option.map(runningAt(graph, path), running =>
+          graph.messageOrigins.set(wrapped, running),
+        )
+        return wrapped
+      }) as AnyCommand)
   /* eslint-enable @typescript-eslint/consistent-type-assertions */
 }
+
+// UPDATE
 
 const isUpdateResult = (value: unknown): value is UpdateResult =>
   Predicate.isObject(value)
 
-const applyResult = (
-  instance: RuntimeInstance,
-  result: unknown,
-): ApplyResult => {
-  if (!isUpdateResult(result)) {
-    throw new Error(
-      `[foldkit] A Block update handler returned ${globalThis.String(result)} instead of \`{ model }\`.`,
-    )
-  }
-
-  const node = nodeOf(instance)
-  let current = withModel(instance, materialize(result.model))
-  let commands = [
-    ...Array.map(result.commands ?? noCommands, command =>
-      bindCommand(node, command),
-    ),
-    ...takeStarted(node.graph),
-  ]
-  let { outMessage } = result
-
-  for (const send of result.messages ?? []) {
-    const sent = deliver(current, send.target, send.message, true)
-    current = sent.instance
-    commands = [...commands, ...sent.commands]
-    if (sent.outMessage !== undefined) {
-      outMessage = sent.outMessage
-    }
-  }
-
-  return { instance: current, commands, outMessage }
-}
+const isSend = (value: unknown): value is Send =>
+  Predicate.hasProperty(value, SendTypeId)
 
 const tagOf = (message: unknown): string | undefined => {
   const tag: unknown = Predicate.hasProperty(message, '_tag')
@@ -1002,141 +906,257 @@ const tagOf = (message: unknown): string | undefined => {
   return Predicate.isString(tag) ? tag : undefined
 }
 
-const applyLocal = (
-  instance: RuntimeInstance,
-  message: unknown,
-): ApplyResult => {
-  const node = nodeOf(instance)
-  const tag = tagOf(message)
-  const handler =
-    tag !== undefined && node.impl.update !== undefined
-      ? node.impl.update[tag]
-      : undefined
-
-  if (!Predicate.isFunction(handler)) {
-    throw new Error(
-      `[foldkit] Block "${node.block.id}" has no update handler for Message "${globalThis.String(tag)}".`,
-    )
-  }
-
-  return applyResult(instance, handler(instance.model, message))
-}
-
-const isTargetOf = (target: OnTarget, childPath: Path): boolean =>
-  target.kind === 'Instance'
-    ? isPathEqual(target.path, childPath)
-    : childPath.length === target.path.length + 1 &&
-      isPathPrefix(target.path, childPath)
-
 const findOnHandler = (
-  node: Node,
+  module: RuntimeModule,
   child: RuntimeInstance,
   outMessage: unknown,
 ):
   | ((model: unknown, outMessage: unknown, instance: unknown) => unknown)
   | undefined => {
-  const childPath = nodeOf(child).path
   const tag = tagOf(outMessage)
   if (tag === undefined) {
     return undefined
   }
 
-  const maybeEntry = Array.findFirst(
-    node.onEntries,
-    entry =>
-      isTargetOf(entry.target, childPath) && entry.handlers[tag] !== undefined,
+  const block = blockOf(child)
+  return Option.match(
+    Array.findFirst(
+      module.onEntries,
+      entry => entry.block === block && entry.handlers[tag] !== undefined,
+    ),
+    {
+      onNone: () => undefined,
+      onSome: ({ handlers }) => handlers[tag],
+    },
   )
-
-  return Option.match(maybeEntry, {
-    onNone: () => undefined,
-    onSome: ({ handlers }) => handlers[tag],
-  })
 }
 
 const isRefusedByGate = (
-  node: Node,
+  module: RuntimeModule,
   model: unknown,
-  childPath: Path,
+  child: RuntimeInstance,
   message: unknown,
-): boolean =>
-  Array.some(
-    node.gateEntries,
-    entry =>
-      isTargetOf(entry.target, childPath) && !entry.predicate(model, message),
+): boolean => {
+  const block = blockOf(child)
+  return Array.some(
+    module.gateEntries,
+    entry => entry.block === block && !entry.predicate(model, message),
   )
+}
 
-// NOTE: a gate filters the Messages a child receives from its view, Commands,
-// Stream, and Subscriptions. A Message the parent sends with `send` is the
-// parent's own decision, so it skips the parent's gates.
-const deliver = (
-  instance: RuntimeInstance,
-  path: Path,
-  message: unknown,
-  isSentByParent = false,
-): ApplyResult => {
-  const node = nodeOf(instance)
-  if (isPathEqual(node.path, path)) {
-    return applyLocal(instance, message)
+const makeUpdater = (graph: Graph) => {
+  const applyResult = (
+    module: RuntimeModule,
+    path: Path,
+    instance: RuntimeInstance,
+    result: unknown,
+  ): ApplyResult => {
+    if (!isUpdateResult(result)) {
+      throw new Error(
+        `[foldkit] A Block update handler returned ${globalThis.String(result)} instead of \`{ model }\`.`,
+      )
+    }
+
+    let current = withModel(instance, initializeIn(module, path, result.model))
+    let commands = Array.map(result.commands ?? noCommands, command =>
+      bindCommand(graph, path, command),
+    )
+    let { outMessage } = result
+
+    for (const send of result.messages ?? []) {
+      if (!isSend(send)) {
+        throw new Error(
+          '[foldkit] `messages` holds a value that `instance.send` did not create.',
+        )
+      }
+      const sent = deliver(
+        module,
+        path,
+        current,
+        [...path, send.childId],
+        send.message,
+        true,
+      )
+      current = sent.instance
+      commands = [...commands, ...sent.commands]
+      if (sent.outMessage !== undefined) {
+        outMessage = sent.outMessage
+      }
+    }
+
+    return { instance: current, commands, outMessage }
   }
 
-  const maybeChild = Array.findFirst(
-    directInstances(instance.model),
-    child =>
-      child[NodeTypeId]?.graph === node.graph &&
-      isPathPrefix(nodeOf(child).path, path),
-  )
+  const applyLocal = (
+    module: RuntimeModule,
+    path: Path,
+    instance: RuntimeInstance,
+    message: unknown,
+  ): ApplyResult => {
+    const tag = tagOf(message)
+    const handler =
+      tag !== undefined && module.impl.update !== undefined
+        ? module.impl.update[tag]
+        : undefined
 
-  if (Option.isNone(maybeChild)) {
-    return { instance, commands: noCommands, outMessage: undefined }
+    if (!Predicate.isFunction(handler)) {
+      throw new Error(
+        `[foldkit] Block "${module.block.id}" has no update handler for Message "${globalThis.String(tag)}".`,
+      )
+    }
+
+    return applyResult(module, path, instance, handler(instance.model, message))
   }
 
-  const child = maybeChild.value
-  const childPath = nodeOf(child).path
-  if (
-    !isSentByParent &&
-    isPathEqual(childPath, path) &&
-    isRefusedByGate(node, instance.model, childPath, message)
-  ) {
-    return { instance, commands: noCommands, outMessage: undefined }
-  }
+  // NOTE: a gate filters the Messages a child receives from its view,
+  // Commands, and Subscriptions. A Message the parent sends with `send` is
+  // the parent's own decision, so it skips the parent's gates.
+  const deliver = (
+    module: RuntimeModule,
+    path: Path,
+    instance: RuntimeInstance,
+    target: Path,
+    message: unknown,
+    isSentByParent: boolean,
+  ): ApplyResult => {
+    if (target.length === path.length) {
+      return applyLocal(module, path, instance, message)
+    }
 
-  const delivered = deliver(child, path, message)
-  const parent = withModel(
-    instance,
-    mapInstances(instance.model, candidate =>
-      candidate === child ? delivered.instance : candidate,
-    ),
-  )
+    const childId = target[path.length]
+    const maybeChild = Array.findFirst(
+      directInstances(instance.model),
+      child => child.id === childId && isInitialized(child),
+    )
+    if (Option.isNone(maybeChild)) {
+      return { instance, commands: noCommands, outMessage: undefined }
+    }
 
-  const handler =
-    delivered.outMessage === undefined
-      ? undefined
-      : findOnHandler(node, delivered.instance, delivered.outMessage)
+    const child = maybeChild.value
+    const maybeChildModule = lookupModule(module.context, blockOf(child))
+    if (Option.isNone(maybeChildModule)) {
+      return { instance, commands: noCommands, outMessage: undefined }
+    }
 
-  if (handler === undefined) {
+    const childPath = [...path, child.id]
+    if (
+      !isSentByParent &&
+      target.length === childPath.length &&
+      isRefusedByGate(module, instance.model, child, message)
+    ) {
+      return { instance, commands: noCommands, outMessage: undefined }
+    }
+
+    const delivered = deliver(
+      maybeChildModule.value,
+      childPath,
+      child,
+      target,
+      message,
+      false,
+    )
+    const parent = withModel(
+      instance,
+      mapInstances(instance.model, candidate =>
+        candidate === child ? delivered.instance : candidate,
+      ),
+    )
+
+    const handler =
+      delivered.outMessage === undefined
+        ? undefined
+        : findOnHandler(module, delivered.instance, delivered.outMessage)
+
+    if (handler === undefined) {
+      return {
+        instance: parent,
+        commands: delivered.commands,
+        outMessage: undefined,
+      }
+    }
+
+    const handled = applyResult(
+      module,
+      path,
+      parent,
+      handler(parent.model, delivered.outMessage, delivered.instance),
+    )
+
     return {
-      instance: parent,
-      commands: delivered.commands,
-      outMessage: undefined,
+      instance: handled.instance,
+      commands: [...delivered.commands, ...handled.commands],
+      outMessage: handled.outMessage,
     }
   }
 
-  const handled = applyResult(
-    parent,
-    handler(parent.model, delivered.outMessage, delivered.instance),
-  )
+  return deliver
+}
 
+// NOTE: a Message from an instance's Command or Subscription can wait in the
+// Runtime's queue while that instance leaves the Model and another starts at
+// the same path. Routing by path alone would deliver it to the new instance,
+// so it is dropped instead.
+const isFromRemovedInstance = (graph: Graph, message: unknown): boolean => {
+  if (!isBlockMessage(message)) {
+    return false
+  }
+
+  const origin = graph.messageOrigins.get(message)
+  return (
+    origin !== undefined && graph.running.get(pathKey(origin.path)) !== origin
+  )
+}
+
+/** @internal Applies a Message to the root instance. Messages addressed to a
+ *  child arrive wrapped in a {@link BlockMessage}. Returns the next root, the
+ *  Commands to run, including the `start` Commands of instances that
+ *  appeared, and the root's OutMessage. */
+export const update = (
+  graph: Graph,
+  root: RuntimeInstance,
+  message: unknown,
+): ApplyResult => {
+  if (isFromRemovedInstance(graph, message)) {
+    return { instance: root, commands: noCommands, outMessage: undefined }
+  }
+
+  const deliver = makeUpdater(graph)
+  const module = rootModuleOf(graph)
+  const result = isBlockMessage(message)
+    ? deliver(module, [], root, message.path, message.message, false)
+    : deliver(module, [], root, [], message, false)
+
+  reconcile(graph, result.instance)
   return {
-    instance: handled.instance,
-    commands: [...delivered.commands, ...handled.commands],
-    outMessage: handled.outMessage,
+    instance: result.instance,
+    commands: [...result.commands, ...takeStarted(graph)],
+    outMessage: result.outMessage,
   }
 }
 
-/** @internal Returns the startup Commands of instances constructed since the
- *  last call. */
-export const takeStarted = (graph: Graph): ReadonlyArray<AnyCommand> =>
-  graph.started.splice(0)
+// SUBSCRIPTIONS
+
+const runSubscription = (
+  running: Running,
+  stream: Stream.Stream<unknown>,
+): Effect.Effect<void> =>
+  Effect.flatMap(Deferred.await(running.graph.runtimeContext), runtimeContext =>
+    Stream.runForEach(stream, message =>
+      Effect.sync(() => {
+        if (Array.isReadonlyArrayEmpty(running.path)) {
+          emit(running.graph, message)
+        } else {
+          const wrapped = blockMessage(running.path, message)
+          running.graph.messageOrigins.set(wrapped, running)
+          emit(running.graph, wrapped)
+        }
+      }),
+    ).pipe(
+      Effect.updateContext((context: Context.Context<never>) =>
+        Context.merge(runtimeContext, context),
+      ),
+    ),
+  )
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
   Predicate.isObject(value) &&
@@ -1159,120 +1179,47 @@ const isSameDependencies = (left: unknown, right: unknown): boolean => {
   )
 }
 
-const syncSubscriptions = (
-  graph: Graph,
-  live: ReadonlyMap<string, RuntimeInstance>,
-): void => {
-  if (graph.isSimulation) {
+const syncSubscriptions = (running: Running, model: unknown): void => {
+  const { subscriptions } = running.module.impl
+  if (running.graph.isSimulation || subscriptions === undefined) {
     return
   }
 
-  for (const [key, instance] of live) {
-    const node = graph.nodes.get(key)
-    const subscriptions = node?.impl.subscriptions
-    if (node === undefined || subscriptions === undefined) {
+  for (const [name, subscription] of Object.entries(subscriptions)) {
+    const dependencies = subscription.dependencies(model)
+    const maybeCurrent = running.subscriptions.get(name)
+    if (
+      maybeCurrent !== undefined &&
+      isSameDependencies(maybeCurrent.dependencies, dependencies)
+    ) {
       continue
     }
 
-    for (const [name, subscription] of Object.entries(subscriptions)) {
-      const dependencies = subscription.dependencies(instance.model)
-      const maybeRunning = node.running.get(name)
-      if (
-        maybeRunning !== undefined &&
-        isSameDependencies(maybeRunning.dependencies, dependencies)
-      ) {
-        continue
-      }
-
-      const { keepAliveEquivalence } = subscription
-      if (
-        maybeRunning !== undefined &&
-        keepAliveEquivalence !== undefined &&
-        keepAliveEquivalence(maybeRunning.dependencies, dependencies)
-      ) {
-        maybeRunning.dependencies = dependencies
-        continue
-      }
-
-      if (maybeRunning !== undefined) {
-        Effect.runFork(Fiber.interrupt(maybeRunning.fiber))
-      }
-
-      const readDependencies = (): unknown =>
-        node.running.get(name)?.dependencies ?? dependencies
-      const fiber = Effect.runSync(
-        runInstanceStream(
-          node,
-          subscription.stream(dependencies, readDependencies),
-        ).pipe(Effect.forkIn(node.scope)),
-      )
-      node.running.set(name, { dependencies, fiber })
+    const { keepAliveEquivalence } = subscription
+    if (
+      maybeCurrent !== undefined &&
+      keepAliveEquivalence !== undefined &&
+      keepAliveEquivalence(maybeCurrent.dependencies, dependencies)
+    ) {
+      maybeCurrent.dependencies = dependencies
+      continue
     }
-  }
-}
 
-/** @internal Closes the scopes of instances that left the Model and restarts
- *  Subscriptions whose dependencies changed. */
-export const reconcile = (graph: Graph, root: RuntimeInstance): void => {
-  const live = new Map<string, RuntimeInstance>()
-  collectLive(graph, root, live)
-
-  for (const [key, node] of graph.nodes) {
-    if (!live.has(key)) {
-      graph.nodes.delete(key)
-      Effect.runFork(Scope.close(node.scope, Exit.void))
+    if (maybeCurrent !== undefined) {
+      Effect.runFork(Fiber.interrupt(maybeCurrent.fiber))
     }
+
+    const readDependencies = (): unknown =>
+      running.subscriptions.get(name)?.dependencies ?? dependencies
+    const fiber = Effect.runSync(
+      runSubscription(
+        running,
+        subscription.stream(dependencies, readDependencies),
+      ).pipe(Effect.forkIn(running.scope)),
+    )
+    running.subscriptions.set(name, { dependencies, fiber })
   }
-
-  syncSubscriptions(graph, live)
 }
-
-// NOTE: a Message from an instance's Command, Stream, or Subscription can
-// wait in the Runtime's queue while that instance leaves the Model and a new
-// one is constructed at the same path. Routing by path alone would deliver it
-// to the new instance, so it is dropped instead.
-const isFromRemovedInstance = (graph: Graph, message: unknown): boolean => {
-  if (!isBlockMessage(message)) {
-    return false
-  }
-
-  const origin = graph.messageOrigins.get(message)
-  return (
-    origin !== undefined && graph.nodes.get(pathKey(origin.path)) !== origin
-  )
-}
-
-/** @internal Applies a Message to the root instance. Messages addressed to a
- *  child arrive wrapped in a {@link BlockMessage}. */
-export const update = (
-  graph: Graph,
-  root: RuntimeInstance,
-  message: unknown,
-): ApplyResult => {
-  if (isFromRemovedInstance(graph, message)) {
-    return { instance: root, commands: noCommands, outMessage: undefined }
-  }
-
-  const result = isBlockMessage(message)
-    ? deliver(root, message.path, message.message)
-    : deliver(root, nodeOf(root).path, message)
-
-  reconcile(graph, result.instance)
-  return result
-}
-
-/** @internal Returns the value an instance exposes, failing when the instance
- *  is not connected. */
-export const use = (
-  graph: Graph,
-  path: Path,
-): Effect.Effect<unknown, NotConnected> =>
-  Effect.suspend(() => {
-    const node = graph.nodes.get(pathKey(path))
-    return node === undefined
-      ? Effect.fail(new NotConnected({ path }))
-      : Effect.succeed(node.impl.expose)
-  })
 
 // VIEW
 
@@ -1311,7 +1258,7 @@ const currentFrameOf = (frame: Frame | undefined): Frame => {
  *  frame `readFrame` returns when they are called. */
 const runningIn = (
   cache: WeakMap<Function, Function>,
-  readFrame: () => Frame,
+  enter: <A>(render: () => A) => A,
   value: unknown,
   wrapArgs: (arg: unknown) => unknown,
 ): unknown => {
@@ -1321,7 +1268,7 @@ const runningIn = (
       return cached
     }
     const wrapped = (...args: ReadonlyArray<unknown>) =>
-      withFrame(readFrame(), () => value(...args.map(wrapArgs)))
+      enter(() => value(...args.map(wrapArgs)))
     cache.set(value, wrapped)
     return wrapped
   }
@@ -1334,72 +1281,127 @@ const runningIn = (
   for (const key of Object.keys(value)) {
     const field: unknown = Reflect.get(value, key)
     wrapped[key] = Predicate.isFunction(field)
-      ? runningIn(cache, readFrame, field, wrapArgs)
+      ? runningIn(cache, enter, field, wrapArgs)
       : field
   }
   return wrapped
 }
 
-/** Wraps the functions in a view input so they run in the parent's frame,
- *  where the Messages they create are the parent's. Functions the child
- *  passes into those callbacks, such as attribute builders, run back in the
- *  child's frame. */
-const wrapViewInput = (viewState: ViewState, input: unknown): unknown => {
-  const readParent = () => currentFrameOf(viewState.parentFrame)
-  const readChild = () => currentFrameOf(viewState.childFrame)
-  const asChild = (arg: unknown): unknown =>
-    runningIn(viewState.asChild, readChild, arg, value => value)
-  return runningIn(viewState.asParent, readParent, input, asChild)
+/** Wraps the functions in a view input so they run as the parent: in its
+ *  frame, where the Messages they create are the parent's, and as the
+ *  instance rendering, so the parent's own children render at their paths.
+ *  Functions the child passes into those callbacks, such as attribute
+ *  builders, run back as the child. */
+const wrapViewInput = (
+  viewState: ViewState,
+  childRunning: Running,
+  input: unknown,
+): unknown => {
+  const asParent = <A>(render: () => A): A => {
+    const enterFrame = () =>
+      withFrame(currentFrameOf(viewState.parentFrame), render)
+    return viewState.parentRunning === undefined
+      ? enterFrame()
+      : withRendering(viewState.parentRunning, enterFrame)
+  }
+  const asChild = <A>(render: () => A): A =>
+    withRendering(childRunning, () =>
+      withFrame(currentFrameOf(viewState.childFrame), render),
+    )
+  const wrapChildArg = (arg: unknown): unknown =>
+    runningIn(viewState.asChild, asChild, arg, value => value)
+  return runningIn(viewState.asParent, asParent, input, wrapChildArg)
 }
 
 const instanceFrame = (
-  node: Node,
+  running: Running,
   frame: Frame,
   dispatch: DispatchSync,
 ): Frame => ({
   ...frame,
   outerDispatch: dispatch,
   mountOuterDispatch: dispatch,
-  runtimeContext: Context.merge(frame.runtimeContext, node.handlerContext),
-  messageMappers: Array.isReadonlyArrayEmpty(node.path)
+  runtimeContext: Context.merge(
+    frame.runtimeContext,
+    running.module.handlerContext,
+  ),
+  messageMappers: Array.isReadonlyArrayEmpty(running.path)
     ? []
-    : [message => blockMessage(node.path, message)],
+    : [message => blockMessage(running.path, message)],
 })
+
+const renderStack: Array<Running> = []
+
+const withRendering = <A>(running: Running, render: () => A): A => {
+  renderStack.push(running)
+  try {
+    return render()
+  } finally {
+    renderStack.pop()
+  }
+}
 
 /** @internal Renders the root instance inside the runtime's view frame. */
 export const renderRoot = (graph: Graph, root: RuntimeInstance): unknown => {
   const dispatch = requireDispatch()
   graph.rootDispatch = dispatch
-  const node = nodeOf(root)
-  const { view } = node.impl
+  const running = Option.getOrThrowWith(
+    runningAt(graph, []),
+    () => new Error('[foldkit] The Block graph has no running root.'),
+  )
+  const { view } = running.module.impl
   return view === undefined
     ? null
-    : withFrame(instanceFrame(node, getCurrentFrame(), dispatch), () =>
-        view(root.model, htmlBuilder(), undefined),
+    : withRendering(running, () =>
+        withFrame(instanceFrame(running, getCurrentFrame(), dispatch), () =>
+          view(root.model, htmlBuilder(), undefined),
+        ),
       )
 }
 
-/** @internal Renders a child instance with a dispatcher that addresses its
- *  Messages to the instance. */
+/** @internal Renders a child instance from its parent's view, with a
+ *  dispatcher that addresses its Messages to its path. */
 export const renderInstance = (
   instance: RuntimeInstance,
   input: unknown,
 ): unknown => {
-  const node = nodeOf(instance)
-  const { view } = node.impl
+  const parent = renderStack[renderStack.length - 1]
+  if (parent === undefined) {
+    throw new Error(
+      `[foldkit] Block instance "${instance.id}" rendered outside its parent's view.`,
+    )
+  }
+
+  const { graph } = parent
+  const path = [...parent.path, instance.id]
+  const running = Option.getOrThrowWith(
+    runningAt(graph, path),
+    () =>
+      new Error(
+        `[foldkit] Block instance "${instance.id}" is not in its parent's Model. An instance renders only while its parent's Model holds it.`,
+      ),
+  )
+  const { view } = running.module.impl
   if (view === undefined) {
     return null
   }
 
   const parentFrame = getCurrentFrame()
-  const rootDispatch = node.graph.rootDispatch ?? requireDispatch()
+  const rootDispatch = graph.rootDispatch ?? requireDispatch()
   const dispatch: DispatchSync = (message, isCurrent) =>
-    rootDispatch(blockMessage(node.path, message), isCurrent)
+    rootDispatch(blockMessage(path, message), isCurrent)
 
-  const childFrame = instanceFrame(node, parentFrame, dispatch)
-  node.viewState.parentFrame = parentFrame
-  node.viewState.childFrame = childFrame
-  return withFrame(childFrame, () =>
-    view(instance.model, htmlBuilder(), wrapViewInput(node.viewState, input)),
+  const childFrame = instanceFrame(running, parentFrame, dispatch)
+  running.viewState.parentFrame = parentFrame
+  running.viewState.childFrame = childFrame
+  running.viewState.parentRunning = parent
+  return withRendering(running, () =>
+    withFrame(childFrame, () =>
+      view(
+        instance.model,
+        htmlBuilder(),
+        wrapViewInput(running.viewState, running, input),
+      ),
+    ),
   )
 }

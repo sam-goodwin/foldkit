@@ -42,12 +42,12 @@ export const fetchCount = (client: HttpClient.HttpClient) =>
     ),
   )
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 
     return {
-      model: { count: 0 },
+      init: () => ({ count: 0 }),
 
       update: {
         ClickedFetchCount: model => ({ model, commands: [FetchCount()] }),

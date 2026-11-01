@@ -1,31 +1,15 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Array, Effect, RcMap, Schema, Stream } from 'effect'
 import { Block, Command } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
 const CHAT_URL = 'wss://chat.example.com'
 
-// The socket lives exactly as long as a ChatSocket instance is in the Model.
-export class ChatSocket extends Block<ChatSocket, void, void, WebSocket>()(
-  'ChatSocket',
-  {},
-) {}
-
-export const ChatSocketLive = ChatSocket.make(
-  Effect.fn(function* () {
-    const socket = yield* Effect.acquireRelease(
-      Effect.sync(() => new WebSocket(CHAT_URL)),
-      socket => Effect.sync(() => socket.close()),
-    )
-
-    return { expose: socket }
-  }),
-)
-
 const Message = defineMessageUnion({
   ClickedConnect: {},
   ClickedDisconnect: {},
   ClickedSend: { text: Schema.String },
+  ReceivedChatMessage: { text: Schema.String },
   SucceededSendMessage: {},
   FailedSendMessage: { error: Schema.String },
 })
@@ -36,46 +20,81 @@ const SendMessage = Command.define('SendMessage', {
 })
 
 export class Chat extends Block<Chat>()('Chat', {
-  Model: Schema.Struct({ maybeChatSocket: Schema.Option(ChatSocket) }),
+  Model: Schema.Struct({
+    isConnected: Schema.Boolean,
+    receivedMessages: Schema.Array(Schema.String),
+  }),
   Message,
   Command: [SendMessage],
 }) {}
 
-export const ChatLive = Chat.make(
-  Effect.fn(function* () {
-    const chatSocket = yield* new ChatSocket('chatSocket')
+export const ChatLive = Chat.layer(
+  Effect.gen(function* () {
+    // Opens a socket on first use and closes it when its last holder releases it.
+    const sockets = yield* RcMap.make({
+      lookup: (url: string) =>
+        Effect.acquireRelease(
+          Effect.sync(() => new WebSocket(url)),
+          socket => Effect.sync(() => socket.close()),
+        ),
+    })
 
     return {
-      model: { maybeChatSocket: Option.none() },
+      init: () => ({ isConnected: false, receivedMessages: [] }),
 
       update: {
         ClickedConnect: model => ({
-          model: modifyFields(model, {
-            maybeChatSocket: () => Option.some(chatSocket),
-          }),
+          model: modifyFields(model, { isConnected: () => true }),
         }),
         ClickedDisconnect: model => ({
-          model: modifyFields(model, { maybeChatSocket: () => Option.none() }),
+          model: modifyFields(model, { isConnected: () => false }),
         }),
         ClickedSend: (model, { text }) => ({
           model,
-          commands: [SendMessage({ text })],
+          commands: Array.filter(
+            [SendMessage({ text })],
+            () => model.isConnected,
+          ),
+        }),
+        ReceivedChatMessage: (model, { text }) => ({
+          model: modifyFields(model, { receivedMessages: Array.append(text) }),
         }),
         SucceededSendMessage: model => ({ model }),
         FailedSendMessage: model => ({ model }),
       },
 
+      // The Subscription holds the socket while `isConnected` is true.
+      // Ending the Stream releases it, which closes the socket.
+      subscriptions: {
+        chatSocket: {
+          dependencies: model => model.isConnected,
+          stream: (isConnected: boolean) =>
+            isConnected
+              ? Stream.unwrap(
+                  Effect.map(RcMap.get(sockets, CHAT_URL), socket =>
+                    Stream.fromEventListener<MessageEvent>(
+                      socket,
+                      'message',
+                    ).pipe(
+                      Stream.map(event =>
+                        Message.ReceivedChatMessage({
+                          text: String(event.data),
+                        }),
+                      ),
+                    ),
+                  ),
+                )
+              : Stream.empty,
+        },
+      },
+
       commands: {
-        // `use` fails with NotConnected while the socket is not in the Model.
+        // The Command borrows the socket the Subscription holds.
         SendMessage: ({ text }) =>
-          chatSocket.use.pipe(
+          RcMap.get(sockets, CHAT_URL).pipe(
             Effect.flatMap(socket => Effect.try(() => socket.send(text))),
+            Effect.scoped,
             Effect.as(Message.SucceededSendMessage()),
-            Effect.catchTag('NotConnected', () =>
-              Effect.succeed(
-                Message.FailedSendMessage({ error: 'Not connected' }),
-              ),
-            ),
             Effect.catch(() =>
               Effect.succeed(
                 Message.FailedSendMessage({ error: 'Send failed' }),
@@ -88,7 +107,7 @@ export const ChatLive = Chat.make(
         h.div(
           [],
           [
-            Option.isSome(model.maybeChatSocket)
+            model.isConnected
               ? h.button(
                   [h.OnClick(Message.ClickedDisconnect())],
                   ['Disconnect'],
@@ -98,8 +117,12 @@ export const ChatLive = Chat.make(
               [h.OnClick(Message.ClickedSend({ text: 'Hello' }))],
               ['Say hello'],
             ),
+            h.ul(
+              [],
+              Array.map(model.receivedMessages, text => h.li([], [text])),
+            ),
           ],
         ),
     }
   }),
-).pipe(Layer.provide(ChatSocketLive))
+)

@@ -17,10 +17,10 @@ export class ArticlePreview extends Block<ArticlePreview>()('ArticlePreview', {
   Message,
 }) {}
 
-export const ArticlePreviewLive = ArticlePreview.make(
-  Effect.fn(function* () {
+export const ArticlePreviewLive = ArticlePreview.layer(
+  Effect.gen(function* () {
     return {
-      model: { isArticleOpen: false },
+      init: () => ({ isArticleOpen: false }),
 
       update: {
         ToggledArticle: (model, { isOpen }) => ({

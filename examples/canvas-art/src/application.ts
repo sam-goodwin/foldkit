@@ -80,10 +80,10 @@ export class Application extends Block<Application>()('Application', {
   Command: [GenerateBall],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { balls: [], nextId: 0, isRunning: true },
+      init: () => ({ balls: [], nextId: 0, isRunning: true }),
 
       update: {
         TickedFrame: (model, { deltaTime }) => ({

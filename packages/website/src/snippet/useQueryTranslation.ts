@@ -26,12 +26,12 @@ export class Application extends Block<Application>()('Application', {
   Command: [FetchPosts],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 
     return {
-      model: { posts: PostsData.Idle() },
+      init: () => ({ posts: PostsData.Idle() }),
       update: {
         EnteredPostsRoute: model =>
           Option.match(AsyncData.revalidateOrLoad(model.posts), {

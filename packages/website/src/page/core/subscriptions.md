@@ -2,10 +2,13 @@
 
 ## Ongoing Work with an Instance Lifetime {#overview}
 
-A Command describes one-shot work that produces one result. A Subscription describes ongoing work: a Stream that keeps producing Messages, such as timer ticks, keyboard events, or `WebSocket` frames. A Block declares its Subscriptions in the constructor's result, in one of two forms:
+A Command describes one-shot work that produces one result. A Subscription describes ongoing work: a Stream that keeps producing Messages, such as timer ticks, keyboard events, or `WebSocket` frames.
 
-- `stream` is a Stream of the Block's Messages that runs for as long as the instance exists. It starts when the instance enters its parent's Model and stops when the instance leaves.
-- `subscriptions` is a record of named entries. Each entry derives a value from the Model with `dependencies` and builds a Stream from that value. The Stream restarts when the value changes.
+A Block declares its Subscriptions under `subscriptions`, a record of named entries in the module its Layer returns. Each entry derives a value from the instance's Model with `dependencies` and builds a Stream from that value. Foldkit runs one Stream per entry for every instance in the Model:
+
+- The Stream starts when the instance appears in a Model.
+- It restarts when the value `dependencies` returns changes.
+- It stops when the instance leaves the Model.
 
 A Subscription never changes the Model itself. Each Message it emits goes through update like any other.
 
@@ -58,14 +61,14 @@ A Subscription may also maintain scoped DOM state without emitting Messages. Dur
 
 Choose the lifecycle primitive by what owns the work:
 
-| Primitive                                 | Lifetime owner                              | Use it for                                                                    |
-| ----------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------- |
-| `stream`                                  | The Block instance                          | Events the Block wants for as long as it exists                               |
-| `subscriptions` entry                     | A value derived from the Model              | Events the Block wants only in some states, or with parameters from the Model |
-| [Mount](/core/mount)                      | One rendered element                        | Listeners, observers, or imperative work that needs that element              |
-| [Resource Block](/core/managed-resources) | A child instance held in the parent's Model | A `WebSocket`, camera stream, or third-party instance that Commands also use  |
+| Primitive                                         | Lifetime owner                                       | Use it for                                                                    |
+| ------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `subscriptions` entry with constant dependencies  | The Block instance                                   | Events the Block wants for as long as it is in the Model                      |
+| `subscriptions` entry with Model dependencies     | A value derived from the Model                       | Events the Block wants only in some states, or with parameters from the Model |
+| [Mount](/core/mount)                              | One rendered element                                 | Listeners, observers, or imperative work that needs that element              |
+| [Keyed resource service](/core/managed-resources) | A Subscription holding an entry in an Effect `RcMap` | A `WebSocket` or third-party instance that Commands also use                  |
 
-Cleanup alone does not call for a resource Block. A Subscription's scope can install a listener and remove it when the Model no longer needs it, and a Stream that emits no Messages is fine.
+Cleanup alone does not call for a keyed service. A Subscription's scope can install a listener and remove it when the Model no longer needs it, and a Stream that emits no Messages is fine.
 
 For example, an unsaved-draft warning can use a Subscription that installs a `beforeunload` listener while drafts exist. Cancel the event synchronously in the listener; a Message followed by a Command would run too late. This warns before leaving and does not save the draft.
 
@@ -85,19 +88,21 @@ Name an entry for the events it produces, such as `keyPresses`, `systemThemeChan
 
 ## Always-On Streams {#streams-without-local-model-dependencies}
 
-When a Block wants events for its whole life, return them as `stream`. This Heartbeat Block counts a tick every thirty seconds from the moment it appears:
+When a Block wants events for as long as an instance is in the Model, give the entry dependencies that never change. `Function.constVoid` always returns `undefined`, so the Stream starts when the instance appears and runs until it leaves. This Heartbeat Block counts a tick every thirty seconds:
 
-::Snippet{name="subscriptionPersistent" label="Heartbeat with an always-on stream"}
+::Snippet{name="subscriptionPersistent" label="Heartbeat with an always-on Subscription"}
 
 `Stream.tick` emits once when it starts, so `Stream.drop(1)` makes the first tick wait for the interval.
 
+When the Stream depends on per-instance data, such as a room id the instance received as args, store that data in the Model from `init` and return it from `dependencies`. The value stays the same for the instance's lifetime, so the Stream still runs for as long as the instance exists, and each instance gets a Stream for its own room.
+
 ## A Subscription as a Child Block
 
-A parent can control when a Stream runs by holding the Block that owns it. This Ticker has no Model and no view. Its `stream` emits `Ticked`, and its update reports each one to the parent as an OutMessage:
+A parent can control when a Stream runs by holding the Block that owns it. This Ticker has no view. Its `init` stores the interval its parent passed, its `ticks` entry depends on that interval, and its update reports each tick to the parent as an OutMessage:
 
 ::Snippet{name="subscriptionTickerBlock" label="A Ticker Block"}
 
-AutoCounter holds the Ticker in an `Option` field. Putting the instance in the field starts its Stream, and taking it out stops it:
+AutoCounter holds the Ticker in an `Option` field. Putting a new Ticker in the field starts its Stream, and taking it out stops it:
 
 ::Snippet{name="subscriptionTickerParent" label="Starting and stopping a Ticker"}
 
@@ -105,7 +110,7 @@ Use a child Block when the Stream is reusable across features, needs its own sta
 
 ## Testing Subscriptions
 
-Stories and scenes never run Streams. A Subscription's emission is a Message, so a test delivers it. For a child Block's Stream, address the Message to the instance with `Block.deliver`:
+Stories and scenes never run Streams. A Subscription's emission is a Message, so a test delivers it. For a child Block's Stream, address the Message to the instance by its id with `Block.deliver`:
 
 ::Snippet{name="subscriptionStory" label="Delivering Ticker Messages in a story"}
 
@@ -129,7 +134,7 @@ Use `Stream.tick` for steps that should occur every N milliseconds of wall-clock
 
 ## Dom Streams
 
-[Dom Stream helpers](/core/dom#using-dom-streams) turn browser events, media queries, and key bindings into composable Streams. Return one from `stream` or a `subscriptions` entry when the Model decides its lifetime, or from a Mount when a rendered element does.
+[Dom Stream helpers](/core/dom#using-dom-streams) turn browser events, media queries, and key bindings into composable Streams. Return one from a `subscriptions` entry when the Model decides its lifetime, or from a Mount when a rendered element does.
 
 ## Keep a Stream Alive Across Dependency Changes {#advanced}
 
@@ -151,7 +156,7 @@ Most entries use the first argument directly. Reach for `readDependencies` only 
 
 ## Subscriptions in Child Blocks {#lifting-subscriptions}
 
-Each instance runs its own `stream` and `subscriptions`, computed from its own Model. A parent does not collect or forward them. Two instances of one Block run two independent sets of Streams, and removing an instance from the parent's Model stops all of its Streams.
+Each instance runs its own `subscriptions`, computed from its own Model. A parent does not collect or forward them. Two instances of one Block run two independent sets of Streams, and removing an instance from the parent's Model stops all of its Streams. Moving an instance to another field of the same parent keeps them running.
 
 To pause a child's Streams without discarding the child, give the child a Message that changes the Model its `dependencies` read, and send it with `send`. To stop them and discard the child, take it out of the Model. [Subscription Organization](/patterns/subscription-organization) covers larger compositions.
 

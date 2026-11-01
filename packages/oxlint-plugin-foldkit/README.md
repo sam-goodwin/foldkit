@@ -46,7 +46,7 @@ Oxlint rules for Foldkit applications. Extend `recommended.json` for the support
 
 Several rules look inside a Block implementation. A Block is a class that extends `Block<Self, ...>()('Name', contract)`, with `Block` imported from `foldkit` or `foldkit/block` (namespace imports and aliases included). A generic factory may bind the declaration to a const instead of declaring a class, as in `const TabsClass = Block<Tabs<Value>>()('Tabs', contract)`.
 
-The implementation is the object returned by the constructor passed to that class's `make`. The constructor may be passed directly or through `Effect.fn(...)`, `Effect.fn('name')(...)`, or `Effect.fnUntraced(...)`:
+The implementation is the module returned by the constructor passed to that class's `layer`. The constructor is an `Effect.gen(function* () { ... })` written inline in the `layer` call:
 
 ```ts
 export class Counter extends Block<Counter>()('Counter', {
@@ -55,10 +55,10 @@ export class Counter extends Block<Counter>()('Counter', {
   Mount: [FocusInput],
 }) {}
 
-export const CounterLive = Counter.make(
-  Effect.fn(function* () {
+export const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: 0 },
+      init: () => ({ count: 0 }),
       update: {
         ClickedIncrement: model => ({ model: { count: model.count + 1 } }),
       },
@@ -74,12 +74,12 @@ export const CounterLive = Counter.make(
 The rules read the implementation's slots as follows:
 
 - The second parameter of `view` is an HTML builder, so the view rules check `h.*` calls in it.
-- `update` handlers, including OutMessage handlers spread in through `instance.on({ ... })`, and `view` run at decision time. `foldkit/no-impure-call-at-decision-time` reports `Date.now()`, `Math.random()` and similar calls in them even though they sit inside an `Effect.fn` constructor. Subscription `dependencies` are decision time too.
+- `init`, `start`, `update` handlers (including OutMessage handlers spread in through `Child.on({ ... })` or `Child.onAll({ ... })`), and `view` run at decision time. `foldkit/no-impure-call-at-decision-time` reports `Date.now()`, `Math.random()` and similar calls in them even though they sit inside an `Effect.gen` constructor. Subscription `dependencies` are decision time too.
 - `commands` and `mounts` handlers and Subscription `stream` functions run when the Runtime executes them, so time and randomness calls are allowed there.
 - Each `mounts` handler must use the `element` it receives (`foldkit/mount-factory-must-use-element`).
-- A factory from `yield* Child.each('field', args)` is a keyed instance factory. `foldkit/no-array-index-view-keys` reports a map callback index passed as its key.
+- `new Child(id, args)` creates a Block instance whose id identifies it among its parent's children. `foldkit/no-array-index-view-keys` reports a map callback index passed as that id.
 
-The recognition is syntactic and file-local. A Block class imported from another module is not resolved, so a `make` call on an imported class is not checked. Constructors stored in a separate variable before being passed to `make` are not followed; pass the constructor inline.
+The recognition is syntactic and file-local. A Block class imported from another module is not resolved, so a `layer` call or `new` expression on an imported class is not checked. Constructors stored in a separate variable before being passed to `layer` are not followed; pass the constructor inline.
 
 ## HTML builder recognition
 
@@ -94,15 +94,15 @@ Package aliases, wildcard re-exports, JavaScript declarations, and declaration-o
 
 ## Naming Blocks
 
-`foldkit/block-name-matches-variable` requires a Block class declaration to carry its literal Block id as its name and to pass itself as the `Self` type. The Layer returned by `make`, including through `.pipe(...)`, is named `<BlockId>Live`:
+`foldkit/block-name-matches-variable` requires a Block class declaration to carry its literal Block id as its name and to pass itself as the `Self` type. The Layer returned by `layer`, including through `.pipe(...)`, is named `<BlockId>Live`:
 
 ```ts
 export class Search extends Block<Search>()('Search', { Model, Message }) {}
 
-export const SearchLive = Search.make(...)
+export const SearchLive = Search.layer(...)
 ```
 
-A generic factory that binds the declaration to a const keeps its own local name, and its Layer still uses the Block id: `const TabsLive = TabsClass.make(...)`. Dynamic Block ids are left for the developer to review.
+A generic factory that binds the declaration to a const keeps its own local name, and its Layer still uses the Block id: `const TabsLive = TabsClass.layer(...)`. Dynamic Block ids are left for the developer to review.
 
 ## Program options
 

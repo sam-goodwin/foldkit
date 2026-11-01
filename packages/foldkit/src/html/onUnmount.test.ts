@@ -4,12 +4,7 @@ import { expect, vi } from 'vitest'
 import { describe, it } from '@effect/vitest'
 
 import { Block, deliver, runtimeBlockOf } from '../blocks/block.js'
-import {
-  constructSync,
-  makeGraph,
-  reconcile,
-  renderRoot,
-} from '../blocks/engine.js'
+import { constructRoot, makeGraph, renderRoot } from '../blocks/engine.js'
 import { defineMessageUnion } from '../message/index.js'
 import type { MountAction } from '../mount/index.js'
 import { MountTracker } from '../mount/index.js'
@@ -467,8 +462,8 @@ class Dialog extends Block<Dialog, void, DialogViewInput>()('Dialog', {
   Message: DialogMessage,
 }) {}
 
-const DialogLive = Dialog.make(
-  Effect.fn(function* () {
+const DialogLive = Dialog.layer(
+  Effect.gen(function* () {
     return {
       update: { UnmountedDialog: model => ({ model }) },
       view: (_model, h, { toView }) =>
@@ -523,11 +518,10 @@ describe('OnUnmount across a Block boundary', () => {
           Message: ParentMessage,
         }) {}
 
-        const ParentLive = Parent.make(
-          Effect.fn(function* () {
-            const dialog = yield* new Dialog('dialog')
+        const ParentLive = Parent.layer(
+          Effect.gen(function* () {
             return {
-              model: { dialog },
+              init: () => ({ dialog: new Dialog('dialog') }),
               update: { UnmountedParent: model => ({ model }) },
               view: (model, h) =>
                 isDialogRendered
@@ -551,15 +545,7 @@ describe('OnUnmount across a Block boundary', () => {
         const context = yield* Layer.build(ParentLive)
         const block = runtimeBlockOf(Parent)
         const graph = makeGraph({ isSimulation: false })
-        const instance = constructSync(
-          graph,
-          block,
-          [],
-          block.id,
-          undefined,
-          context,
-        )
-        reconcile(graph, instance)
+        const instance = constructRoot(graph, block, undefined, context)
 
         const { dispatch, dispatched } = createCapturingDispatch()
         const registry = createHtmlBoundaryRegistry()

@@ -425,12 +425,7 @@ type Contract<Value extends string> = Readonly<{
  *  Model and render it with `radioGroup.view(viewInputs)`. */
 export interface RadioGroup<
   Value extends string = string,
-> extends BlockTypes.Instance<
-  RadioGroup<Value>,
-  Contract<Value>,
-  InitConfig,
-  ViewInputs<Value>
-> {}
+> extends BlockTypes.Instance<Contract<Value>, InitConfig, ViewInputs<Value>> {}
 
 /** A RadioGroup class refined to one Value type, with its Layer as `Live`. */
 export type RadioGroupClass<Value extends string = string> =
@@ -439,7 +434,6 @@ export type RadioGroupClass<Value extends string = string> =
     'RadioGroup',
     InitConfig,
     ViewInputs<Value>,
-    never,
     Contract<Value>
   > &
     Readonly<{ Live: Layer.Layer<RadioGroup<Value>> }>
@@ -447,8 +441,8 @@ export type RadioGroupClass<Value extends string = string> =
 /**
  * Creates a RadioGroup class refined to one Value type, with its Layer
  * attached as `Live`. Declare `RadioGroup.makeBlock<Plan>()` once at module
- * scope, create instances with `yield* new PlanRadioGroup(id, { id })` in a
- * parent constructor, and provide `PlanRadioGroup.Live` to the parent's Layer.
+ * scope, create instances with `new PlanRadioGroup(id, { id })` in a parent's
+ * Model, and provide `PlanRadioGroup.Live` to the parent's Layer.
  * Its view input and `Selected.value` share the Value type; the parent Model
  * owns the selected option.
  */
@@ -473,10 +467,10 @@ export const makeBlock = <
     /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
     contract.OutMessage.Selected({ value: value as Value, index })
 
-  const RadioGroupLive = RadioGroupClass.make(
-    Effect.fn(function* (_instanceId, config) {
+  const RadioGroupLive = RadioGroupClass.layer(
+    Effect.gen(function* () {
       return {
-        model: { id: config.id, maybeFocusedIndex: Option.none() },
+        init: config => ({ id: config.id, maybeFocusedIndex: Option.none() }),
         update: {
           SelectedOption: (model, { index, value }) => ({
             model: modifyFields(model, {

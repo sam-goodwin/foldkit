@@ -19,18 +19,18 @@ export class TooltipPage extends Block<TooltipPage>()('TooltipPage', {
   Model,
 }) {}
 
-export const TooltipPageLive = TooltipPage.make(
-  Effect.fn(function* () {
-    const tooltipBasicDemo = yield* new Tooltip.Tooltip('tooltipBasicDemo', {
-      id: 'tooltip-basic-demo',
-    })
-    const tooltipNoDelayDemo = yield* new Tooltip.Tooltip(
-      'tooltipNoDelayDemo',
-      { id: 'tooltip-no-delay-demo', showDelay: 0 },
-    )
-
+export const TooltipPageLive = TooltipPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { tooltipBasicDemo, tooltipNoDelayDemo },
+      init: () => ({
+        tooltipBasicDemo: new Tooltip.Tooltip('tooltipBasicDemo', {
+          id: 'tooltip-basic-demo',
+        }),
+        tooltipNoDelayDemo: new Tooltip.Tooltip('tooltipNoDelayDemo', {
+          id: 'tooltip-no-delay-demo',
+          showDelay: 0,
+        }),
+      }),
       view,
     }
   }),

@@ -7,6 +7,10 @@ import { describe, it } from '@effect/vitest'
 import * as AsyncData from '../../asyncData/index.js'
 import { Block } from '../../blocks/public.js'
 import { story } from '../../blocks/testing.js'
+import {
+  __CurrentRegistry,
+  __makeRegistry,
+} from '../../command/interruptible/interruptible.js'
 import { defineMessageUnion } from '../../message/index.js'
 import * as Story from '../../test/story.js'
 import * as Query from './index.js'
@@ -52,12 +56,10 @@ describe('Query freshness and cancellation', () => {
       Message,
     }) {}
 
-    const ParentLive = Parent.make(
-      Effect.fn(function* () {
-        const query = yield* new FiniteQuery('query', {})
-
+    const ParentLive = Parent.layer(
+      Effect.gen(function* () {
         return {
-          model: { query },
+          init: () => ({ query: new FiniteQuery('query', {}) }),
           update: {
             RequestedLoad: (model, { nowMillis }) => ({
               model,
@@ -322,17 +324,26 @@ describe('Query freshness and cancellation', () => {
     'CancelFetch does not reach another instance of the same Query',
     () =>
       Effect.gen(function* () {
-        const first = infiniteQuery.makeFetchHandlers(() => Effect.never)
-        const second = infiniteQuery.makeFetchHandlers(() => Effect.never)
+        const { fetch, cancelFetch } = infiniteQuery.makeFetchHandlers(
+          () => Effect.never,
+        )
+        const firstRegistry = __makeRegistry()
+        const secondRegistry = __makeRegistry()
         const firstFetch = yield* Effect.forkChild(
-          first.fetch({ generation: 1 }),
+          fetch({ generation: 1 }).pipe(
+            Effect.provideService(__CurrentRegistry, firstRegistry),
+          ),
         )
         const secondFetch = yield* Effect.forkChild(
-          second.fetch({ generation: 1 }),
+          fetch({ generation: 1 }).pipe(
+            Effect.provideService(__CurrentRegistry, secondRegistry),
+          ),
         )
 
         yield* Effect.yieldNow
-        yield* first.cancelFetch({ generation: 1 })
+        yield* cancelFetch({ generation: 1 }).pipe(
+          Effect.provideService(__CurrentRegistry, firstRegistry),
+        )
         const exit = yield* Fiber.await(firstFetch)
 
         expect(Exit.isFailure(exit)).toBe(true)

@@ -47,12 +47,12 @@ export class Sidebar extends Block<Sidebar, void, ViewInput>()('Sidebar', {
   Command: [FocusSearchInput],
 }) {}
 
-export const SidebarLive = Sidebar.make(
-  Effect.fn(function* () {
+export const SidebarLive = Sidebar.layer(
+  Effect.gen(function* () {
     return {
-      model: { searchQuery: '' },
+      init: () => ({ searchQuery: '' }),
 
-      start: [FocusSearchInput()],
+      start: () => [FocusSearchInput()],
 
       update: {
         UpdatedSearchQuery: (model, { value }) => ({

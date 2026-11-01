@@ -83,17 +83,15 @@ export class Application extends Block<Application>()('Application', {
   Command: [PlaceOrder],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const cartStep = yield* new CartStep('cartStep')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         checkout: checkoutMachine.initial,
         transitionLog: [],
         nextTransitionLogId: 0,
-        cartStep,
-      },
+        cartStep: new CartStep('cartStep'),
+      }),
 
       update: {
         ClickedContinue: handleMachineMessage,
@@ -107,7 +105,7 @@ export const ApplicationLive = Application.make(
         UpdatedPromoCode: handleMachineMessage,
         SubmittedPromoCode: handleMachineMessage,
         CompletedPlaceOrder: handleMachineMessage,
-        ...cartStep.on({
+        ...CartStep.on({
           RequestedCancel: stepMachine(Message.ClickedCancel()),
           RequestedContinue: stepMachine(Message.ClickedContinue()),
           SelectedEdition: (model, { isShippingRequired }) =>

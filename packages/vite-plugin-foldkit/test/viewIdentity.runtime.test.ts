@@ -163,10 +163,10 @@ const withRunningApp = async (
   view: View,
   run: () => Promise<void>,
 ): Promise<void> => {
-  const ApplicationLive = Application.make(
-    Effect.fn(function* () {
+  const ApplicationLive = Application.layer(
+    Effect.gen(function* () {
       return {
-        model: Model.make({ mode: 'Viewing' }),
+        init: () => Model.make({ mode: 'Viewing' }),
         update: {
           ClickedToggle: model => {
             const nextMode = model.mode === 'Viewing' ? 'Editing' : 'Viewing'

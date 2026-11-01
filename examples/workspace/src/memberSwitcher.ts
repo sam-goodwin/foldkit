@@ -20,18 +20,18 @@ export class MemberSwitcher extends Block<MemberSwitcher, void, ViewInput>()(
   { Model },
 ) {}
 
-export const MemberSwitcherLive = MemberSwitcher.make(
-  Effect.fn(function* () {
-    const activeMemberListbox = yield* new WorkspaceListbox(
-      'activeMemberListbox',
-      { id: 'workspace-active-member' },
-    )
-
+export const MemberSwitcherLive = MemberSwitcher.layer(
+  Effect.gen(function* () {
     return {
-      model: { activeMemberId: 'maya', activeMemberListbox },
+      init: () => ({
+        activeMemberId: 'maya',
+        activeMemberListbox: new WorkspaceListbox('activeMemberListbox', {
+          id: 'workspace-active-member',
+        }),
+      }),
 
       update: {
-        ...activeMemberListbox.on({
+        ...WorkspaceListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeMemberId: () => value }),
           }),

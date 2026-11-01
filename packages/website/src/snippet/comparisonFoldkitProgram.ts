@@ -3,6 +3,8 @@
 import { Effect, Option } from 'effect'
 import { Block } from 'foldkit'
 
+import { Dialog } from '@foldkit/ui'
+
 // Flags, Model, Message, SaveCanvas, ExportPng, and view are declared above
 
 export class Application extends Block<
@@ -14,10 +16,10 @@ export class Application extends Block<
   Command: [SaveCanvas, ExportPng],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ flags }) => ({
         grid: Option.match(flags.maybeSavedCanvas, {
           onNone: () => createEmptyGrid(DEFAULT_GRID_SIZE),
           onSome: savedCanvas => savedCanvas.grid,
@@ -28,8 +30,9 @@ export const ApplicationLive = Application.make(
         mirrorMode: 'None',
         isDrawing: false,
         maybeHoveredCell: Option.none(),
+        errorDialog: new Dialog.Dialog('errorDialog', { id: 'error-dialog' }),
         // remaining fields elided for brevity
-      },
+      }),
       update: {
         // one handler per Message
       },

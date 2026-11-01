@@ -15,7 +15,7 @@ export const StartTransition = Command.define('StartTransition', {
   messages: [Message.CompletedStartTransition],
 })
 
-// Handlers returned under `commands` in a Block's constructor:
+// Handlers returned under `commands` from a Block's Layer:
 export const commands = {
   MeasurePanel: () =>
     Effect.gen(function* () {

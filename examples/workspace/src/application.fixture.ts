@@ -34,12 +34,7 @@ export const loadWorkspace = message(
 export const issueDetailMessage = (
   issueId: string,
   childMessage: typeof IssueDetail.Message.Type,
-) =>
-  Block.deliver(
-    IssueDetail,
-    ['issuePane', 'issueDetails', issueId],
-    childMessage,
-  )
+) => Block.deliver(IssueDetail, ['issuePane', issueId], childMessage)
 
 export const commentComposerMessage = (
   issueId: string,
@@ -47,20 +42,19 @@ export const commentComposerMessage = (
 ) =>
   Block.deliver(
     CommentComposer,
-    ['issuePane', 'issueDetails', issueId, 'commentComposer'],
+    ['issuePane', issueId, 'commentComposer'],
     childMessage,
   )
 
 export const projectSettingsMessage = (
   projectId: string,
   childMessage: typeof ProjectSettings.Message.Type,
-) =>
-  Block.deliver(ProjectSettings, ['projectSettings', projectId], childMessage)
+) => Block.deliver(ProjectSettings, projectId, childMessage)
 
 export const issueBoardMessage = (
   projectId: string,
   childMessage: typeof IssueBoard.Message.Type,
-) => Block.deliver(IssueBoard, ['issueBoards', projectId], childMessage)
+) => Block.deliver(IssueBoard, projectId, childMessage)
 
 export const issueListMessage = (childMessage: typeof IssueList.Message.Type) =>
   Block.deliver(IssueList, 'issueList', childMessage)

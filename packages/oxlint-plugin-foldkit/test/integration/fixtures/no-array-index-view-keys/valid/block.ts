@@ -11,21 +11,20 @@ export class Table extends Block<Table>()('Table', {
   Message,
 }) {}
 
-export const TableLive = Table.make(
-  Effect.fn(function* () {
-    const row = yield* Row.each('rows')
+export const TableLive = Table.layer(
+  Effect.gen(function* () {
     return {
-      model: { rows: [] },
+      init: () => ({ rows: [] }),
       update: {
         ClickedAddRow: (model, { rowId }) => ({
-          model: { rows: [...model.rows, row(rowId)] },
+          model: { rows: [...model.rows, new Row(rowId)] },
         }),
       },
       view: (model, h) =>
         h.ul(
           [],
           model.rows.map((instance, index) =>
-            h.keyed('li')(instance.id, [h.DataAttribute('index', `${index}`)], [instance.view()]),
+            h.keyed('li')(instance.id, [h.DataAttribute('index', `${index}`), h.Title(new Date(index).toISOString())], [instance.view()]),
           ),
         ),
     }

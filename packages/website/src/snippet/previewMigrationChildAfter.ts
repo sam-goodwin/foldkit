@@ -15,12 +15,14 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const settings = yield* new Settings('settings')
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { settings, previewTheme: 'System' },
+      // The instance is plain data. Foldkit starts it when it appears here.
+      init: () => ({
+        settings: new Settings('settings'),
+        previewTheme: 'System',
+      }),
 
       update: {
         // The parent changes the child by sending it a Message.
@@ -29,7 +31,7 @@ export const ApplicationLive = Application.make(
           messages: [model.settings.send(Settings.Message.RequestedReset())],
         }),
         // The parent learns about the child through its OutMessages.
-        ...settings.on({
+        ...Settings.on({
           ChangedTheme: (model, { theme }) => ({
             model: modifyFields(model, { previewTheme: () => theme }),
           }),

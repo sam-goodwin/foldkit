@@ -48,15 +48,17 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
-    const route = urlToApplicationRoute(url)
-    const browse = yield* new Browse('browse', {
-      fields: routeToBrowseFields(route),
-    })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { route, browse },
+      init: ({ url }) => {
+        const route = urlToApplicationRoute(url)
+
+        return {
+          route,
+          browse: new Browse('browse', { fields: routeToBrowseFields(route) }),
+        }
+      },
 
       update: {
         CompletedNavigateInternal: model => ({ model }),

@@ -19,12 +19,10 @@ export class Application extends Block<Application>()('Application', {
   Command: [ReadCurrentTime],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const posts = yield* new PostsQuery('posts', {})
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { posts },
+      init: () => ({ posts: new PostsQuery('posts', {}) }),
       update: {
         EnteredPostsRoute: model => ({
           model,

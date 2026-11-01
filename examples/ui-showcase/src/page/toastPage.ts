@@ -36,15 +36,15 @@ export class ToastPage extends Block<ToastPage>()('ToastPage', {
   Message,
 }) {}
 
-export const ToastPageLive = ToastPage.make(
-  Effect.fn(function* () {
-    const toastDemo = yield* new DemoToast('toastDemo', {
-      id: 'toast-demo',
-      swipeToDismiss: {},
-    })
-
+export const ToastPageLive = ToastPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { toastDemo },
+      init: () => ({
+        toastDemo: new DemoToast('toastDemo', {
+          id: 'toast-demo',
+          swipeToDismiss: {},
+        }),
+      }),
 
       update: {
         ClickedShowInfoToast: model => ({

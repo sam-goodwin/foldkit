@@ -212,7 +212,7 @@ describe('application', () => {
       message(
         Block.deliver(
           Playground,
-          ['playground', 'counter'],
+          'counter',
           Playground.Message.EditedPlaygroundFile({
             path: 'src/application.ts',
             content: 'edited',

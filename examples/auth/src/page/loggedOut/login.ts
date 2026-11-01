@@ -78,10 +78,10 @@ export class Login extends Block<Login>()('Login', {
   Command: [SimulateAuthRequest],
 }) {}
 
-export const LoginLive = Login.make(
-  Effect.fn(function* () {
+export const LoginLive = Login.layer(
+  Effect.gen(function* () {
     return {
-      model: initModel(),
+      init: initModel,
 
       update: {
         ChangedEmail: (model, { value }) => ({

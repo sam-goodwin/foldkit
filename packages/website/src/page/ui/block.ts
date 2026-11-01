@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Number, Option } from 'effect'
+import { Array, Effect, Layer, Match, Number, Option } from 'effect'
 import { Calendar as FoldkitCalendar } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -32,6 +32,7 @@ import {
 import { DemoToast } from './demo/toastModule'
 import { ROW_COUNT as VIRTUAL_LIST_ROW_COUNT } from './demo/virtualListData'
 import {
+  type City,
   VirtualListChatHistoryLoad,
   VirtualListChatHistorySource,
 } from './domain/domain'
@@ -42,8 +43,10 @@ import {
   findDragAndDropDemoColumnLabel,
   reorderColumns,
 } from './dragAndDrop'
+import type { Model } from './model'
 import { view } from './view'
 import {
+  chatListForSource,
   fetchVirtualListChatHistory,
   handleCompletedFetchVirtualListChatHistory,
   initialVirtualListChatMessages,
@@ -52,254 +55,154 @@ import {
   requestVirtualListChatHistoryOnApproachStep,
   selectVirtualListChatHistoryModeStep,
   updateVirtualListChatMessagesStep,
-  virtualListChatInitConfig,
 } from './virtualListChat'
 
 const VIRTUAL_LIST_MIDDLE_INDEX = Math.floor(VIRTUAL_LIST_ROW_COUNT / 2)
 
-export const UiLive = Ui.make(
-  Effect.fn(function* (_id, { today }) {
-    const calendarBasicDemo = yield* new Calendar.Calendar(
-      'calendarBasicDemo',
-      {
-        id: 'calendar-basic-demo',
-        today,
-        minDate: FoldkitCalendar.subtractYears(today, 1),
-        maxDate: FoldkitCalendar.addYears(today, 1),
-      },
-    )
-    const datePickerBasicDemo = yield* new DatePicker.DatePicker(
-      'datePickerBasicDemo',
-      {
-        id: 'date-picker-basic-demo',
-        today,
-        minDate: FoldkitCalendar.subtractYears(today, 1),
-        maxDate: FoldkitCalendar.addYears(today, 1),
-      },
-    )
-    const comboboxDemo = yield* new CityCombobox('comboboxDemo', {
-      id: 'combobox-demo',
-    })
-    const comboboxPlacementLockDemo = yield* new CityCombobox(
-      'comboboxPlacementLockDemo',
-      { id: 'combobox-placement-lock-demo' },
-    )
-    const comboboxNullableDemo = yield* new CityCombobox(
-      'comboboxNullableDemo',
-      { id: 'combobox-nullable-demo', nullable: true },
-    )
-    const comboboxMultiDemo = yield* new CityMultiCombobox(
-      'comboboxMultiDemo',
-      { id: 'combobox-multi-demo' },
-    )
-    const comboboxSelectOnFocusDemo = yield* new CityCombobox(
-      'comboboxSelectOnFocusDemo',
-      { id: 'combobox-select-on-focus-demo', selectInputOnFocus: true },
-    )
-    const dialogDemo = yield* new Dialog.Dialog('dialogDemo', {
-      id: 'dialog-demo',
-    })
-    const dialogAnimatedDemo = yield* new Dialog.Dialog('dialogAnimatedDemo', {
-      id: 'dialog-animated-demo',
-      isAnimated: true,
-    })
-    const overlayDialogDemo = yield* new Dialog.Dialog('overlayDialogDemo', {
-      id: 'overlay-dialog-demo',
-    })
-    const overlayComboboxDemo = yield* new CityCombobox('overlayComboboxDemo', {
-      id: 'overlay-combobox-demo',
-    })
-    const nestedDialogParentDemo = yield* new Dialog.Dialog(
-      'nestedDialogParentDemo',
-      { id: 'nested-dialog-parent-demo' },
-    )
-    const nestedDialogChildDemo = yield* new Dialog.Dialog(
-      'nestedDialogChildDemo',
-      { id: 'nested-dialog-child-demo' },
-    )
-    const listboxDemo = yield* new ItemListbox('listboxDemo', {
-      id: 'listbox-demo',
-    })
-    const listboxMultiDemo = yield* new ItemMultiListbox('listboxMultiDemo', {
-      id: 'listbox-multi-demo',
-    })
-    const listboxGroupedDemo = yield* new CharacterListbox(
-      'listboxGroupedDemo',
-      { id: 'listbox-grouped-demo' },
-    )
-    const menuBasicDemo = yield* new DemoMenu('menuBasicDemo', {
-      id: 'menu-basic-demo',
-    })
-    const menuAnimatedDemo = yield* new DemoMenu('menuAnimatedDemo', {
-      id: 'menu-animated-demo',
-      isAnimated: true,
-    })
-    const popoverBasicDemo = yield* new Popover.Popover('popoverBasicDemo', {
-      id: 'popover-basic-demo',
-    })
-    const popoverAnimatedDemo = yield* new Popover.Popover(
-      'popoverAnimatedDemo',
-      { id: 'popover-animated-demo', isAnimated: true },
-    )
-    const popoverArrowDemo = yield* new Popover.Popover('popoverArrowDemo', {
-      id: 'popover-arrow-demo',
-    })
-    const popoverNestedParentDemo = yield* new Popover.Popover(
-      'popoverNestedParentDemo',
-      { id: 'popover-nested-parent-demo', contentFocus: true },
-    )
-    const popoverNestedChildDemo = yield* new Popover.Popover(
-      'popoverNestedChildDemo',
-      { id: 'popover-nested-child-demo' },
-    )
-    const verticalRadioGroupDemo = yield* new PlanRadioGroup(
-      'verticalRadioGroupDemo',
-      { id: 'vertical-radio-group-demo' },
-    )
-    const horizontalRadioGroupDemo = yield* new PlanRadioGroup(
-      'horizontalRadioGroupDemo',
-      { id: 'horizontal-radio-group-demo' },
-    )
-    const sliderRatingDemo = yield* new Slider.Slider('sliderRatingDemo', {
-      id: 'slider-rating-demo',
-      min: 0,
-      max: 10,
-      step: 1,
-    })
-    const sliderVolumeDemo = yield* new Slider.Slider('sliderVolumeDemo', {
-      id: 'slider-volume-demo',
-      min: 0,
-      max: 1,
-      step: 0.05,
-    })
-    const horizontalTabsDemo = yield* new DemoTabs('horizontalTabsDemo', {
-      id: 'horizontal-tabs-demo',
-    })
-    const verticalTabsDemo = yield* new DemoTabs('verticalTabsDemo', {
-      id: 'vertical-tabs-demo',
-    })
-    const dragAndDropDemo = yield* new DragAndDrop.DragAndDrop(
-      'dragAndDropDemo',
-      { id: 'drag-and-drop-demo' },
-    )
-    const fileDropBasicDemo = yield* new FileDrop.FileDrop(
-      'fileDropBasicDemo',
-      { id: 'file-drop-basic-demo' },
-    )
-    const toastDemo = yield* new DemoToast('toastDemo', {
-      id: 'toast-demo',
-      swipeToDismiss: {},
-    })
-    const tooltipDemo = yield* new Tooltip.Tooltip('tooltipDemo', {
-      id: 'tooltip-demo',
-    })
-    const hoverIntentCardDemo = yield* new HoverIntent.HoverIntent(
-      'hoverIntentCardDemo',
-      {},
-    )
-    const hoverIntentMenuDemo = yield* new HoverIntent.HoverIntent(
-      'hoverIntentMenuDemo',
-      {},
-    )
-    const animationDemo = yield* new Animation.Animation('animationDemo', {
-      id: 'animation-demo',
-    })
-    const virtualListDemo = yield* new ActivityVirtualList('virtualListDemo', {
-      id: 'virtual-list-demo',
-      rowHeightPx: 56,
-    })
-    const virtualListVariableDemo = yield* new ActivityVirtualList(
-      'virtualListVariableDemo',
-      { id: 'virtual-list-variable-demo', rowHeightPx: 56 },
-    )
-    const virtualListChatUnboundedDemo = yield* new ChatVirtualList(
-      'virtualListChatUnboundedDemo',
-      virtualListChatInitConfig(VirtualListChatHistorySource.Unbounded()),
-    )
-    const virtualListChatFiniteDemo = yield* new ChatVirtualList(
-      'virtualListChatFiniteDemo',
-      virtualListChatInitConfig(
-        VirtualListChatHistorySource.Finite({ remainingCount: 0 }),
-      ),
-    )
-    const virtualListChatHistoryModeGroup = yield* new HistoryModeRadioGroup(
-      'virtualListChatHistoryModeGroup',
-      { id: 'virtual-list-chat-history-mode' },
-    )
-
-    const chatListForSource = (source: VirtualListChatHistorySource) =>
-      VirtualListChatHistorySource.match(source, {
-        Unbounded: () => virtualListChatUnboundedDemo,
-        Finite: () => virtualListChatFiniteDemo,
-      })
-
-    const chatListOutMessageHandlers = {
-      ApproachedLoadedStart: requestVirtualListChatHistoryOnApproachStep,
-      EndedContainerScroll: markVirtualListChatHistoryAnnouncedStep,
-    }
-
+export const UiLive = Ui.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: ({ today }) => ({
         buttonClickCount: 0,
         inputDemoValue: '',
         textareaDemoValue: '',
         fieldsetInputValue: '',
         fieldsetTextareaValue: '',
         isFieldsetCheckboxDemoChecked: false,
-        calendarBasicDemo,
+        calendarBasicDemo: new Calendar.Calendar('calendarBasicDemo', {
+          id: 'calendar-basic-demo',
+          today,
+          minDate: FoldkitCalendar.subtractYears(today, 1),
+          maxDate: FoldkitCalendar.addYears(today, 1),
+        }),
         maybeCalendarBasicDemoSelectedDate: Option.none(),
-        datePickerBasicDemo,
+        datePickerBasicDemo: new DatePicker.DatePicker('datePickerBasicDemo', {
+          id: 'date-picker-basic-demo',
+          today,
+          minDate: FoldkitCalendar.subtractYears(today, 1),
+          maxDate: FoldkitCalendar.addYears(today, 1),
+        }),
         maybeDatePickerBasicDemoSelectedDate: Option.none(),
         isCheckboxBasicDemoChecked: false,
         isCheckboxOptionADemoChecked: false,
         isCheckboxOptionBDemoChecked: false,
-        comboboxDemo,
+        comboboxDemo: new CityCombobox('comboboxDemo', {
+          id: 'combobox-demo',
+        }),
         maybeComboboxDemoSelectedCity: Option.none(),
-        comboboxPlacementLockDemo,
+        comboboxPlacementLockDemo: new CityCombobox(
+          'comboboxPlacementLockDemo',
+          { id: 'combobox-placement-lock-demo' },
+        ),
         maybeComboboxPlacementLockDemoSelectedCity: Option.none(),
-        comboboxNullableDemo,
+        comboboxNullableDemo: new CityCombobox('comboboxNullableDemo', {
+          id: 'combobox-nullable-demo',
+          nullable: true,
+        }),
         maybeComboboxNullableDemoSelectedCity: Option.none(),
-        comboboxMultiDemo,
+        comboboxMultiDemo: new CityMultiCombobox('comboboxMultiDemo', {
+          id: 'combobox-multi-demo',
+        }),
         comboboxMultiDemoSelectedCities: [],
-        comboboxSelectOnFocusDemo,
+        comboboxSelectOnFocusDemo: new CityCombobox(
+          'comboboxSelectOnFocusDemo',
+          { id: 'combobox-select-on-focus-demo', selectInputOnFocus: true },
+        ),
         maybeComboboxSelectOnFocusDemoSelectedCity: Option.none(),
-        dialogDemo,
-        dialogAnimatedDemo,
-        overlayDialogDemo,
-        overlayComboboxDemo,
+        dialogDemo: new Dialog.Dialog('dialogDemo', {
+          id: 'dialog-demo',
+        }),
+        dialogAnimatedDemo: new Dialog.Dialog('dialogAnimatedDemo', {
+          id: 'dialog-animated-demo',
+          isAnimated: true,
+        }),
+        overlayDialogDemo: new Dialog.Dialog('overlayDialogDemo', {
+          id: 'overlay-dialog-demo',
+        }),
+        overlayComboboxDemo: new CityCombobox('overlayComboboxDemo', {
+          id: 'overlay-combobox-demo',
+        }),
         maybeOverlayComboboxDemoSelectedCity: Option.none(),
-        nestedDialogParentDemo,
-        nestedDialogChildDemo,
+        nestedDialogParentDemo: new Dialog.Dialog('nestedDialogParentDemo', {
+          id: 'nested-dialog-parent-demo',
+        }),
+        nestedDialogChildDemo: new Dialog.Dialog('nestedDialogChildDemo', {
+          id: 'nested-dialog-child-demo',
+        }),
         isDisclosureDemoOpen: false,
         isDisclosureCollapsedPreviewDemoOpen: false,
-        listboxDemo,
+        listboxDemo: new ItemListbox('listboxDemo', {
+          id: 'listbox-demo',
+        }),
         maybeListboxDemoSelectedItem: Option.none(),
-        listboxMultiDemo,
+        listboxMultiDemo: new ItemMultiListbox('listboxMultiDemo', {
+          id: 'listbox-multi-demo',
+        }),
         listboxMultiDemoSelectedItems: [],
-        listboxGroupedDemo,
+        listboxGroupedDemo: new CharacterListbox('listboxGroupedDemo', {
+          id: 'listbox-grouped-demo',
+        }),
         maybeListboxGroupedDemoSelectedItem: Option.none(),
-        menuBasicDemo,
-        menuAnimatedDemo,
-        popoverBasicDemo,
-        popoverAnimatedDemo,
-        popoverArrowDemo,
-        popoverNestedParentDemo,
-        popoverNestedChildDemo,
-        verticalRadioGroupDemo,
+        menuBasicDemo: new DemoMenu('menuBasicDemo', {
+          id: 'menu-basic-demo',
+        }),
+        menuAnimatedDemo: new DemoMenu('menuAnimatedDemo', {
+          id: 'menu-animated-demo',
+          isAnimated: true,
+        }),
+        popoverBasicDemo: new Popover.Popover('popoverBasicDemo', {
+          id: 'popover-basic-demo',
+        }),
+        popoverAnimatedDemo: new Popover.Popover('popoverAnimatedDemo', {
+          id: 'popover-animated-demo',
+          isAnimated: true,
+        }),
+        popoverArrowDemo: new Popover.Popover('popoverArrowDemo', {
+          id: 'popover-arrow-demo',
+        }),
+        popoverNestedParentDemo: new Popover.Popover(
+          'popoverNestedParentDemo',
+          { id: 'popover-nested-parent-demo', contentFocus: true },
+        ),
+        popoverNestedChildDemo: new Popover.Popover('popoverNestedChildDemo', {
+          id: 'popover-nested-child-demo',
+        }),
+        verticalRadioGroupDemo: new PlanRadioGroup('verticalRadioGroupDemo', {
+          id: 'vertical-radio-group-demo',
+        }),
         verticalRadioGroupDemoValue: Option.none(),
-        horizontalRadioGroupDemo,
+        horizontalRadioGroupDemo: new PlanRadioGroup(
+          'horizontalRadioGroupDemo',
+          { id: 'horizontal-radio-group-demo' },
+        ),
         horizontalRadioGroupDemoValue: Option.none(),
         selectDemoValue: 'us',
-        sliderRatingDemo,
+        sliderRatingDemo: new Slider.Slider('sliderRatingDemo', {
+          id: 'slider-rating-demo',
+          min: 0,
+          max: 10,
+          step: 1,
+        }),
         sliderRatingValue: 3,
-        sliderVolumeDemo,
+        sliderVolumeDemo: new Slider.Slider('sliderVolumeDemo', {
+          id: 'slider-volume-demo',
+          min: 0,
+          max: 1,
+          step: 0.05,
+        }),
         sliderVolumeValue: 0.5,
         isSwitchDemoChecked: false,
-        horizontalTabsDemo,
+        horizontalTabsDemo: new DemoTabs('horizontalTabsDemo', {
+          id: 'horizontal-tabs-demo',
+        }),
         horizontalTabsDemoTab: 'Foldkit',
-        verticalTabsDemo,
+        verticalTabsDemo: new DemoTabs('verticalTabsDemo', {
+          id: 'vertical-tabs-demo',
+        }),
         verticalTabsDemoTab: 'Foldkit',
-        dragAndDropDemo,
+        dragAndDropDemo: new DragAndDrop.DragAndDrop('dragAndDropDemo', {
+          id: 'drag-and-drop-demo',
+        }),
         dragAndDropDemoColumns: [
           {
             id: 'backlog',
@@ -320,26 +223,52 @@ export const UiLive = Ui.make(
           },
         ],
         dragAndDropDemoAnnouncement: '',
-        fileDropBasicDemo,
+        fileDropBasicDemo: new FileDrop.FileDrop('fileDropBasicDemo', {
+          id: 'file-drop-basic-demo',
+        }),
         fileDropBasicDemoFiles: [],
-        toastDemo,
+        toastDemo: new DemoToast('toastDemo', {
+          id: 'toast-demo',
+          swipeToDismiss: {},
+        }),
         maybeLastDismissedToastTitle: Option.none(),
-        tooltipDemo,
-        hoverIntentCardDemo,
-        hoverIntentMenuDemo,
-        animationDemo,
-        virtualListDemo,
-        virtualListVariableDemo,
-        virtualListChatDemo: virtualListChatUnboundedDemo,
+        tooltipDemo: new Tooltip.Tooltip('tooltipDemo', {
+          id: 'tooltip-demo',
+        }),
+        hoverIntentCardDemo: new HoverIntent.HoverIntent(
+          'hoverIntentCardDemo',
+          {},
+        ),
+        hoverIntentMenuDemo: new HoverIntent.HoverIntent(
+          'hoverIntentMenuDemo',
+          {},
+        ),
+        animationDemo: new Animation.Animation('animationDemo', {
+          id: 'animation-demo',
+        }),
+        virtualListDemo: new ActivityVirtualList('virtualListDemo', {
+          id: 'virtual-list-demo',
+          rowHeightPx: 56,
+        }),
+        virtualListVariableDemo: new ActivityVirtualList(
+          'virtualListVariableDemo',
+          { id: 'virtual-list-variable-demo', rowHeightPx: 56 },
+        ),
+        virtualListChatDemo: chatListForSource(
+          VirtualListChatHistorySource.Unbounded(),
+        ),
         virtualListChatMessages: initialVirtualListChatMessages,
         virtualListChatNextId: initialVirtualListChatMessages.length,
         virtualListChatHistorySource: VirtualListChatHistorySource.Unbounded(),
-        virtualListChatHistoryModeGroup,
+        virtualListChatHistoryModeGroup: new HistoryModeRadioGroup(
+          'virtualListChatHistoryModeGroup',
+          { id: 'virtual-list-chat-history-mode' },
+        ),
         virtualListChatHistoryLoad: VirtualListChatHistoryLoad.Idle(),
         virtualListChatHistoryRequestVersion: 0,
         virtualListChatLoadedOlderCount: 0,
         virtualListChatAnnouncedOlderCount: 0,
-      },
+      }),
 
       update: {
         UpdatedInputDemoValue: (model, { value }) => ({
@@ -613,7 +542,7 @@ export const UiLive = Ui.make(
           return updateVirtualListChatMessagesStep(model, nextMessages)
         },
 
-        ...calendarBasicDemo.on({
+        ...Calendar.Calendar.on({
           SelectedDate: (model, { date }) => ({
             model: modifyFields(model, {
               maybeCalendarBasicDemoSelectedDate: () => Option.some(date),
@@ -621,7 +550,7 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...datePickerBasicDemo.on({
+        ...DatePicker.DatePicker.on({
           SelectedDate: (model, { date }) => ({
             model: modifyFields(model, {
               maybeDatePickerBasicDemoSelectedDate: () => Option.some(date),
@@ -634,41 +563,20 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...comboboxDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeComboboxDemoSelectedCity: () => Option.some(value),
-            }),
-          }),
+        ...CityCombobox.on({
+          Selected: (model, { value }, combobox) =>
+            selectComboboxDemoCity(model, combobox.id, value),
+          ClearedSelection: (model, _, combobox) =>
+            combobox.id === 'comboboxNullableDemo'
+              ? {
+                  model: modifyFields(model, {
+                    maybeComboboxNullableDemoSelectedCity: () => Option.none(),
+                  }),
+                }
+              : { model },
         }),
 
-        ...comboboxPlacementLockDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeComboboxPlacementLockDemoSelectedCity: () =>
-                Option.some(value),
-            }),
-          }),
-        }),
-
-        ...comboboxNullableDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeComboboxNullableDemoSelectedCity:
-                maybeComboboxNullableDemoSelectedCity =>
-                  Option.contains(maybeComboboxNullableDemoSelectedCity, value)
-                    ? Option.none()
-                    : Option.some(value),
-            }),
-          }),
-          ClearedSelection: model => ({
-            model: modifyFields(model, {
-              maybeComboboxNullableDemoSelectedCity: () => Option.none(),
-            }),
-          }),
-        }),
-
-        ...comboboxMultiDemo.on({
+        ...CityMultiCombobox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               comboboxMultiDemoSelectedCities:
@@ -683,24 +591,7 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...comboboxSelectOnFocusDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeComboboxSelectOnFocusDemoSelectedCity: () =>
-                Option.some(value),
-            }),
-          }),
-        }),
-
-        ...overlayComboboxDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeOverlayComboboxDemoSelectedCity: () => Option.some(value),
-            }),
-          }),
-        }),
-
-        ...listboxDemo.on({
+        ...ItemListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeListboxDemoSelectedItem: () => Option.some(value),
@@ -708,7 +599,7 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...listboxMultiDemo.on({
+        ...ItemMultiListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               listboxMultiDemoSelectedItems: listboxMultiDemoSelectedItems =>
@@ -722,7 +613,7 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...listboxGroupedDemo.on({
+        ...CharacterListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeListboxGroupedDemoSelectedItem: () => Option.some(value),
@@ -730,47 +621,38 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...verticalRadioGroupDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              verticalRadioGroupDemoValue: () => Option.some(value),
-            }),
+        ...PlanRadioGroup.on({
+          Selected: (model, { value }, radioGroup) => ({
+            model:
+              radioGroup.id === 'verticalRadioGroupDemo'
+                ? modifyFields(model, {
+                    verticalRadioGroupDemoValue: () => Option.some(value),
+                  })
+                : modifyFields(model, {
+                    horizontalRadioGroupDemoValue: () => Option.some(value),
+                  }),
           }),
         }),
 
-        ...horizontalRadioGroupDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              horizontalRadioGroupDemoValue: () => Option.some(value),
-            }),
+        ...Slider.Slider.on({
+          ChangedValue: (model, { value }, slider) => ({
+            model:
+              slider.id === 'sliderRatingDemo'
+                ? modifyFields(model, { sliderRatingValue: () => value })
+                : modifyFields(model, { sliderVolumeValue: () => value }),
           }),
         }),
 
-        ...sliderRatingDemo.on({
-          ChangedValue: (model, { value }) => ({
-            model: modifyFields(model, { sliderRatingValue: () => value }),
+        ...DemoTabs.on({
+          Selected: (model, { value }, tabs) => ({
+            model:
+              tabs.id === 'horizontalTabsDemo'
+                ? modifyFields(model, { horizontalTabsDemoTab: () => value })
+                : modifyFields(model, { verticalTabsDemoTab: () => value }),
           }),
         }),
 
-        ...sliderVolumeDemo.on({
-          ChangedValue: (model, { value }) => ({
-            model: modifyFields(model, { sliderVolumeValue: () => value }),
-          }),
-        }),
-
-        ...horizontalTabsDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { horizontalTabsDemoTab: () => value }),
-          }),
-        }),
-
-        ...verticalTabsDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { verticalTabsDemoTab: () => value }),
-          }),
-        }),
-
-        ...toastDemo.on({
+        ...DemoToast.on({
           DismissedToast: (model, { payload }) => ({
             model: modifyFields(model, {
               maybeLastDismissedToastTitle: () => Option.some(payload.title),
@@ -778,7 +660,7 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...animationDemo.on({
+        ...Animation.Animation.on({
           StartedLeaveAnimating: model => ({
             model,
             messages: [
@@ -789,7 +671,7 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...fileDropBasicDemo.on({
+        ...FileDrop.FileDrop.on({
           ReceivedFiles: (model, { files }) => ({
             model: modifyFields(model, {
               fileDropBasicDemoFiles: Array.appendAll(files),
@@ -797,7 +679,7 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...dragAndDropDemo.on({
+        ...DragAndDrop.DragAndDrop.on({
           StartedKeyboardDrag: (model, { itemId }) => ({
             model: modifyFields(model, {
               dragAndDropDemoAnnouncement: () =>
@@ -880,17 +762,14 @@ export const UiLive = Ui.make(
           }),
         }),
 
-        ...virtualListChatUnboundedDemo.on(chatListOutMessageHandlers),
+        ...ChatVirtualList.on({
+          ApproachedLoadedStart: requestVirtualListChatHistoryOnApproachStep,
+          EndedContainerScroll: markVirtualListChatHistoryAnnouncedStep,
+        }),
 
-        ...virtualListChatFiniteDemo.on(chatListOutMessageHandlers),
-
-        ...virtualListChatHistoryModeGroup.on({
+        ...HistoryModeRadioGroup.on({
           Selected: (model, { value }) =>
-            selectVirtualListChatHistoryModeStep(
-              model,
-              value,
-              chatListForSource,
-            ),
+            selectVirtualListChatHistoryModeStep(model, value),
         }),
       },
 
@@ -927,3 +806,37 @@ export const UiLive = Ui.make(
     ),
   ),
 )
+
+const selectComboboxDemoCity = (model: Model, comboboxId: string, city: City) =>
+  Match.value(comboboxId).pipe(
+    Match.when('comboboxDemo', () => ({
+      model: modifyFields(model, {
+        maybeComboboxDemoSelectedCity: () => Option.some(city),
+      }),
+    })),
+    Match.when('comboboxPlacementLockDemo', () => ({
+      model: modifyFields(model, {
+        maybeComboboxPlacementLockDemoSelectedCity: () => Option.some(city),
+      }),
+    })),
+    Match.when('comboboxNullableDemo', () => ({
+      model: modifyFields(model, {
+        maybeComboboxNullableDemoSelectedCity:
+          maybeComboboxNullableDemoSelectedCity =>
+            Option.contains(maybeComboboxNullableDemoSelectedCity, city)
+              ? Option.none()
+              : Option.some(city),
+      }),
+    })),
+    Match.when('comboboxSelectOnFocusDemo', () => ({
+      model: modifyFields(model, {
+        maybeComboboxSelectOnFocusDemoSelectedCity: () => Option.some(city),
+      }),
+    })),
+    Match.when('overlayComboboxDemo', () => ({
+      model: modifyFields(model, {
+        maybeOverlayComboboxDemoSelectedCity: () => Option.some(city),
+      }),
+    })),
+    Match.orElse(() => ({ model })),
+  )

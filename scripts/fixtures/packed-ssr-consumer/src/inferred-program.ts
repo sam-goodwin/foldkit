@@ -12,10 +12,10 @@ class Counter extends Block<Counter>()('Counter', {
   Message,
 }) {}
 
-const CounterLive = Counter.make(
-  Effect.fn(function* () {
+const CounterLive = Counter.layer(
+  Effect.gen(function* () {
     return {
-      model: Model.make({ count: 0 }),
+      init: () => Model.make({ count: 0 }),
       update: {
         Ticked: model => ({ model }),
       },
@@ -29,10 +29,10 @@ class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: Model.make({ count: 0 }),
+      init: () => Model.make({ count: 0 }),
       update: {
         Ticked: model => ({ model }),
       },

@@ -20,10 +20,10 @@ export class NotificationSettings extends Block<NotificationSettings>()(
   },
 ) {}
 
-export const NotificationSettingsLive = NotificationSettings.make(
-  Effect.fn(function* () {
+export const NotificationSettingsLive = NotificationSettings.layer(
+  Effect.gen(function* () {
     return {
-      model: { notificationsEnabled: false },
+      init: () => ({ notificationsEnabled: false }),
 
       update: {
         // Store the value. Return Commands to persist the preference, sync to

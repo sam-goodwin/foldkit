@@ -10,7 +10,6 @@ import {
   type BaseViewInputs,
   type Contract,
   type ItemSchema,
-  animationId,
   baseInit,
   closedBaseModel,
   commandHandlers,
@@ -44,7 +43,6 @@ export interface Combobox<
   Item extends string = string,
   ItemEncoded = Item,
 > extends BlockTypes.Instance<
-  Combobox<Item, ItemEncoded>,
   Contract<Item, ItemEncoded>,
   InitConfig,
   ViewInputs<Item>
@@ -60,7 +58,6 @@ export type ComboboxClass<
   'Combobox',
   InitConfig,
   ViewInputs<Item>,
-  never,
   Contract<Item, ItemEncoded>
 > &
   Readonly<{ Live: Layer.Layer<Combobox<Item, ItemEncoded>> }>
@@ -81,15 +78,11 @@ const makeComboboxClass = <Item extends string, ItemEncoded>(
     ViewInputs<Item>
   >()('Combobox', contract)
 
-  const ComboboxLive = ComboboxClass.make(
-    Effect.fn(function* (_instanceId, config) {
-      const animation = yield* new Animation.Animation('animation', {
-        id: animationId(config.id),
-      })
-
+  const ComboboxLive = ComboboxClass.layer(
+    Effect.gen(function* () {
       return {
-        model: baseInit(config, animation),
-        update: makeUpdate<Item>(animation, 'KeepOpen', {
+        init: baseInit,
+        update: makeUpdate<Item>('KeepOpen', {
           handleClose: model => ({
             model: modifyFields(closedBaseModel(model), {
               inputValue: () => '',

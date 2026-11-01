@@ -55,15 +55,14 @@ export class CartStep extends Block<CartStep, void, ViewInput>()('CartStep', {
   OutMessage,
 }) {}
 
-export const CartStepLive = CartStep.make(
-  Effect.fn(function* () {
-    const editionRadioGroup = yield* new EditionRadioGroup(
-      'editionRadioGroup',
-      { id: EDITION_RADIO_GROUP_ID },
-    )
-
+export const CartStepLive = CartStep.layer(
+  Effect.gen(function* () {
     return {
-      model: { editionRadioGroup },
+      init: () => ({
+        editionRadioGroup: new EditionRadioGroup('editionRadioGroup', {
+          id: EDITION_RADIO_GROUP_ID,
+        }),
+      }),
 
       update: {
         ClickedCancel: model => ({
@@ -74,7 +73,7 @@ export const CartStepLive = CartStep.make(
           model,
           outMessage: OutMessage.RequestedContinue(),
         }),
-        ...editionRadioGroup.on({
+        ...EditionRadioGroup.on({
           Selected: (model, { value }) => ({
             model,
             outMessage: OutMessage.SelectedEdition({

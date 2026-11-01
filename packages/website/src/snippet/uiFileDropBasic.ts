@@ -12,20 +12,21 @@ export class Uploader extends Block<Uploader>()('Uploader', {
   }),
 }) {}
 
-export const UploaderLive = Uploader.make(
-  Effect.fn(function* () {
-    const uploader = yield* new FileDrop.FileDrop('uploader', {
-      id: 'uploader',
-    })
-
+export const UploaderLive = Uploader.layer(
+  Effect.gen(function* () {
     return {
-      model: { uploader, uploadedFiles: [] },
+      init: () => ({
+        uploader: new FileDrop.FileDrop('uploader', {
+          id: 'uploader',
+        }),
+        uploadedFiles: [],
+      }),
 
       update: {
         // `ReceivedFiles` arrives from a drop or an input change.
         // `RejectedNonFiles` fires when a drop carried no files, such as
         // dragged text; handle it to show a hint.
-        ...uploader.on({
+        ...FileDrop.FileDrop.on({
           ReceivedFiles: (model, { files }) => ({
             model: modifyFields(model, {
               uploadedFiles: Array.appendAll(files),

@@ -81,10 +81,10 @@ export class Application extends Block<Application>()('Application', {
   Command: [UploadFile],
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { uploadId: 0, uploads: [] },
+      init: () => ({ uploadId: 0, uploads: [] }),
 
       update: {
         ClickedStartUpload: model => {

@@ -17,13 +17,13 @@ export class SnippetDisclosure extends Block<
   Mount: [MeasureSnippetHeight],
 }) {}
 
-export const SnippetDisclosureLive = SnippetDisclosure.make(
-  Effect.fn(function* () {
+export const SnippetDisclosureLive = SnippetDisclosure.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         openDisclosureIds: HashSet.empty(),
         snippetSizes: HashMap.empty(),
-      },
+      }),
 
       update: {
         ToggledCodeDisclosure: (model, { disclosureId, isOpen }) => ({

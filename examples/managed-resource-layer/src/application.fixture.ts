@@ -1,7 +1,11 @@
 import { Layer } from 'effect'
 
 import { ApplicationLive } from './application'
-import { ComputeEngineService, makeEngineLive } from './engine'
+import {
+  ComputeEngineService,
+  EngineLive,
+  makeComputeEnginesLayer,
+} from './engine'
 
 export const ComputeEngineTestLayer = Layer.succeed(ComputeEngineService, {
   engineId: 'engine-1',
@@ -9,5 +13,6 @@ export const ComputeEngineTestLayer = Layer.succeed(ComputeEngineService, {
 })
 
 export const application = ApplicationLive.pipe(
-  Layer.provide(makeEngineLive(ComputeEngineTestLayer)),
+  Layer.provide(EngineLive),
+  Layer.provide(makeComputeEnginesLayer(ComputeEngineTestLayer)),
 )

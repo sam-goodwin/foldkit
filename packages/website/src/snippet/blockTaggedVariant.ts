@@ -16,24 +16,27 @@ export class Game extends Block<Game>()('Game', {
   Message: defineMessageUnion({ ClickedStartMatch: {}, ClickedEndMatch: {} }),
 }) {}
 
-export const GameLive = Game.make(
-  Effect.fn(function* () {
-    const practice = yield* new Counter('practice', { max: 100 })
-    const home = yield* new Counter('home', { max: 21 })
-    const away = yield* new Counter('away', { max: 21 })
-
+export const GameLive = Game.layer(
+  Effect.gen(function* () {
     return {
-      model: { mode: Mode.Practice({ counter: practice }) },
+      init: () => ({
+        mode: Mode.Practice({ counter: new Counter('practice', { max: 100 }) }),
+      }),
 
       update: {
         ClickedStartMatch: model => ({
           model: modifyFields(model, {
-            mode: () => Mode.Match({ home, away }),
+            mode: () =>
+              Mode.Match({
+                home: new Counter('home', { max: 21 }),
+                away: new Counter('away', { max: 21 }),
+              }),
           }),
         }),
         ClickedEndMatch: model => ({
           model: modifyFields(model, {
-            mode: () => Mode.Practice({ counter: practice }),
+            mode: () =>
+              Mode.Practice({ counter: new Counter('practice', { max: 100 }) }),
           }),
         }),
       },

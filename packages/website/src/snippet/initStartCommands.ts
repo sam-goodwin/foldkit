@@ -38,13 +38,13 @@ export class ProfileCard extends Block<
   Command: [LoadProfile],
 }) {}
 
-export const ProfileCardLive = ProfileCard.make(
-  Effect.fn(function* (_id, { userId }) {
+export const ProfileCardLive = ProfileCard.layer(
+  Effect.gen(function* () {
     const profileApi = yield* ProfileApi
 
     return {
-      model: { profileState: ProfileState.Loading() },
-      start: [LoadProfile({ userId })],
+      init: () => ({ profileState: ProfileState.Loading() }),
+      start: (_model, { userId }) => [LoadProfile({ userId })],
 
       update: {
         SucceededLoadProfile: (model, { profile }) => ({

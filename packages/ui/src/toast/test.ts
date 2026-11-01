@@ -140,7 +140,7 @@ const drainEntry: DrainEntry =
   ({ path, entryId, version = 0 }) =>
   simulation => {
     const toastPath = toPath(path)
-    const entryPath = [...toastPath, 'entries', entryId]
+    const entryPath = [...toastPath, entryId]
 
     const afterEnter = resolveAnimation(
       simulation,

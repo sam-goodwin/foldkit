@@ -26,17 +26,18 @@ export class ActivityFeed extends Block<
   Message,
 }) {}
 
-export const ActivityFeedLive = ActivityFeed.make(
-  Effect.fn(function* (_id, { activities }) {
-    // The window scrolls, not the list
-    const activityList = yield* new ActivityList('activityList', {
-      id: 'activity-feed',
-      rowHeightPx: 88,
-      scrollContainer: VirtualList.ScrollContainer.Window(),
-    })
-
+export const ActivityFeedLive = ActivityFeed.layer(
+  Effect.gen(function* () {
     return {
-      model: { activities, activityList },
+      init: ({ activities }) => ({
+        activities,
+        // The window scrolls, not the list
+        activityList: new ActivityList('activityList', {
+          id: 'activity-feed',
+          rowHeightPx: 88,
+          scrollContainer: VirtualList.ScrollContainer.Window(),
+        }),
+      }),
 
       update: {
         ClickedJumpToLatestActivity: model => ({

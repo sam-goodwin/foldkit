@@ -11,10 +11,10 @@ export class Row extends Block<Row, Readonly<{ label: string }>>()('Row', {
   OutMessage: defineMessageUnion({ RequestedRemoval: {} }),
 }) {}
 
-export const RowLive = Row.make(
-  Effect.fn(function* (_id, { label }) {
+export const RowLive = Row.layer(
+  Effect.gen(function* () {
     return {
-      model: { label },
+      init: ({ label }) => ({ label }),
       update: {
         ClickedRemove: model => ({
           model,
@@ -40,22 +40,22 @@ export class Table extends Block<Table>()('Table', {
   Message,
 }) {}
 
-export const TableLive = Table.make(
-  Effect.fn(function* () {
-    // One factory for the collection. Each key creates one instance.
-    const row = yield* Row.each('rows', { label: 'New row' })
-
+export const TableLive = Table.layer(
+  Effect.gen(function* () {
     return {
-      model: { rows: [], nextRowId: 0 },
+      init: () => ({ rows: [], nextRowId: 0 }),
 
       update: {
         ClickedAddRow: model => ({
           model: modifyFields(model, {
-            rows: Array.append(row(`row-${model.nextRowId}`)),
+            rows: Array.append(
+              new Row(`row-${model.nextRowId}`, { label: 'New row' }),
+            ),
             nextRowId: Number.increment,
           }),
         }),
-        ...row.on({
+        // One entry handles every Row the Model holds.
+        ...Row.on({
           RequestedRemoval: (model, _outMessage, removedRow) => ({
             model: modifyFields(model, {
               rows: Array.filter(({ id }) => id !== removedRow.id),

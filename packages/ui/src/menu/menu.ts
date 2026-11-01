@@ -1130,7 +1130,6 @@ type Contract<Item extends string> = Readonly<{
 /** A Menu instance refined to one Item type. Store it in the parent Model
  *  and render it with `model.menu.view(viewInputs)`. */
 export interface Menu<Item extends string = string> extends BlockTypes.Instance<
-  Menu<Item>,
   Contract<Item>,
   InitConfig,
   ViewInputs<Item>
@@ -1142,7 +1141,6 @@ export type MenuClass<Item extends string = string> = BlockTypes.BlockClass<
   'Menu',
   InitConfig,
   ViewInputs<Item>,
-  never,
   Contract<Item>
 > &
   Readonly<{ Live: Layer.Layer<Menu<Item>> }>
@@ -1150,8 +1148,8 @@ export type MenuClass<Item extends string = string> = BlockTypes.BlockClass<
 /**
  * Creates a Menu class refined to one Item type, with its Layer attached as
  * `Live`. Declare `Menu.makeBlock<Action>()` once at module scope, create
- * instances with `yield* new ActionMenu('menu', { id })` in a parent
- * constructor, and provide `ActionMenu.Live` to the parent's Layer. Its view
+ * instances with `new ActionMenu('menu', { id })` in a parent's Model, and
+ * provide `ActionMenu.Live` to the parent's Layer. Its view
  * input and `Selected.value` share the Item type.
  *
  * Send `Message.RequestedOpen`, `Message.RequestedClose`, and
@@ -1180,19 +1178,17 @@ export const makeBlock = <Item extends string = string>(): MenuClass<Item> => {
 
   const menuUpdate = makeUpdate(selected)
 
-  const MenuLive = MenuClass.make(
-    Effect.fn(function* (_instanceId, config) {
-      const animation = yield* new Animation.Animation('animation', {
-        id: `${config.id}-items`,
-      })
-
+  const MenuLive = MenuClass.layer(
+    Effect.gen(function* () {
       return {
-        model: {
+        init: config => ({
           id: config.id,
           isOpen: false,
           isAnimated: config.isAnimated ?? false,
           isModal: config.isModal ?? false,
-          animation,
+          animation: new Animation.Animation('animation', {
+            id: `${config.id}-items`,
+          }),
           maybeActiveItemIndex: Option.none(),
           activationTrigger: 'Keyboard',
           searchQuery: '',
@@ -1200,7 +1196,7 @@ export const makeBlock = <Item extends string = string>(): MenuClass<Item> => {
           maybeLastPointerPosition: Option.none(),
           maybeLastButtonPointerType: Option.none(),
           maybePointerOrigin: Option.none(),
-        },
+        }),
 
         update: {
           RequestedOpen: menuUpdate,
@@ -1232,7 +1228,7 @@ export const makeBlock = <Item extends string = string>(): MenuClass<Item> => {
           CompletedDetectMenuMovementOrAnimationEnd: menuUpdate,
           PressedPointerOnButton: menuUpdate,
           ReleasedPointerOnItems: menuUpdate,
-          ...animation.on({
+          ...Animation.Animation.on({
             StartedLeaveAnimating: (model: Model, { generation }) => ({
               model,
               commands: [

@@ -77,3 +77,14 @@ export const runWhileHoldingKey = <A, E, R>(
   __registerKeyWhileRunning(key, effect).pipe(
     Effect.provideService(__CurrentRegistry, registry),
   )
+
+// NOTE: a Query's Model holds no Blocks, but its data type is generic, so
+// TypeScript cannot rule out Block instances in it and leaves them in the
+// Layer's requirements.
+/** @internal Drops the child Block requirements a Query's generic Model
+ *  type adds to its Layer. */
+export const withoutChildBlocks = <Self, R, Unresolved = unknown>(
+  layer: Layer.Layer<Self, never, Unresolved>,
+): Layer.Layer<Self, never, R> =>
+  // oxlint-disable-next-line typescript/consistent-type-assertions, effecttsgo/unsafe-effect-type-assertion
+  layer as unknown as Layer.Layer<Self, never, R>

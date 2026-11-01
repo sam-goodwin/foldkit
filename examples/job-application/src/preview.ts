@@ -48,10 +48,10 @@ export class Preview extends Block<Preview, void, PreviewViewInput>()(
   { Model, Message },
 ) {}
 
-export const PreviewLive = Preview.make(
-  Effect.fn(function* () {
+export const PreviewLive = Preview.layer(
+  Effect.gen(function* () {
     return {
-      model: { isVisible: false },
+      init: () => ({ isVisible: false }),
 
       update: {
         ToggledPreview: model => ({

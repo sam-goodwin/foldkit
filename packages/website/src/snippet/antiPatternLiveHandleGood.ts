@@ -1,35 +1,9 @@
-// ✅ Good: a ChatSocket instance in the Model owns the WebSocket.
+// ✅ Good: a Subscription holds the WebSocket while the visitor is in the room.
 
-import { Effect, Option, Schema } from 'effect'
+import { Effect, RcMap, Schema, Stream } from 'effect'
 import { Block, Command } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
-
-type RoomArgs = Readonly<{ roomId: string }>
-
-type ChatSocketHandle = Readonly<{
-  send: (text: string) => Effect.Effect<void>
-}>
-
-export class ChatSocket extends Block<
-  ChatSocket,
-  RoomArgs,
-  void,
-  ChatSocketHandle
->()('ChatSocket', {}) {}
-
-export const ChatSocketLive = ChatSocket.make(
-  Effect.fn(function* (_id, { roomId }) {
-    const socket = yield* Effect.acquireRelease(
-      Effect.sync(() => new WebSocket(`/rooms/${roomId}`)),
-      socket => Effect.sync(() => socket.close()),
-    )
-
-    return {
-      expose: { send: text => Effect.sync(() => socket.send(text)) },
-    }
-  }),
-)
 
 const Message = defineMessageUnion({
   ClickedJoin: {},
@@ -40,49 +14,76 @@ const Message = defineMessageUnion({
 })
 
 const SendChatMessage = Command.define('SendChatMessage', {
-  args: { text: Schema.String },
+  args: { roomId: Schema.String, text: Schema.String },
   messages: [Message.SucceededSendChatMessage, Message.FailedSendChatMessage],
 })
 
-export class ChatRoom extends Block<ChatRoom, RoomArgs>()('ChatRoom', {
-  Model: Schema.Struct({ maybeSocket: Schema.Option(ChatSocket) }),
-  Message,
-  Command: [SendChatMessage],
-}) {}
+export class ChatRoom extends Block<ChatRoom, Readonly<{ roomId: string }>>()(
+  'ChatRoom',
+  {
+    Model: Schema.Struct({ roomId: Schema.String, isJoined: Schema.Boolean }),
+    Message,
+    Command: [SendChatMessage],
+  },
+) {}
 
-export const ChatRoomLive = ChatRoom.make(
-  Effect.fn(function* (_id, { roomId }) {
-    const socket = yield* new ChatSocket('socket', { roomId })
+export const ChatRoomLive = ChatRoom.layer(
+  Effect.gen(function* () {
+    const sockets = yield* RcMap.make({
+      lookup: (roomId: string) =>
+        Effect.acquireRelease(
+          Effect.sync(() => new WebSocket(`/rooms/${roomId}`)),
+          socket => Effect.sync(() => socket.close()),
+        ),
+    })
 
     return {
-      model: { maybeSocket: Option.none() },
+      init: ({ roomId }) => ({ roomId, isJoined: false }),
 
       update: {
         ClickedJoin: model => ({
-          model: modifyFields(model, {
-            maybeSocket: () => Option.some(socket),
-          }),
+          model: modifyFields(model, { isJoined: () => true }),
         }),
         ClickedLeave: model => ({
-          model: modifyFields(model, { maybeSocket: () => Option.none() }),
+          model: modifyFields(model, { isJoined: () => false }),
         }),
         SubmittedChatMessage: (model, { text }) => ({
           model,
-          commands: [SendChatMessage({ text })],
+          commands: [SendChatMessage({ roomId: model.roomId, text })],
         }),
         SucceededSendChatMessage: model => ({ model }),
         FailedSendChatMessage: model => ({ model }),
       },
 
       commands: {
-        SendChatMessage: ({ text }) =>
-          socket.use.pipe(
-            Effect.flatMap(({ send }) => send(text)),
+        SendChatMessage: ({ roomId, text }) =>
+          RcMap.getOption(sockets, roomId).pipe(
+            Effect.flatMap(Effect.fromOption),
+            Effect.flatMap(socket => Effect.sync(() => socket.send(text))),
             Effect.as(Message.SucceededSendChatMessage()),
-            Effect.catchTag('NotConnected', () =>
-              Effect.succeed(Message.FailedSendChatMessage()),
-            ),
+            Effect.catch(() => Effect.succeed(Message.FailedSendChatMessage())),
+            Effect.scoped,
           ),
+      },
+
+      subscriptions: {
+        socket: {
+          dependencies: model => ({
+            roomId: model.roomId,
+            isJoined: model.isJoined,
+          }),
+          stream: ({
+            roomId,
+            isJoined,
+          }: Readonly<{ roomId: string; isJoined: boolean }>) =>
+            isJoined
+              ? Stream.fromEffect(RcMap.get(sockets, roomId)).pipe(
+                  Stream.drain,
+                  Stream.concat(Stream.never),
+                  Stream.scoped,
+                )
+              : Stream.empty,
+        },
       },
     }
   }),

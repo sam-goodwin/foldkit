@@ -1184,24 +1184,26 @@ const viewAttributes = (
  *  bundles and derived cell data, then delegates layout to the view input's
  *  `toView` callback. The variant of `CalendarAttributes` passed to `toView`
  *  matches the Calendar's view mode. */
-export const CalendarLive = Calendar.make(
-  Effect.fn(function* (_id, config) {
-    const initialFocus = config.initialViewDate ?? config.today
-
+export const CalendarLive = Calendar.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        id: config.id,
-        today: config.today,
-        viewYear: initialFocus.year,
-        viewMonth: initialFocus.month,
-        viewMode: 'Days',
-        maybeFocusedDate: Option.some(initialFocus),
-        isGridFocused: false,
-        locale: config.locale ?? CalendarDomain.defaultEnglishLocale,
-        maybeMinDate: Option.fromNullishOr(config.minDate),
-        maybeMaxDate: Option.fromNullishOr(config.maxDate),
-        disabledDaysOfWeek: config.disabledDaysOfWeek ?? [],
-        disabledDates: config.disabledDates ?? [],
+      init: config => {
+        const initialFocus = config.initialViewDate ?? config.today
+
+        return {
+          id: config.id,
+          today: config.today,
+          viewYear: initialFocus.year,
+          viewMonth: initialFocus.month,
+          viewMode: 'Days',
+          maybeFocusedDate: Option.some(initialFocus),
+          isGridFocused: false,
+          locale: config.locale ?? CalendarDomain.defaultEnglishLocale,
+          maybeMinDate: Option.fromNullishOr(config.minDate),
+          maybeMaxDate: Option.fromNullishOr(config.maxDate),
+          disabledDaysOfWeek: config.disabledDaysOfWeek ?? [],
+          disabledDates: config.disabledDates ?? [],
+        }
       },
 
       update: {

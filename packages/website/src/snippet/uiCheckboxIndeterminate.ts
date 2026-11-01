@@ -23,10 +23,10 @@ export class NotificationPreferences extends Block<NotificationPreferences>()(
   },
 ) {}
 
-export const NotificationPreferencesLive = NotificationPreferences.make(
-  Effect.fn(function* () {
+export const NotificationPreferencesLive = NotificationPreferences.layer(
+  Effect.gen(function* () {
     return {
-      model: { optionA: false, optionB: false },
+      init: () => ({ optionA: false, optionB: false }),
 
       update: {
         // Toggling "Select All" writes the same value to every option

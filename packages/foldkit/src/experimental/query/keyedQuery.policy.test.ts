@@ -660,12 +660,13 @@ describe('KeyedQuery accepted completion notifications', () => {
         Message: ParentMessage,
       }) {}
 
-      const ParentLive = Parent.make(
-        Effect.fn(function* () {
-          const windows = yield* new Reporting('windows', {})
-
+      const ParentLive = Parent.layer(
+        Effect.gen(function* () {
           return {
-            model: { windows, acceptedCount: 0 },
+            init: () => ({
+              windows: new Reporting('windows', {}),
+              acceptedCount: 0,
+            }),
             update: {
               RequestedWindow: (model, { args }) => ({
                 model,
@@ -675,7 +676,7 @@ describe('KeyedQuery accepted completion notifications', () => {
                   ),
                 ],
               }),
-              ...windows.on({
+              ...Reporting.on({
                 CompletedFetch: (model, { args, result }) => ({
                   model: { ...model, acceptedCount: model.acceptedCount + 1 },
                   messages:

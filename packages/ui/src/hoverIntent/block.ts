@@ -231,10 +231,10 @@ export class HoverIntent extends Block<HoverIntent, InitConfig, ViewInputs>()(
 ) {}
 
 /** The HoverIntent implementation. Provide it to every parent that creates a HoverIntent instance. */
-export const HoverIntentLive = HoverIntent.make(
-  Effect.fn(function* (_id, config) {
+export const HoverIntentLive = HoverIntent.layer(
+  Effect.gen(function* () {
     return {
-      model: makeInitialModel(config),
+      init: makeInitialModel,
 
       update: {
         EnteredTrigger: model =>

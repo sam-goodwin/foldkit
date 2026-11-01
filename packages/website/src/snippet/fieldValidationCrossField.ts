@@ -49,13 +49,13 @@ class PasswordForm extends Block<PasswordForm>()('PasswordForm', {
   Message,
 }) {}
 
-const PasswordFormLive = PasswordForm.make(
-  Effect.fn(function* () {
+const PasswordFormLive = PasswordForm.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         password: NotValidated({ value: '' }),
         confirmPassword: NotValidated({ value: '' }),
-      },
+      }),
 
       update: {
         ChangedPassword: (model, { value }) => ({

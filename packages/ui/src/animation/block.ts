@@ -104,15 +104,15 @@ const elementSelector = (id: string): string => idSelector(id)
 
 /** Implements {@link Animation}. Results from an earlier transition generation
  *  leave the Model unchanged. */
-export const AnimationLive = Animation.make(
-  Effect.fn(function* (instanceId, { id = instanceId, isShowing = false }) {
+export const AnimationLive = Animation.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        id,
+      init: ({ id, isShowing = false }, { id: instanceId }) => ({
+        id: id ?? instanceId,
         isShowing,
         transitionState: 'Idle',
         transitionGeneration: 0,
-      },
+      }),
 
       update: {
         Showed: showTransition,

@@ -13,15 +13,16 @@ export class Sidebar extends Block<Sidebar>()('Sidebar', {
   OutMessage: defineMessageUnion({ OpenedDocument: { title: Schema.String } }),
 }) {}
 
-export const SidebarLive = Sidebar.make(
-  Effect.fn(function* () {
-    const search = yield* new Search('search')
-
+export const SidebarLive = Sidebar.layer(
+  Effect.gen(function* () {
     return {
-      model: { search, maybeLastTitle: Option.none() },
+      init: () => ({
+        search: new Search('search'),
+        maybeLastTitle: Option.none(),
+      }),
 
       update: {
-        ...search.on({
+        ...Search.on({
           ChoseResult: (model, { title }) => ({
             model: modifyFields(model, {
               maybeLastTitle: () => Option.some(title),

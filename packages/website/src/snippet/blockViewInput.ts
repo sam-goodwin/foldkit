@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Array, Effect, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { type ChildAttribute, type Html, childAttributes } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -16,15 +16,18 @@ export type DisclosureViewInput = Readonly<{
 export class Disclosure extends Block<Disclosure, void, DisclosureViewInput>()(
   'Disclosure',
   {
-    Model: Schema.Struct({ isOpen: Schema.Boolean }),
+    Model: Schema.Struct({ panelId: Schema.String, isOpen: Schema.Boolean }),
     Message: defineMessageUnion({ ClickedToggle: {} }),
   },
 ) {}
 
-export const DisclosureLive = Disclosure.make(
-  Effect.fn(function* (id) {
+export const DisclosureLive = Disclosure.layer(
+  Effect.gen(function* () {
     return {
-      model: { isOpen: false },
+      init: (_args, { path }) => ({
+        panelId: `${Array.join(path, '-')}-panel`,
+        isOpen: false,
+      }),
 
       update: {
         ClickedToggle: model => ({
@@ -37,10 +40,10 @@ export const DisclosureLive = Disclosure.make(
           {
             button: childAttributes([
               h.AriaExpanded(model.isOpen),
-              h.AriaControls(`${id}-panel`),
+              h.AriaControls(model.panelId),
               h.OnClick(Disclosure.Message.ClickedToggle()),
             ]),
-            panel: childAttributes([h.Id(`${id}-panel`)]),
+            panel: childAttributes([h.Id(model.panelId)]),
           },
           model.isOpen,
         ),

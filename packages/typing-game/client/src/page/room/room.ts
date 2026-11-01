@@ -45,6 +45,7 @@ export const RoomPlayerSessionJsonString = Schema.fromJsonString(
 export const RoomAsyncData = AsyncData.Schema(Shared.Room, Schema.String)
 
 const Model = Schema.Struct({
+  roomId: Schema.String,
   roomAsyncData: RoomAsyncData.schema,
   maybeSession: Schema.Option(RoomPlayerSession),
   typing: Typing,
@@ -146,33 +147,30 @@ export class Room extends Block<Room, RoomArgs>()('Room', {
 
 // LIVE
 
-export const RoomLive = Room.make(
-  Effect.fn(function* (roomId, { isRestoring }) {
+export const RoomLive = Room.layer(
+  Effect.gen(function* () {
     const client = yield* RoomsClient
     const store = yield* KeyValueStore.KeyValueStore
-    const joinForm = yield* new JoinForm('joinForm', { roomId })
-    const copyableRoomId = yield* new CopyableRoomId('copyableRoomId', {
-      roomId,
-    })
-    const typing = yield* new Typing('typing')
 
     return {
-      model: {
+      init: (_, { id }) => ({
+        roomId: id,
         roomAsyncData: RoomAsyncData.Idle(),
         maybeSession: Option.none(),
-        typing,
-        joinForm,
-        copyableRoomId,
+        typing: new Typing('typing'),
+        joinForm: new JoinForm('joinForm', { roomId: id }),
+        copyableRoomId: new CopyableRoomId('copyableRoomId', { roomId: id }),
         exitCountdownSecondsLeft: 0,
-      },
+      }),
 
-      start: Array.filter(
-        [LoadSession({ roomId }), FetchRoom({ roomId })],
-        () => isRestoring,
-      ),
+      start: ({ roomId }, { isRestoring }) =>
+        Array.filter(
+          [LoadSession({ roomId }), FetchRoom({ roomId })],
+          () => isRestoring,
+        ),
 
       update: {
-        PressedKey: (model, { key }) => pressedKeyStep(model, roomId, key),
+        PressedKey: (model, { key }) => pressedKeyStep(model, key),
         UpdatedRoom: updatedRoomStep,
         FailedStreamRoom: model => ({ model }),
         CompletedLoadSession: (model, { maybeSession }) =>
@@ -188,15 +186,15 @@ export const RoomLive = Room.make(
         CompletedWaitForExitCountdownInterval:
           completedWaitForExitCountdownIntervalStep,
         InformedOfJoin: (model, { player }) =>
-          recordJoinedPlayerStep(model, roomId, player),
+          recordJoinedPlayerStep(model, player),
         CompletedNavigateHome: model => ({ model }),
         SucceededStartGame: model => ({ model }),
         FailedStartGame: model => ({ model }),
         CompletedSavePlayerSession: model => ({ model }),
         CompletedClearSession: model => ({ model }),
-        ...joinForm.on({
+        ...JoinForm.on({
           JoinedRoom: (model, { player }) =>
-            recordJoinedPlayerStep(model, roomId, player),
+            recordJoinedPlayerStep(model, player),
         }),
       },
 
@@ -256,7 +254,7 @@ export const RoomLive = Room.make(
         },
       },
 
-      view: (model, h) => view(model, roomId, h),
+      view,
     }
   }),
 )
@@ -429,12 +427,8 @@ const completedWaitForExitCountdownIntervalStep = (model: Model) => {
   }
 }
 
-const recordJoinedPlayerStep = (
-  model: Model,
-  roomId: string,
-  player: Shared.Player,
-) => {
-  const session = RoomPlayerSession.make({ roomId, player })
+const recordJoinedPlayerStep = (model: Model, player: Shared.Player) => {
+  const session = RoomPlayerSession.make({ roomId: model.roomId, player })
 
   return {
     model: modifyFields(model, { maybeSession: () => Option.some(session) }),
@@ -442,25 +436,27 @@ const recordJoinedPlayerStep = (
   }
 }
 
-const leaveRoomStep = (model: Model, roomId: string) => ({
+const leaveRoomStep = (model: Model) => ({
   model: modifyFields(model, {
     maybeSession: () => Option.none(),
     roomAsyncData: () => RoomAsyncData.Loading(),
   }),
-  commands: [ClearSession({ roomId }), NavigateHome()],
+  commands: [ClearSession({ roomId: model.roomId }), NavigateHome()],
 })
 
-const startGameStep = (model: Model, roomId: string, room: Shared.Room) => ({
+const startGameStep = (model: Model, room: Shared.Room) => ({
   model,
   commands: pipe(
     model.maybeSession,
     Option.filter(({ player }) => player.id === room.hostId),
-    Option.map(({ player }) => StartGame({ roomId, playerId: player.id })),
+    Option.map(({ player }) =>
+      StartGame({ roomId: model.roomId, playerId: player.id }),
+    ),
     Array.fromOption,
   ),
 })
 
-const pressedKeyStep = (model: Model, roomId: string, key: string) =>
+const pressedKeyStep = (model: Model, key: string) =>
   pipe(
     AsyncData.getData(model.roomAsyncData),
     Option.filter(({ status }) => isLeavableStatus(status)),
@@ -472,9 +468,9 @@ const pressedKeyStep = (model: Model, roomId: string, key: string) =>
 
         return Match.value(key).pipe(
           Match.when('Backspace', () =>
-            isLeaveAllowed ? leaveRoomStep(model, roomId) : { model },
+            isLeaveAllowed ? leaveRoomStep(model) : { model },
           ),
-          Match.when('Enter', () => startGameStep(model, roomId, room)),
+          Match.when('Enter', () => startGameStep(model, room)),
           Match.orElse(() => ({ model })),
         )
       },
@@ -735,9 +731,9 @@ const leaveRoomView = (model: Model, h: RoomViewBuilder): Html => {
   }
 }
 
-const view = (model: Model, roomId: string, h: RoomViewBuilder): Html =>
+const view = (model: Model, h: RoomViewBuilder): Html =>
   h.keyed('div')(
-    roomId,
+    model.roomId,
     [h.Class('max-w-4xl flex-1 flex flex-col justify-between')],
     [
       h.div(

@@ -59,7 +59,7 @@ describe('workHistory', () => {
       message(
         Block.deliver(
           WorkHistoryEntry,
-          ['entries', 'work-history-entry-1'],
+          'work-history-entry-1',
           WorkHistoryEntry.Message.ClickedRemoveSelf(),
         ),
       ),
@@ -76,7 +76,7 @@ describe('workHistory', () => {
       message(
         Block.deliver(
           WorkHistoryEntry,
-          ['entries', 'work-history-entry-1'],
+          'work-history-entry-1',
           WorkHistoryEntry.Message.UpdatedCompany({ value: 'Foldkit Inc.' }),
         ),
       ),

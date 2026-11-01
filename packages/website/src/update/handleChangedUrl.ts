@@ -9,12 +9,7 @@ import * as Command from '../command'
 import { findActiveSectionKeyForRoute } from '../docsNav'
 import type { Message } from '../message'
 import { type Model } from '../model'
-import {
-  ApiReference,
-  ExampleDetail,
-  type Home,
-  type Playground,
-} from '../page'
+import { ApiReference, ExampleDetail, Home, Playground } from '../page'
 import {
   ApplicationRoute,
   type ApplicationTransition,
@@ -24,14 +19,6 @@ import { Search } from '../search'
 import { ThemeMenu } from '../view/themeMenu'
 
 type ChangedUrl = typeof Message.ChangedUrl.Type
-
-export type RouteChildren = Readonly<{
-  home: Home
-  playgroundFor: (
-    slug: string,
-    maybeIsSupported: Option.Option<boolean>,
-  ) => Playground
-}>
 
 const nextSidebarGroups = (model: Model, nextRoute: ApplicationRoute) =>
   Option.match(findActiveSectionKeyForRoute(nextRoute), {
@@ -43,10 +30,12 @@ const nextSidebarGroups = (model: Model, nextRoute: ApplicationRoute) =>
   })
 
 const reconcileHome =
-  (transition: ApplicationTransition, home: Home) =>
+  (transition: ApplicationTransition) =>
   (model: Model): Model => {
     if (Transition.isEntering(transition, 'Home')) {
-      return modifyFields(model, { maybeHome: () => Option.some(home) })
+      return modifyFields(model, {
+        maybeHome: () => Option.some(new Home(HOME_ID)),
+      })
     }
 
     if (Option.isSome(Transition.exited(transition, 'Home'))) {
@@ -57,10 +46,7 @@ const reconcileHome =
   }
 
 const reconcilePlayground =
-  (
-    transition: ApplicationTransition,
-    playgroundFor: RouteChildren['playgroundFor'],
-  ) =>
+  (transition: ApplicationTransition) =>
   (model: Model): Model => {
     const { nextRoute } = transition
 
@@ -81,10 +67,9 @@ const reconcilePlayground =
     return modifyFields(model, {
       playground: () =>
         Option.some(
-          playgroundFor(
-            nextRoute.exampleSlug,
-            model.maybeIsPlaygroundSupported,
-          ),
+          new Playground(nextRoute.exampleSlug, {
+            maybeIsSupported: model.maybeIsPlaygroundSupported,
+          }),
         ),
     })
   }
@@ -140,31 +125,31 @@ const scrollCommands = (url: Url, isChangingPathname: boolean) => {
   )
 }
 
-export const handleChangedUrl =
-  ({ home, playgroundFor }: RouteChildren) =>
-  (model: Model, { url }: ChangedUrl) => {
-    const nextRoute = urlToApplicationRoute(url)
-    const transition = Transition.make(model.route, nextRoute)
-    const isDifferentPathname = model.url.pathname !== url.pathname
+export const HOME_ID = 'maybeHome'
 
-    const nextModel = pipe(
-      modifyFields(model, {
-        route: () => nextRoute,
-        url: () => url,
-        sidebarGroups: () => nextSidebarGroups(model, nextRoute),
-      }),
-      reconcileHome(transition, home),
-      reconcilePlayground(transition, playgroundFor),
-    )
+export const handleChangedUrl = (model: Model, { url }: ChangedUrl) => {
+  const nextRoute = urlToApplicationRoute(url)
+  const transition = Transition.make(model.route, nextRoute)
+  const isDifferentPathname = model.url.pathname !== url.pathname
 
-    return {
-      model: nextModel,
-      commands: scrollCommands(url, isDifferentPathname),
-      messages: [
-        nextModel.mobileMenuDialog.send(Dialog.Dialog.Message.RequestedClose()),
-        nextModel.themeMenu.send(ThemeMenu.Message.RequestedClose()),
-        nextModel.search.send(Search.Message.InformedOfRouteChange()),
-        ...routeDataMessages(nextModel, transition),
-      ],
-    }
+  const nextModel = pipe(
+    modifyFields(model, {
+      route: () => nextRoute,
+      url: () => url,
+      sidebarGroups: () => nextSidebarGroups(model, nextRoute),
+    }),
+    reconcileHome(transition),
+    reconcilePlayground(transition),
+  )
+
+  return {
+    model: nextModel,
+    commands: scrollCommands(url, isDifferentPathname),
+    messages: [
+      nextModel.mobileMenuDialog.send(Dialog.Dialog.Message.RequestedClose()),
+      nextModel.themeMenu.send(ThemeMenu.Message.RequestedClose()),
+      nextModel.search.send(Search.Message.InformedOfRouteChange()),
+      ...routeDataMessages(nextModel, transition),
+    ],
   }
+}

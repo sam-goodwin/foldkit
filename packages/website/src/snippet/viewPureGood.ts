@@ -9,10 +9,10 @@ export class Profile extends Block<Profile>()('Profile', {
   Message: defineMessageUnion({ ClickedIncrement: {} }),
 }) {}
 
-export const ProfileLive = Profile.make(
-  Effect.fn(function* () {
+export const ProfileLive = Profile.layer(
+  Effect.gen(function* () {
     return {
-      model: { title: 'Profile', count: 0 },
+      init: () => ({ title: 'Profile', count: 0 }),
 
       update: {
         ClickedIncrement: model => ({

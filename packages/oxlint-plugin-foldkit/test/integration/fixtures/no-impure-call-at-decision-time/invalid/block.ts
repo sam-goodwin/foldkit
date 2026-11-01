@@ -19,10 +19,10 @@ export class Editor extends Block<Editor>()('Editor', {
   Command: [Save],
 }) {}
 
-export const EditorLive = Editor.make(
-  Effect.fn(function* () {
+export const EditorLive = Editor.layer(
+  Effect.gen(function* () {
     return {
-      model: { isRunning: true, lastSavedAt: 0 },
+      init: () => ({ isRunning: true, lastSavedAt: Date.now() }),
       update: {
         ClickedSave: model => ({
           model: { ...model, lastSavedAt: Date.now() },

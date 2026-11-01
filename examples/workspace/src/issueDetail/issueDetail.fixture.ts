@@ -25,16 +25,14 @@ export const makeIssueDetailHost = (issue: Issue) => {
     OutMessage,
   }) {}
 
-  const IssueDetailHostLive = IssueDetailHost.make(
-    Effect.fn(function* () {
-      const issueDetail = yield* IssueDetail.each('issueDetails')
-
+  const IssueDetailHostLive = IssueDetailHost.layer(
+    Effect.gen(function* () {
       return {
-        model: {
-          issueDetails: { [issue.id]: issueDetail(issue.id, { issue }) },
-        },
+        init: () => ({
+          issueDetails: { [issue.id]: new IssueDetail(issue.id, { issue }) },
+        }),
         update: {
-          ...issueDetail.on({
+          ...IssueDetail.on({
             Saved: (model, outMessage) => ({ model, outMessage }),
             AddedComment: (model, outMessage) => ({ model, outMessage }),
             ReceivedIssue: (model, outMessage) => ({ model, outMessage }),
@@ -61,7 +59,7 @@ export const makeIssueDetailHost = (issue: Issue) => {
     }),
   ).pipe(Layer.provide(IssueDetailLive))
 
-  const path = ['issueDetails', issue.id]
+  const path = [issue.id]
 
   const issueDetailOf = (hostModel: ResolvedHostModel): ResolvedIssueDetail =>
     Option.getOrThrow(Record.get(hostModel.issueDetails, issue.id))

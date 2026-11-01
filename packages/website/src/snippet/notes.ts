@@ -16,21 +16,21 @@ export const Save = Command.define('Save', {
 })
 
 export class Note extends Block<Note>()('Note', {
-  Model: Schema.Struct({ status: Schema.String }),
+  Model: Schema.Struct({ noteId: Schema.String, status: Schema.String }),
   Message: NoteMessage,
   OutMessage: defineMessageUnion({ RequestedDelete: {} }),
   Command: [Save],
 }) {}
 
-export const NoteLive = Note.make(
-  Effect.fn(function* (id) {
+export const NoteLive = Note.layer(
+  Effect.gen(function* () {
     return {
-      model: { status: 'Draft' },
+      init: (_, { id }) => ({ noteId: id, status: 'Draft' }),
 
       update: {
         ClickedSave: model => ({
           model: modifyFields(model, { status: () => 'Saving' }),
-          commands: [Save({ noteId: id })],
+          commands: [Save({ noteId: model.noteId })],
         }),
         SucceededSave: model => ({
           model: modifyFields(model, { status: () => 'Saved' }),
@@ -50,7 +50,7 @@ export const NoteLive = Note.make(
 
       view: (model, h) =>
         h.section(
-          [h.AriaLabel(id)],
+          [h.AriaLabel(model.noteId)],
           [
             h.p([h.Role('status')], [model.status]),
             h.button([h.OnClick(Note.Message.ClickedSave())], ['Save']),
@@ -71,21 +71,19 @@ export class Notes extends Block<Notes>()('Notes', {
   Message,
 }) {}
 
-export const NotesLive = Notes.make(
-  Effect.fn(function* () {
-    const note = yield* Note.each('notes')
-
+export const NotesLive = Notes.layer(
+  Effect.gen(function* () {
     return {
-      model: { notes: [], nextNoteNumber: 1 },
+      init: () => ({ notes: [], nextNoteNumber: 1 }),
 
       update: {
         ClickedAddNote: model => ({
           model: modifyFields(model, {
-            notes: Array.append(note(`note-${model.nextNoteNumber}`)),
+            notes: Array.append(new Note(`note-${model.nextNoteNumber}`)),
             nextNoteNumber: Number.increment,
           }),
         }),
-        ...note.on({
+        ...Note.on({
           RequestedDelete: (model, _outMessage, deletedNote) => ({
             model: modifyFields(model, {
               notes: Array.filter(({ id }) => id !== deletedNote.id),

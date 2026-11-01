@@ -4,7 +4,7 @@
 
 `Story` calls update with the Messages you send. Commands stay as data until the test supplies their result Messages. You can test a complete state transition without a DOM, a timer, or a running Effect.
 
-The entire test is one `story` call. Pass the Block's Layer, send a Message, resolve any Commands, and assert on the next Model. The story starts from the Model the Block's constructor returns; `given` replaces it when a test needs a different starting point.
+The entire test is one `story` call. Pass the Block's Layer, send a Message, resolve any Commands, and assert on the next Model. The story starts from the Model the Block's `init` returns; `given` replaces it when a test needs a different starting point.
 
 ## The API
 
@@ -12,7 +12,7 @@ The entire test is one `story` call. Pass the Block's Layer, send a Message, res
 
 Import the steps you need from `foldkit/story`.
 
-- `story` runs the test. It takes the Block's Layer, the root's constructor args when it has any, and then the steps.
+- `story` runs the test. It takes the Block's Layer, the root's args when it has any, and then the steps.
 - Top-level steps set the Model, send Messages, group reusable setup, and inspect results: `given`, `message`, `messageWith`, `steps`, `model`, `expectOutMessage`, and `expectNoOutMessage`.
 - The `Command` namespace handles pending Commands: `resolve`, `resolveAll`, `resolveAllExact`, `expectHas`, `expectExact`, `expectNone`, `at`, and `argsOf`.
 
@@ -24,7 +24,7 @@ Use named imports when the file contains only Story tests. If a file contains bo
 
 A Command matcher accepts either a Definition or an instance. A Definition matches any pending Command from that declaration. An instance also checks that the arguments are structurally equal.
 
-Use `FetchWeather` when the test only cares that this Command was returned. Use `FetchWeather({ zipCode: '90210' })` when the zip code is part of the contract. `Command.at(path, matcher)` narrows either form to one Block instance, for sibling instances with identical pending Commands. See [Testing a Parent and Its Children](/testing#testing-a-parent-and-its-children).
+Use `FetchWeather` when the test only cares that this Command was returned. Use `FetchWeather({ zipCode: '90210' })` when the zip code is part of the contract. `Command.at(path, matcher)` narrows either form to one Block instance, for sibling instances with pending Commands of the same Definition. See [Testing a Parent and Its Children](/testing#testing-a-parent-and-its-children).
 
 ### Inspect Captured Command Arguments
 
@@ -80,9 +80,9 @@ Use `messageWith(model => Message.Variant(...))` when a Message carries a value 
 
 ::Snippet{name="testingStoryMessageWith" label="Build a Message from the current Model"}
 
-### Deliver a Stream or Subscription Message
+### Deliver a Subscription Message {#deliver-a-stream-or-subscription-message}
 
-A Story never starts a Block's `stream` or `subscriptions`. Send the Message the source would produce with `message`. For a child instance's Stream, wrap the Message with `Block.deliver`.
+A Story never starts a Block's `subscriptions`. Send the Message the Subscription would produce with `message`. For a child instance's Subscription, wrap the Message with `Block.deliver`.
 
 ::Snippet{name="testingStorySubscription" label="Deliver a Message a Subscription produces"}
 
@@ -114,7 +114,7 @@ Story tests the state machine. It does not run the Effect inside a Command.
 
 ### Test Command Effects
 
-A Command handler closes over the services the Block's constructor yields. Write the handler as a function that takes those services, and give the constructor's `commands` record the result of calling it. A test can then call the same function with a stub service and run the Effect it returns.
+A Command handler closes over the services the Block's Layer constructor yields. Write the handler as a function that takes those services, and give the `commands` record the Layer constructor returns the result of calling it. A test can then call the same function with a stub service and run the Effect it returns.
 
 Here the weather Block's `fetchWeather` takes an `HttpClient`. The test passes a client that returns a canned response, then checks the Message the handler produces:
 

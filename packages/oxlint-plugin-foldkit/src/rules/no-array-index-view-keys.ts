@@ -9,7 +9,7 @@ import {
   type Variable,
 } from 'effect-oxlint'
 
-import { isBlockClassMethodCall } from '../block-implementation.ts'
+import { isBlockInstanceConstruction } from '../block-implementation.ts'
 import {
   calleeMatchesHelperName,
   indexReferences,
@@ -111,17 +111,8 @@ const mapCallbackIndexParameter = (
   return Option.some({ name, variable })
 }
 
-const isBlockInstanceFactory = (
-  node: ESTree.Expression,
-  references: WeakMap<ESTree.Node, Reference> | undefined,
-): boolean =>
-  node.type === 'YieldExpression' &&
-  node.delegate &&
-  node.argument !== null &&
-  isBlockClassMethodCall(node.argument, 'each', references)
-
 const firstNonSpreadArgument = (
-  node: ESTree.CallExpression,
+  node: ESTree.CallExpression | ESTree.NewExpression,
 ): Option.Option<ESTree.Expression> => {
   const [firstArgument] = node.arguments
   if (firstArgument === undefined || firstArgument.type === 'SpreadElement') {
@@ -244,8 +235,8 @@ const referencesIndexBindingAcrossFields = (
 
 /**
  * Disallows using a map callback's array index parameter as the key fed into
- * a keyed element, a Key attribute, a `Block.each` instance factory, or a
- * createKeyedLazy slot call. Array positions shift when a list mutates, so view keys must
+ * a keyed element, a Key attribute, the id of a `new Block(id, args)` instance,
+ * or a createKeyedLazy slot call. Array positions shift when a list mutates, so view keys must
  * come from stable Model identifiers.
  */
 export const noArrayIndexViewKeys = Rule.define({
@@ -265,17 +256,39 @@ export const noArrayIndexViewKeys = Rule.define({
       [],
     )
     const slots = yield* Ref.make<ReadonlyArray<KeyedLazySlot>>([])
+    const reportIndexKey = (
+      maybeKeyExpression: Option.Option<ESTree.Expression>,
+    ) =>
+      Effect.gen(function* () {
+        if (Option.isNone(maybeKeyExpression)) {
+          return
+        }
+        const activeIndexBindings = yield* Ref.get(indexBindingStack)
+        const { value: keyExpression } = maybeKeyExpression
+        const maybeIndexBinding = Array.findFirst(
+          activeIndexBindings,
+          indexBinding =>
+            referencesIndexBinding(keyExpression, indexBinding, references),
+        )
+        if (Option.isNone(maybeIndexBinding)) {
+          return
+        }
+        yield* ctx.report(
+          Diagnostic.make({
+            node: keyExpression,
+            message: `The array index parameter \`${maybeIndexBinding.value.name}\` is used as a view key. Positions shift when the list reorders or loses an item, so the runtime patches the wrong rows. Key this row or Block by a stable Model identifier such as \`item.id\` instead.`,
+          }),
+        )
+      })
+
     return {
       VariableDeclarator: (node: ESTree.Node) => {
         if (
           !isVariableDeclarator(node) ||
           node.id.type !== 'Identifier' ||
           node.init === null ||
-          !(
-            (isCallExpression(node.init) &&
-              isCreateKeyedLazyCall(node.init, references)) ||
-            isBlockInstanceFactory(node.init, references)
-          )
+          !isCallExpression(node.init) ||
+          !isCreateKeyedLazyCall(node.init, references)
         ) {
           return Effect.void
         }
@@ -299,42 +312,23 @@ export const noArrayIndexViewKeys = Rule.define({
               Array.dropRight(activeIndexBindings, 1),
             ),
         }),
-      CallExpression: (node: ESTree.Node) => {
-        if (!isCallExpression(node)) {
-          return Effect.void
-        }
-        return Effect.gen(function* () {
-          const activeIndexBindings = yield* Ref.get(indexBindingStack)
-          if (Array.isReadonlyArrayEmpty(activeIndexBindings)) {
-            return
-          }
-          const registeredSlots = yield* Ref.get(slots)
-          const maybeKeyExpression = keySinkExpression(
-            node,
-            registeredSlots,
-            references,
-            ctx.filename,
-          )
-          if (Option.isNone(maybeKeyExpression)) {
-            return
-          }
-          const { value: keyExpression } = maybeKeyExpression
-          const maybeIndexBinding = Array.findFirst(
-            activeIndexBindings,
-            indexBinding =>
-              referencesIndexBinding(keyExpression, indexBinding, references),
-          )
-          if (Option.isNone(maybeIndexBinding)) {
-            return
-          }
-          yield* ctx.report(
-            Diagnostic.make({
-              node: keyExpression,
-              message: `The array index parameter \`${maybeIndexBinding.value.name}\` is used as a view key. Positions shift when the list reorders or loses an item, so the runtime patches the wrong rows. Key this row or Block by a stable Model identifier such as \`item.id\` instead.`,
-            }),
-          )
-        })
-      },
+      CallExpression: (node: ESTree.Node) =>
+        isCallExpression(node)
+          ? Effect.flatMap(Ref.get(slots), registeredSlots =>
+              reportIndexKey(
+                keySinkExpression(
+                  node,
+                  registeredSlots,
+                  references,
+                  ctx.filename,
+                ),
+              ),
+            )
+          : Effect.void,
+      NewExpression: (node: ESTree.Node) =>
+        isBlockInstanceConstruction(node, references)
+          ? reportIndexKey(firstNonSpreadArgument(node))
+          : Effect.void,
     }
   },
 })

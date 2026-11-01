@@ -63,16 +63,15 @@ class Application extends Block<Application, Readonly<{ url: Url.Url }>>()(
   { Model, Message, Command: [FetchPeople] },
 ) {}
 
-const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { url }) {
+const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
-    const route = urlToApplicationRoute(url)
 
     return {
-      model: { route, people: [] },
+      init: ({ url }) => ({ route: urlToApplicationRoute(url), people: [] }),
 
-      // ...which the constructor runs for the cold load...
-      start: commandsForRoute(route),
+      // ...which start runs for the cold load...
+      start: model => commandsForRoute(model.route),
 
       update: {
         // ...and the ChangedUrl handler runs for in-app navigation

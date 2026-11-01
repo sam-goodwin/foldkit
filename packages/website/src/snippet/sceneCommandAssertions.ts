@@ -31,8 +31,9 @@ click(
 )
 Command.resolve(Save, Note.Message.SucceededSave())
 
-// Sibling instances with identical pending Commands. Select one by path.
+// Sibling instances with pending Commands of the same definition. Select
+// one by the instance's path.
 Command.resolve(
-  Command.at(['notes', 'note-2'], Save),
+  Command.at('note-2', Save),
   Note.Message.FailedSave({ reason: 'Offline' }),
 )

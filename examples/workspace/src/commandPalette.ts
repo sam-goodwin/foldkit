@@ -62,14 +62,16 @@ export class CommandPalette extends Block<CommandPalette, void, ViewInput>()(
   { Model, Message, OutMessage, Command: [ScrollActiveResult] },
 ) {}
 
-export const CommandPaletteLive = CommandPalette.make(
-  Effect.fn(function* () {
-    const dialog = yield* new Dialog.Dialog('dialog', {
-      id: 'workspace-command-palette',
-    })
-
+export const CommandPaletteLive = CommandPalette.layer(
+  Effect.gen(function* () {
     return {
-      model: { query: '', activeResultIndex: 0, dialog },
+      init: () => ({
+        query: '',
+        activeResultIndex: 0,
+        dialog: new Dialog.Dialog('dialog', {
+          id: 'workspace-command-palette',
+        }),
+      }),
 
       update: {
         RequestedOpen: openPalette,
@@ -103,7 +105,7 @@ export const CommandPaletteLive = CommandPalette.make(
           }),
         ClickedResult: (model, { target }) => selectResult(model, target),
         CompletedScrollActiveResult: model => ({ model }),
-        ...dialog.on({
+        ...Dialog.Dialog.on({
           Closed: model => ({
             model: { ...model, query: '', activeResultIndex: 0 },
           }),
@@ -120,7 +122,12 @@ export const CommandPaletteLive = CommandPalette.make(
           ),
       },
 
-      stream: openShortcut,
+      subscriptions: {
+        openShortcut: {
+          dependencies: () => 'openShortcut',
+          stream: () => openShortcut,
+        },
+      },
 
       view: (model, h, { issues, projects }) => {
         const results = searchResults(model.query, issues, projects)

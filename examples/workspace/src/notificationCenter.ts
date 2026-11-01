@@ -72,15 +72,18 @@ export class NotificationCenter extends Block<
   ViewInput
 >()('NotificationCenter', { Model, Message, OutMessage }) {}
 
-export const NotificationCenterLive = NotificationCenter.make(
-  Effect.fn(function* () {
+export const NotificationCenterLive = NotificationCenter.layer(
+  Effect.gen(function* () {
     const clock = yield* Clock.Clock
-    const popover = yield* new Popover.Popover('popover', {
-      id: 'workspace-notifications',
-    })
 
     return {
-      model: { notifications: [], now: 0, popover },
+      init: () => ({
+        notifications: [],
+        now: 0,
+        popover: new Popover.Popover('popover', {
+          id: 'workspace-notifications',
+        }),
+      }),
       update: {
         InformedOfActivity: handleInformedOfActivity,
         TickedClock: (model, { timestamp }) => ({

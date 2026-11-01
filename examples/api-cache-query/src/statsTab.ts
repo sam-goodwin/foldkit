@@ -52,12 +52,10 @@ export class StatsTab extends Block<StatsTab>()('StatsTab', {
   Message,
 }) {}
 
-export const StatsTabLive = StatsTab.make(
-  Effect.fn(function* () {
-    const stats = yield* new StatsQuery('stats', {})
-
+export const StatsTabLive = StatsTab.layer(
+  Effect.gen(function* () {
     return {
-      model: { stats },
+      init: () => ({ stats: new StatsQuery('stats', {}) }),
 
       update: {
         RequestedLoadIfMissing: model => ({

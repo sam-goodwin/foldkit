@@ -328,17 +328,17 @@ export class AsyncCounterDemo extends Block<AsyncCounterDemo>()(
   { Model, Message, Command: [DelayAdvanceAsyncCounterPhase] },
 ) {}
 
-export const AsyncCounterDemoLive = AsyncCounterDemo.make(
-  Effect.fn(function* () {
+export const AsyncCounterDemoLive = AsyncCounterDemo.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: () => ({
         count: 0,
         isResetting: false,
         resetDuration: 2,
         phase: 'Idle',
         generation: 0,
         messageLog: [],
-      },
+      }),
 
       update: {
         ClickedDemoIncrement: model => {

@@ -1,21 +1,25 @@
 import { Stream } from 'effect'
 import { Dom } from 'foldkit'
 
-// Always on: the Application's `stream`
-export const keyPresses = Stream.merge(
-  Dom.streamFromEventFilterMapPreventDefault({
-    target: document,
-    type: 'keydown',
-    filterMapEvent: toUndoRedoMessage,
-  }),
-  Dom.streamFromEventFilterMap({
-    target: document,
-    type: 'keydown',
-    filterMapEvent: toToolMessage,
-  }),
-)
+// Always on: the dependencies never change
+export const keyPresses = {
+  dependencies: () => null,
+  stream: () =>
+    Stream.merge(
+      Dom.streamFromEventFilterMapPreventDefault({
+        target: document,
+        type: 'keydown',
+        filterMapEvent: toUndoRedoMessage,
+      }),
+      Dom.streamFromEventFilterMap({
+        target: document,
+        type: 'keydown',
+        filterMapEvent: toToolMessage,
+      }),
+    ),
+}
 
-// Gated by the Model: an entry under `subscriptions`
+// Gated by the Model: runs only while the user is drawing
 export const mouseReleases = {
   dependencies: (model: Model) => model.isDrawing,
   stream: (isDrawing: boolean) =>
@@ -26,5 +30,5 @@ export const mouseReleases = {
       : Stream.empty,
 }
 
-// In the Application constructor:
-// return { stream: keyPresses, subscriptions: { mouseReleases }, ... }
+// In the module the Application's Layer returns:
+// return { subscriptions: { keyPresses, mouseReleases }, ... }

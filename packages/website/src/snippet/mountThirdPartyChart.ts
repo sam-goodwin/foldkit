@@ -34,12 +34,12 @@ export class Sales extends Block<Sales>()('Sales', {
   Mount: [MountChart],
 }) {}
 
-export const SalesLive = Sales.make(
-  Effect.fn(function* () {
+export const SalesLive = Sales.layer(
+  Effect.gen(function* () {
     const chartLibrary = yield* ChartLibrary
 
     return {
-      model: { monthlyTotals: [12, 19, 7, 24] },
+      init: () => ({ monthlyTotals: [12, 19, 7, 24] }),
 
       update: {
         SucceededMountChart: model => ({ model }),

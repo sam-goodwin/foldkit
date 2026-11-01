@@ -10,16 +10,16 @@ export class BonusPanel extends Block<BonusPanel>()('BonusPanel', {
   Message: defineMessageUnion({ ClickedShowBonus: {}, ClickedHideBonus: {} }),
 }) {}
 
-export const BonusPanelLive = BonusPanel.make(
-  Effect.fn(function* () {
-    const bonus = yield* new Counter('bonus', { max: 5 })
-
+export const BonusPanelLive = BonusPanel.layer(
+  Effect.gen(function* () {
     return {
-      model: { maybeBonus: Option.none() },
+      init: () => ({ maybeBonus: Option.none() }),
 
       update: {
         ClickedShowBonus: model => ({
-          model: modifyFields(model, { maybeBonus: () => Option.some(bonus) }),
+          model: modifyFields(model, {
+            maybeBonus: () => Option.some(new Counter('bonus', { max: 5 })),
+          }),
         }),
         ClickedHideBonus: model => ({
           model: modifyFields(model, { maybeBonus: () => Option.none() }),

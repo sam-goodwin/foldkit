@@ -16,10 +16,10 @@ export class FrameFeed extends Block<FrameFeed>()('FrameFeed', {
   Message,
 }) {}
 
-export const FrameFeedLive = FrameFeed.make(
-  Effect.fn(function* () {
+export const FrameFeedLive = FrameFeed.layer(
+  Effect.gen(function* () {
     return {
-      model: { sessionId: 1, frames: [] },
+      init: () => ({ sessionId: 1, frames: [] }),
 
       update: {
         ClickedReconnect: model => ({

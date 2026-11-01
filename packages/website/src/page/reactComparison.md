@@ -66,7 +66,7 @@ The Foldkit root is a Block class, its implementation Layer, and a Program that 
 
 ::Snippet{name="comparisonFoldkitProgram" label="Foldkit program"}
 
-The `Application` class declares the Model, Message, and Command contracts. `Application.make` takes a constructor that receives the decoded `{ flags }`, and returns the starting Model, one update handler per Message, one handler per Command, and the view. `Program.make` receives the class, a Layer that provides the root Block, its child UI Blocks, and ordinary services, the Flags Schema, and the container. The Runtime dispatches Messages, runs Commands, and starts the Streams.
+The `Application` class declares the Model, Message, and Command contracts. `Application.layer` takes an Effect that runs once, yields the services the Block uses, and returns its module: an `init` that builds the starting Model from the decoded `{ flags }`, one update handler per Message, one handler per Command, and the view. `init` creates each child UI Block as plain data with `new`, such as `new Dialog.Dialog('errorDialog', { id: 'error-dialog' })`. `Program.make` receives the class, a Layer that provides the root Block, its child UI Blocks, and ordinary services, the Flags Schema, and the container. The Runtime dispatches Messages, runs Commands, and starts the Subscriptions.
 
 The Foldkit view still passes Model data to smaller view functions as parameters. Those functions do not own Hook state or lifecycle, so the program wiring stays separate from the view tree.
 
@@ -130,10 +130,10 @@ Both Commands are named definitions with Schema-checked arguments and declared r
 
 Update returns a Command value. The Runtime executes its Effect and dispatches the resulting Message. Foldkit DevTools can associate the Command with the Message and Model transition that produced it, and Story or Scene tests can inspect or resolve the same value.
 
-The constructor yields the storage service once, and the `SaveCanvas` handler closes over it. The program's Layer binds that service to localStorage, while a whole-application test can bind it to a deterministic store and retain the real Command handler.
+The Layer yields the storage service once, and the `SaveCanvas` handler closes over it. The program's Layer binds that service to localStorage, while a whole-application test can bind it to a deterministic store and retain the real Command handler.
 
 :::Info{label="Effect locations in this application"}
-Event-driven work is in the Commands that `application.ts` defines. Keyboard and mouse-release event sources are Streams declared in the same file, returned from the constructor as `stream` and `subscriptions`. This application does not need a Mount. The primitive identifies why each effect exists.
+Event-driven work is in the Commands that `application.ts` defines. Keyboard and mouse-release event sources are Streams declared in the same file, returned from the Block's Layer under `subscriptions`. This application does not need a Mount. The primitive identifies why each effect exists.
 :::
 
 ### React useEffect (effect as an implicit reaction) {#react-useeffect}
@@ -220,7 +220,7 @@ Both applications listen for keyboard shortcuts and mouse release. The mouse-rel
 
 ### Foldkit Subscriptions
 
-The keyboard shortcuts are an always-on `stream`. The mouse-release listener declares its lifetime from Model dependencies:
+Both event sources are `subscriptions` entries, and each declares its lifetime through `dependencies`. The keyboard shortcuts depend on a constant. The mouse-release listener depends on `isDrawing`:
 
 ::Snippet{name="comparisonFoldkitSubscription" label="Foldkit Subscriptions"}
 

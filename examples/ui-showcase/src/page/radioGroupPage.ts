@@ -23,39 +23,32 @@ export class RadioGroupPage extends Block<RadioGroupPage>()('RadioGroupPage', {
   Model,
 }) {}
 
-export const RadioGroupPageLive = RadioGroupPage.make(
-  Effect.fn(function* () {
-    const verticalRadioGroupDemo = yield* new PlanRadioGroup(
-      'verticalRadioGroupDemo',
-      { id: 'vertical-radio-group-demo' },
-    )
-    const horizontalRadioGroupDemo = yield* new PlanRadioGroup(
-      'horizontalRadioGroupDemo',
-      { id: 'horizontal-radio-group-demo' },
-    )
-
+export const RadioGroupPageLive = RadioGroupPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        verticalRadioGroupDemo,
+      init: () => ({
+        verticalRadioGroupDemo: new PlanRadioGroup('verticalRadioGroupDemo', {
+          id: 'vertical-radio-group-demo',
+        }),
         verticalRadioGroupDemoValue: Option.none(),
-        horizontalRadioGroupDemo,
+        horizontalRadioGroupDemo: new PlanRadioGroup(
+          'horizontalRadioGroupDemo',
+          { id: 'horizontal-radio-group-demo' },
+        ),
         horizontalRadioGroupDemoValue: Option.none(),
-      },
+      }),
 
       update: {
-        ...verticalRadioGroupDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              verticalRadioGroupDemoValue: () => Option.some(value),
-            }),
-          }),
-        }),
-
-        ...horizontalRadioGroupDemo.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              horizontalRadioGroupDemoValue: () => Option.some(value),
-            }),
+        ...PlanRadioGroup.on({
+          Selected: (model, { value }, { id }) => ({
+            model:
+              id === 'verticalRadioGroupDemo'
+                ? modifyFields(model, {
+                    verticalRadioGroupDemoValue: () => Option.some(value),
+                  })
+                : modifyFields(model, {
+                    horizontalRadioGroupDemoValue: () => Option.some(value),
+                  }),
           }),
         }),
       },

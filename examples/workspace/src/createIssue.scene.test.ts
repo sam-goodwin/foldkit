@@ -40,12 +40,10 @@ class CreateIssueScene extends Block<CreateIssueScene>()('CreateIssueScene', {
   OutMessage,
 }) {}
 
-const CreateIssueSceneLive = CreateIssueScene.make(
-  Effect.fn(function* () {
-    const createIssue = yield* new CreateIssue('createIssue')
-
+const CreateIssueSceneLive = CreateIssueScene.layer(
+  Effect.gen(function* () {
     return {
-      model: { createIssue },
+      init: () => ({ createIssue: new CreateIssue('createIssue') }),
       update: {
         ClickedOpen: model => ({
           model,
@@ -59,7 +57,7 @@ const CreateIssueSceneLive = CreateIssueScene.make(
           model,
           messages: [model.createIssue.send(Message.RequestedClose())],
         }),
-        ...createIssue.on({
+        ...CreateIssue.on({
           Created: (model, outMessage) => ({ model, outMessage }),
         }),
       },

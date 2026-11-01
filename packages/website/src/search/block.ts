@@ -39,18 +39,17 @@ export class Search extends Block<Search>()('Search', {
   ],
 }) {}
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     const pagefind = yield* PagefindService
-    const dialog = yield* new Dialog.Dialog('dialog', { id: 'search-dialog' })
 
     return {
-      model: {
-        dialog,
+      init: () => ({
+        dialog: new Dialog.Dialog('dialog', { id: 'search-dialog' }),
         query: '',
         searchState: SearchState.Idle(),
         activeResultIndex: -1,
-      },
+      }),
 
       update: {
         UpdatedSearchQuery: handleUpdatedSearchQuery,
@@ -70,7 +69,7 @@ export const SearchLive = Search.make(
         CompletedNavigateToResult: model => ({ model }),
         CompletedScrollToResult: model => ({ model }),
         CompletedFocusSearchInput: model => ({ model }),
-        ...dialog.on({
+        ...Dialog.Dialog.on({
           CompletedClose: model => clearSearchQueryStep(model),
         }),
       },

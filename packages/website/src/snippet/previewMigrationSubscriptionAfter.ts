@@ -13,10 +13,10 @@ export class Stopwatch extends Block<Stopwatch>()('Stopwatch', {
   Message,
 }) {}
 
-export const StopwatchLive = Stopwatch.make(
-  Effect.fn(function* () {
+export const StopwatchLive = Stopwatch.layer(
+  Effect.gen(function* () {
     return {
-      model: { seconds: 0, isRunning: false },
+      init: () => ({ seconds: 0, isRunning: false }),
 
       update: {
         ClickedToggle: model => ({

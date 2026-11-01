@@ -22,10 +22,10 @@ export class Application extends Block<
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* (_id, { flags }) {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { count: flags.start },
+      init: ({ flags }) => ({ count: flags.start }),
       update: {
         ClickedIncrement: model => ({
           model: modifyFields(model, { count: count => count + 1 }),

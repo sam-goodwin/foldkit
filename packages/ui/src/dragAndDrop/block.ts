@@ -713,17 +713,17 @@ export class DragAndDrop extends Block<DragAndDrop, InitConfig, ViewInputs>()(
 
 /** Implements {@link DragAndDrop}. Provide it to every parent Layer that
  *  creates a DragAndDrop instance. */
-export const DragAndDropLive = DragAndDrop.make(
-  Effect.fn(function* (id, config) {
+export const DragAndDropLive = DragAndDrop.layer(
+  Effect.gen(function* () {
     return {
-      model: {
+      init: (config, { id }) => ({
         id: config.id ?? id,
         orientation: config.orientation ?? 'Vertical',
         activationThreshold:
           config.activationThreshold ?? DEFAULT_ACTIVATION_THRESHOLD_PIXELS,
         keyboardDragGeneration: 0,
         dragState: DragState.Idle(),
-      },
+      }),
       update: {
         PressedDraggable: (
           model,

@@ -108,25 +108,19 @@ describe('no-array-index-view-keys', () => {
     expect(result[0]?.diagnostic.message).toContain('`i`')
   })
 
-  it('flags an index key passed to a Block.each instance factory', () => {
+  it('flags an index used as the id of a new Block instance', () => {
     const arrow = methodMapArrow(itemAndIndexParameters)
-    const factoryDeclarator = Testing.varDeclarator('row', {
-      type: 'YieldExpression',
-      delegate: true,
-      argument: Testing.callOfMember('Counter', 'each', [
-        Testing.strLiteral('rows'),
-      ]),
-    })
-    const sink = Testing.callExpr('row', [Testing.id('i')])
+    const indexIdentifier = Testing.id('i')
+    const instance = Testing.newExpr('Counter', [indexIdentifier])
 
     const result = Testing.runRuleMulti(noArrayIndexViewKeys, [
-      ['VariableDeclarator', factoryDeclarator],
       ['ArrowFunctionExpression', arrow],
-      ['CallExpression', sink],
+      ['NewExpression', instance],
       ['ArrowFunctionExpression:exit', arrow],
     ])
 
     expect(result).toHaveLength(1)
+    expect(result[0]?.diagnostic.node).toBe(indexIdentifier)
   })
 
   it('flags an index key in a keyed-lazy slot call', () => {

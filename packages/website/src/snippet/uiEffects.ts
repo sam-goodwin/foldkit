@@ -18,17 +18,17 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
-    const settingsDialog = yield* new Dialog.Dialog('settingsDialog', {
-      id: 'settings',
-    })
-    const accountMenu = yield* new AccountMenu('accountMenu', {
-      id: 'account',
-    })
-
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     return {
-      model: { settingsDialog, accountMenu },
+      init: () => ({
+        settingsDialog: new Dialog.Dialog('settingsDialog', {
+          id: 'settings',
+        }),
+        accountMenu: new AccountMenu('accountMenu', {
+          id: 'account',
+        }),
+      }),
 
       update: {
         ClickedOpenSettings: model => ({

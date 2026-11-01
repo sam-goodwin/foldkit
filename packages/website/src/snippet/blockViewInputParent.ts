@@ -9,12 +9,10 @@ export class Faq extends Block<Faq>()('Faq', {
   Message: defineMessageUnion({ ClickedContactSupport: {} }),
 }) {}
 
-export const FaqLive = Faq.make(
-  Effect.fn(function* () {
-    const shipping = yield* new Disclosure('shipping')
-
+export const FaqLive = Faq.layer(
+  Effect.gen(function* () {
     return {
-      model: { shipping },
+      init: () => ({ shipping: new Disclosure('shipping') }),
 
       update: {
         ClickedContactSupport: model => ({ model }),

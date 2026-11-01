@@ -17,10 +17,10 @@ export class SignUp extends Block<SignUp>()('SignUp', {
   Command: [FocusEmailInput],
 }) {}
 
-export const SignUpLive = SignUp.make(
-  Effect.fn(function* () {
+export const SignUpLive = SignUp.layer(
+  Effect.gen(function* () {
     return {
-      model: { isFormVisible: false },
+      init: () => ({ isFormVisible: false }),
 
       update: {
         ClickedSignUp: () => ({

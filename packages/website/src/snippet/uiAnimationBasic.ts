@@ -15,14 +15,14 @@ export class Details extends Block<Details>()('Details', {
   Message,
 }) {}
 
-export const DetailsLive = Details.make(
-  Effect.fn(function* () {
-    const animation = yield* new Animation.Animation('animation', {
-      id: 'content',
-    })
-
+export const DetailsLive = Details.layer(
+  Effect.gen(function* () {
     return {
-      model: { animation },
+      init: () => ({
+        animation: new Animation.Animation('animation', {
+          id: 'content',
+        }),
+      }),
 
       update: {
         // The parent reads `isShowing` and sends the matching request
@@ -37,7 +37,7 @@ export const DetailsLive = Details.make(
           ],
         }),
 
-        ...animation.on({
+        ...Animation.Animation.on({
           // Ask Animation to wait for its wrapper's CSS to settle. A custom
           // policy can race another signal against that settlement instead.
           StartedLeaveAnimating: model => ({

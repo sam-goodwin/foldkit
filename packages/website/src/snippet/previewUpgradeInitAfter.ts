@@ -12,10 +12,10 @@ export class ThemePicker extends Block<
   Model: Schema.Struct({ theme: Theme }),
 }) {}
 
-export const ThemePickerLive = ThemePicker.make(
-  Effect.fn(function* (_id, { theme }) {
+export const ThemePickerLive = ThemePicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { theme },
+      init: ({ theme }) => ({ theme }),
       view: (model, h) => h.p([], [`Theme: ${model.theme}`]),
     }
   }),
@@ -43,17 +43,17 @@ export class Profile extends Block<Profile, ProfileArgs>()('Profile', {
   Command: [LoadAvatar],
 }) {}
 
-export const ProfileLive = Profile.make(
-  Effect.fn(function* (_id, { username, savedTheme }) {
-    // Constructor args replace the Binding's init selector.
-    const themePicker = yield* new ThemePicker('themePicker', {
-      theme: savedTheme,
-    })
-
+export const ProfileLive = Profile.layer(
+  Effect.gen(function* () {
     return {
-      model: { username, avatarUrl: '', themePicker },
-      // `start` Commands replace the Commands init returned.
-      start: [LoadAvatar({ username })],
+      // The parent passes the child's args when it creates the instance.
+      init: ({ username, savedTheme }) => ({
+        username,
+        avatarUrl: '',
+        themePicker: new ThemePicker('themePicker', { theme: savedTheme }),
+      }),
+      // `start` replaces the Commands init returned.
+      start: model => [LoadAvatar({ username: model.username })],
 
       update: {
         SucceededLoadAvatar: (model, { url }) => ({

@@ -84,17 +84,14 @@ export class PostsTab extends Block<PostsTab>()('PostsTab', {
   Message,
 }) {}
 
-export const PostsTabLive = PostsTab.make(
-  Effect.fn(function* () {
-    const posts = yield* new PostsQuery('posts', { isLoadingOnStart: true })
-    const postDetails = yield* new PostQuery('postDetails', {})
-
+export const PostsTabLive = PostsTab.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        posts,
-        postDetails,
+      init: () => ({
+        posts: new PostsQuery('posts', { isLoadingOnStart: true }),
+        postDetails: new PostQuery('postDetails', {}),
         maybeSelectedPostId: Option.none(),
-      },
+      }),
 
       update: {
         RequestedLoadIfMissing: model => ({

@@ -42,37 +42,34 @@ type SceneOverrides = Pick<
   'ariaLabel' | 'ariaLabelledBy'
 >
 
-class MenuScene extends Block<MenuScene, SceneOverrides>()('MenuScene', {
+class MenuScene extends Block<MenuScene>()('MenuScene', {
   Model: Schema.Struct({ menu: TestMenu }),
 }) {}
 
-const MenuSceneLive = MenuScene.make(
-  Effect.fn(function* (_id, overrides) {
-    const menu = yield* new TestMenu('menu', { id: 'test' })
-
-    return {
-      model: { menu },
-      view: (model, h) =>
-        model.menu.view({
-          items: ['Edit', 'Duplicate', 'Delete'],
-          itemToConfig: item => ({ content: h.span([], [item]) }),
-          buttonContent: h.span([], ['Actions']),
-          ...overrides,
-        }),
-    }
-  }),
-).pipe(Layer.provide(TestMenu.Live))
+const makeMenuSceneLive = (overrides: SceneOverrides) =>
+  MenuScene.layer(
+    Effect.gen(function* () {
+      return {
+        init: () => ({ menu: new TestMenu('menu', { id: 'test' }) }),
+        view: (model, h) =>
+          model.menu.view({
+            items: ['Edit', 'Duplicate', 'Delete'],
+            itemToConfig: item => ({ content: h.span([], [item]) }),
+            buttonContent: h.span([], ['Actions']),
+            ...overrides,
+          }),
+      }
+    }),
+  ).pipe(Layer.provide(TestMenu.Live))
 
 class RefinedMenuScene extends Block<RefinedMenuScene>()('RefinedMenuScene', {
   Model: Schema.Struct({ menu: RefinedMenu }),
 }) {}
 
-const RefinedMenuSceneLive = RefinedMenuScene.make(
-  Effect.fn(function* () {
-    const menu = yield* new RefinedMenu('menu', { id: 'test' })
-
+const RefinedMenuSceneLive = RefinedMenuScene.layer(
+  Effect.gen(function* () {
     return {
-      model: { menu },
+      init: () => ({ menu: new RefinedMenu('menu', { id: 'test' }) }),
       view: (model, h) =>
         model.menu.view({
           items: ['Edit', 'Duplicate', 'Delete'],
@@ -158,8 +155,7 @@ describe('Menu', () => {
 
     it.effect('only points at the items panel while it is rendered', () =>
       Scene.scene(
-        MenuSceneLive,
-        {},
+        makeMenuSceneLive({}),
         Scene.expect(button).not.toHaveAttr('aria-controls'),
         Scene.given({ menu: openModel }),
         Scene.expect(button).toHaveAttr('aria-controls', 'test-items'),
@@ -173,8 +169,7 @@ describe('Menu', () => {
 
     it.effect('keeps the items panel out of the Tab order', () =>
       Scene.scene(
-        MenuSceneLive,
-        {},
+        makeMenuSceneLive({}),
         Scene.given({ menu: openModel }),
         Scene.expect(Scene.selector('#test-items')).toHaveAttr(
           'tabIndex',
@@ -235,8 +230,7 @@ describe('Menu', () => {
   describe('button labeling', () => {
     it.effect('no aria-label or aria-labelledby on the button by default', () =>
       Scene.scene(
-        MenuSceneLive,
-        {},
+        makeMenuSceneLive({}),
         Scene.expect(button).not.toHaveAttr('aria-label'),
         Scene.expect(button).not.toHaveAttr('aria-labelledby'),
       ),
@@ -246,8 +240,7 @@ describe('Menu', () => {
       'applies aria-label to the button when ariaLabel is provided',
       () =>
         Scene.scene(
-          MenuSceneLive,
-          { ariaLabel: 'Actions' },
+          makeMenuSceneLive({ ariaLabel: 'Actions' }),
           Scene.expect(button).toHaveAttr('aria-label', 'Actions'),
           Scene.expect(button).not.toHaveAttr('aria-labelledby'),
         ),
@@ -257,8 +250,7 @@ describe('Menu', () => {
       'applies aria-labelledby to the button when ariaLabelledBy is provided',
       () =>
         Scene.scene(
-          MenuSceneLive,
-          { ariaLabelledBy: 'actions-label' },
+          makeMenuSceneLive({ ariaLabelledBy: 'actions-label' }),
           Scene.expect(button).toHaveAttr('aria-labelledby', 'actions-label'),
           Scene.expect(button).not.toHaveAttr('aria-label'),
         ),
@@ -268,8 +260,10 @@ describe('Menu', () => {
       'prefers aria-label over aria-labelledby when both are provided',
       () =>
         Scene.scene(
-          MenuSceneLive,
-          { ariaLabel: 'Actions', ariaLabelledBy: 'actions-label' },
+          makeMenuSceneLive({
+            ariaLabel: 'Actions',
+            ariaLabelledBy: 'actions-label',
+          }),
           Scene.expect(button).toHaveAttr('aria-label', 'Actions'),
           Scene.expect(button).not.toHaveAttr('aria-labelledby'),
         ),

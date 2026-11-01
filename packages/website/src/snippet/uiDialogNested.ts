@@ -19,18 +19,18 @@ export class ProjectDialogs extends Block<ProjectDialogs>()('ProjectDialogs', {
   Message,
 }) {}
 
-export const ProjectDialogsLive = ProjectDialogs.make(
-  Effect.fn(function* () {
-    // One Dialog instance per level
-    const settingsDialog = yield* new Dialog.Dialog('settingsDialog', {
-      id: 'settings',
-    })
-    const confirmDialog = yield* new Dialog.Dialog('confirmDialog', {
-      id: 'confirm-delete',
-    })
-
+export const ProjectDialogsLive = ProjectDialogs.layer(
+  Effect.gen(function* () {
     return {
-      model: { settingsDialog, confirmDialog },
+      init: () => ({
+        // One Dialog instance per level
+        settingsDialog: new Dialog.Dialog('settingsDialog', {
+          id: 'settings',
+        }),
+        confirmDialog: new Dialog.Dialog('confirmDialog', {
+          id: 'confirm-delete',
+        }),
+      }),
 
       update: {
         ClickedOpenProjectSettings: model => ({

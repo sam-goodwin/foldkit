@@ -21,10 +21,10 @@ export class ButtonPage extends Block<ButtonPage>()('ButtonPage', {
   Message,
 }) {}
 
-export const ButtonPageLive = ButtonPage.make(
-  Effect.fn(function* () {
+export const ButtonPageLive = ButtonPage.layer(
+  Effect.gen(function* () {
     return {
-      model: { buttonClickCount: 0 },
+      init: () => ({ buttonClickCount: 0 }),
 
       update: {
         ClickedButtonDemo: model => ({

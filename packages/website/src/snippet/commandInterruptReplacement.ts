@@ -44,17 +44,17 @@ export class Search extends Block<Search>()('Search', {
   Command: [FetchSuggestions],
 }) {}
 
-export const SearchLive = Search.make(
-  Effect.fn(function* () {
+export const SearchLive = Search.layer(
+  Effect.gen(function* () {
     const suggestionApi = yield* SuggestionApi
 
     return {
-      model: {
+      init: () => ({
         query: '',
         generation: 0,
         searchState: SearchState.Idle(),
         suggestions: [],
-      },
+      }),
 
       update: {
         UpdatedQuery: (model, { query }) =>

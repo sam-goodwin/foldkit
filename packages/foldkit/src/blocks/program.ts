@@ -33,12 +33,11 @@ import { blockRegistry, runtimeBlockOf } from './block.js'
 import {
   type BlockMessage,
   type RuntimeInstance,
-  constructSync,
+  constructRoot as constructRootInstance,
   disposeGraph,
   graphMessages,
   isInstance,
   makeGraph,
-  reconcile,
   renderRoot,
   restore,
   takeStarted,
@@ -173,8 +172,7 @@ const makeBlockProgram = (
         `[foldkit] Block program "${block.id}" started before its Layer was built.`,
       )
     }
-    const model = constructSync(graph, block, [], block.id, args, maybeContext)
-    reconcile(graph, model)
+    const model = constructRootInstance(graph, block, args, maybeContext)
     return { model, commands: takeStarted(graph) }
   }
 
@@ -214,7 +212,7 @@ const makeBlockProgram = (
           throw new Error('[foldkit] The preserved root is not a Block.')
         }
         const fresh = constructRoot(rootArgs(flags, currentUrl()))
-        return restore(graph, fresh.model, stand)
+        return restore(graph, fresh.model, stand.model)
       },
       catch: error =>
         new SchemaIssue.InvalidValue(

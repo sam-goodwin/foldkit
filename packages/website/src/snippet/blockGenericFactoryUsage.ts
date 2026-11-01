@@ -8,6 +8,8 @@ type Fruit = Readonly<{ name: string }>
 
 const FRUITS: ReadonlyArray<Fruit> = [{ name: 'Apple' }, { name: 'Pear' }]
 
+const toFruitLabel = (fruit: Fruit): string => fruit.name
+
 const FruitPicker = Picker.makeBlock<Fruit>()
 
 export class Order extends Block<Order>()('Order', {
@@ -17,28 +19,30 @@ export class Order extends Block<Order>()('Order', {
   }),
 }) {}
 
-export const OrderLive = Order.make(
-  Effect.fn(function* () {
-    const fruitPicker = yield* new FruitPicker('fruitPicker', {
-      items: FRUITS,
-      toLabel: fruit => fruit.name,
-    })
-
+export const OrderLive = Order.layer(
+  Effect.gen(function* () {
     return {
-      model: { fruitPicker, maybeFruitName: Option.none() },
+      init: () => ({
+        fruitPicker: new FruitPicker('fruitPicker'),
+        maybeFruitName: Option.none(),
+      }),
 
       update: {
-        ...fruitPicker.on({
+        ...FruitPicker.on({
           SelectedItem: (model, { index }) => ({
             model: modifyFields(model, {
               maybeFruitName: () =>
-                Option.map(Array.get(FRUITS, index), fruit => fruit.name),
+                Option.map(Array.get(FRUITS, index), toFruitLabel),
             }),
           }),
         }),
       },
 
-      view: (model, h) => h.div([], [model.fruitPicker.view()]),
+      view: (model, h) =>
+        h.div(
+          [],
+          [model.fruitPicker.view({ items: FRUITS, toLabel: toFruitLabel })],
+        ),
     }
   }),
 ).pipe(Layer.provide(FruitPicker.Live))

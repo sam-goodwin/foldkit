@@ -18,15 +18,15 @@ export class Toolbar extends Block<Toolbar>()('Toolbar', {
   Model: Schema.Struct({ menu: ActionMenu }),
 }) {}
 
-export const ToolbarLive = Toolbar.make(
-  Effect.fn(function* () {
-    const menu = yield* new ActionMenu('menu', {
-      id: 'actions',
-      isAnimated: true,
-    })
-
+export const ToolbarLive = Toolbar.layer(
+  Effect.gen(function* () {
     return {
-      model: { menu },
+      init: () => ({
+        menu: new ActionMenu('menu', {
+          id: 'actions',
+          isAnimated: true,
+        }),
+      }),
 
       // Use data-[closed] for enter and leave transitions
       view: (model, h) =>

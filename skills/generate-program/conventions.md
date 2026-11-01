@@ -10,7 +10,7 @@ Name a Block class for the feature it is (`Search`, `IssueBoard`, `Application`)
 
 A generic factory is called once at module scope and the result is named for its role: `const ResultListbox = Listbox.makeBlock<Result>()`, provided as `ResultListbox.Live`.
 
-Name a declared instance for what it is in the parent: `const search = yield* new Search('search', ...)`, `const column = yield* Column.each('columns', ...)`. The instance id matches the Model field it is stored in, or the collection name for `each`.
+Name a child instance for its role in the parent, and use that name for both the Model field and the id: `search: new Search('search', args)`. A collection item takes a stable domain id, such as `new Column(column.id, args)` stored in `columns`. Ids are unique among one parent's children.
 
 ### Messages
 
@@ -93,7 +93,7 @@ type Message = typeof Message.Type
 
 #### OutMessages
 
-A child Block's OutMessages are facts the parent may care about, named like Messages: `SubmittedQuery`, `RequestedRemove`, `SucceededLogin`, `Closed`. Declare them with `defineMessageUnion()` beside the child's Message union. Always name the variant in an `.on` handler record, even when the union has one variant.
+A child Block's OutMessages are facts the parent may care about, named like Messages: `SubmittedQuery`, `RequestedRemove`, `SucceededLogin`, `Closed`. Declare them with `defineMessageUnion()` beside the child's Message union. Always name the variant in a `Child.on` handler record, even when the union has one variant.
 
 ### Variables and Functions
 
@@ -247,7 +247,7 @@ The rule of thumb: **Effect `String` in pipes, native methods on named variables
 A Command handler under `commands` receives decoded args and returns an Effect of a declared Message. Keep the Effect as the subject and end with the error mapping:
 
 ```ts
-// application.ts, above ApplicationLive
+// application.ts, below ApplicationLive
 const fetchWeather =
   (client: HttpClient.HttpClient) =>
   ({ city }: Readonly<{ city: string }>) =>
@@ -264,13 +264,13 @@ const fetchWeather =
       ),
     )
 
-// in ApplicationLive's constructor
+// in ApplicationLive's Layer constructor
 const client = yield* HttpClient.HttpClient
 // ...
 commands: { FetchWeather: fetchWeather(client) },
 ```
 
-The Service is yielded once in the constructor and closed over. A small handler can stay inline under `commands`; a substantial one becomes a function in the Block's file, above the `Live` Layer, that takes the Services it needs and returns the handler, as `examples/weather/src/application.ts` (`fetchWeather(client)`) and `examples/websocket-chat/src/application.ts` (`sendMessage(chatSocket)`) do.
+The Service is yielded once in the Layer constructor and closed over. A small handler can stay inline under `commands`; a substantial one becomes a function in the Block's file, below the `Live` Layer, that takes the Services it needs and returns the handler, as `examples/weather/src/application.ts` (`fetchWeather(client)`) does. Per-instance values reach the handler as Command args, not through the closure.
 
 ### Effect.ignore only when there's an error channel
 
@@ -403,7 +403,7 @@ Use `Update.combineSteps` when a later Step should receive the Model an earlier 
 
 Declare each Schema's decoded type immediately below it, using the same name and no blank line: `const Foo = Schema.Struct(...)` followed by `type Foo = typeof Foo.Type`. Export both when they belong to the module's public surface. Prefer `Foo` in decoded-value annotations; use `typeof Foo` when an API needs the Schema type. Across a child boundary, derive aliases from the class, such as `type SearchMessage = typeof Search.Message.Type` or `type SearchModel = typeof Search.Model.Type`.
 
-Construct Schema values through their actual constructors, never casts. Foldkit union variants are callable. A complete `Schema.Struct` value built outside a Block constructor (a test fixture, a domain helper) uses `.make`. A constructor's returned `model` and an update handler's `model` stay plain records checked against the Model.
+Construct Schema values through their actual constructors, never casts. Foldkit union variants are callable. A complete `Schema.Struct` value built outside a Block's `init` (a test fixture, a domain helper) uses `.make`. The Model `init` returns and an update handler's `model` stay plain records checked against the Model.
 
 ```ts
 // WRONG: manual object with cast

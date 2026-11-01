@@ -30,26 +30,21 @@ export class DatePickerPage extends Block<
   Readonly<{ today: CalendarDate }>
 >()('DatePickerPage', { Model }) {}
 
-export const DatePickerPageLive = DatePickerPage.make(
-  Effect.fn(function* (_id, { today }) {
-    const datePickerBasicDemo = yield* new DatePicker.DatePicker(
-      'datePickerBasicDemo',
-      {
-        id: 'date-picker-basic-demo',
-        today,
-        minDate: FoldkitCalendar.subtractYears(today, 1),
-        maxDate: FoldkitCalendar.addYears(today, 1),
-      },
-    )
-
+export const DatePickerPageLive = DatePickerPage.layer(
+  Effect.gen(function* () {
     return {
-      model: {
-        datePickerBasicDemo,
+      init: ({ today }) => ({
+        datePickerBasicDemo: new DatePicker.DatePicker('datePickerBasicDemo', {
+          id: 'date-picker-basic-demo',
+          today,
+          minDate: FoldkitCalendar.subtractYears(today, 1),
+          maxDate: FoldkitCalendar.addYears(today, 1),
+        }),
         maybeDatePickerBasicDemoSelectedDate: Option.none(),
-      },
+      }),
 
       update: {
-        ...datePickerBasicDemo.on({
+        ...DatePicker.DatePicker.on({
           SelectedDate: (model, { date }) => ({
             model: modifyFields(model, {
               maybeDatePickerBasicDemoSelectedDate: () => Option.some(date),

@@ -14,12 +14,12 @@ export class Application extends Block<Application>()('Application', {
   Model: Schema.Struct({ greeting: Schema.String }),
 }) {}
 
-export const ApplicationLive = Application.make(
-  Effect.fn(function* () {
+export const ApplicationLive = Application.layer(
+  Effect.gen(function* () {
     const greeting = yield* Greeting
 
     return {
-      model: { greeting: greeting.text },
+      init: () => ({ greeting: greeting.text }),
       view: (model, h) => ({
         title: model.greeting,
         body: h.h1([], [model.greeting]),

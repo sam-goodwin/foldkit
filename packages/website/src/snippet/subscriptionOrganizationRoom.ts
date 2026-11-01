@@ -9,26 +9,28 @@ const Message = defineMessageUnion({
   InformedOfDialogChange: { isDialogOpen: Schema.Boolean },
 })
 
-export class Room extends Block<Room>()('Room', {
+export class Room extends Block<Room, Readonly<{ roomId: string }>>()('Room', {
   Model: Schema.Struct({
+    roomId: Schema.String,
     transcript: Schema.Array(Schema.String),
     isDialogOpen: Schema.Boolean,
   }),
   Message,
 }) {}
 
-const roomEvents = Stream.unwrap(
-  Effect.acquireRelease(
-    Effect.sync(() => new EventSource('/room/events')),
-    source => Effect.sync(() => source.close()),
-  ).pipe(
-    Effect.map(source =>
-      Stream.fromEventListener<MessageEvent<string>>(source, 'message').pipe(
-        Stream.map(({ data }) => Message.ReceivedRoomEvent({ text: data })),
+const roomEvents = (roomId: string) =>
+  Stream.unwrap(
+    Effect.acquireRelease(
+      Effect.sync(() => new EventSource(`/rooms/${roomId}/events`)),
+      source => Effect.sync(() => source.close()),
+    ).pipe(
+      Effect.map(source =>
+        Stream.fromEventListener<MessageEvent<string>>(source, 'message').pipe(
+          Stream.map(({ data }) => Message.ReceivedRoomEvent({ text: data })),
+        ),
       ),
     ),
-  ),
-)
+  )
 
 const keyPresses = (isDialogOpen: boolean) =>
   isDialogOpen
@@ -37,12 +39,10 @@ const keyPresses = (isDialogOpen: boolean) =>
         Stream.map(({ key }) => Message.PressedKey({ key })),
       )
 
-export const RoomLive = Room.make(
-  Effect.fn(function* () {
+export const RoomLive = Room.layer(
+  Effect.gen(function* () {
     return {
-      model: { transcript: [], isDialogOpen: false },
-
-      stream: roomEvents,
+      init: ({ roomId }) => ({ roomId, transcript: [], isDialogOpen: false }),
 
       update: {
         ReceivedRoomEvent: (model, { text }) => ({
@@ -61,6 +61,10 @@ export const RoomLive = Room.make(
       },
 
       subscriptions: {
+        roomEvents: {
+          dependencies: model => model.roomId,
+          stream: roomEvents,
+        },
         keyPresses: {
           dependencies: model => model.isDialogOpen,
           stream: keyPresses,

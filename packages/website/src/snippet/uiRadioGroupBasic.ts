@@ -27,18 +27,19 @@ export class PlanPicker extends Block<PlanPicker>()('PlanPicker', {
   }),
 }) {}
 
-export const PlanPickerLive = PlanPicker.make(
-  Effect.fn(function* () {
-    const planRadioGroup = yield* new PlanRadioGroup('planRadioGroup', {
-      id: 'plan',
-    })
-
+export const PlanPickerLive = PlanPicker.layer(
+  Effect.gen(function* () {
     return {
-      model: { planRadioGroup, maybePlan: Option.none() },
+      init: () => ({
+        planRadioGroup: new PlanRadioGroup('planRadioGroup', {
+          id: 'plan',
+        }),
+        maybePlan: Option.none(),
+      }),
 
       update: {
         // `Selected` carries the chosen value, typed as `Plan`, and its index
-        ...planRadioGroup.on({
+        ...PlanRadioGroup.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { maybePlan: () => Option.some(value) }),
           }),

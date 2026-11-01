@@ -28,17 +28,18 @@ export class ActivityFeed extends Block<ActivityFeed>()('ActivityFeed', {
   Message,
 }) {}
 
-export const ActivityFeedLive = ActivityFeed.make(
-  Effect.fn(function* () {
-    // Give the list a unique id and a row height in pixels. All rows share
-    // this height.
-    const activityList = yield* new ActivityList('activityList', {
-      id: 'activity-list',
-      rowHeightPx: 56,
-    })
-
+export const ActivityFeedLive = ActivityFeed.layer(
+  Effect.gen(function* () {
     return {
-      model: { activityList, activities: [] },
+      init: () => ({
+        // Give the list a unique id and a row height in pixels. All rows share
+        // this height.
+        activityList: new ActivityList('activityList', {
+          id: 'activity-list',
+          rowHeightPx: 56,
+        }),
+        activities: [],
+      }),
 
       update: {
         ClickedScrollActivityListToMiddle: model => ({

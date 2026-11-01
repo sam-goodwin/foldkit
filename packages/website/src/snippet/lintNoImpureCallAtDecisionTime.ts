@@ -28,12 +28,12 @@ class Editor extends Block<Editor>()('Editor', {
   Command: [SaveDraft, SaveDraftWithId],
 }) {}
 
-export const EditorLive = Editor.make(
-  Effect.fn(function* () {
+export const EditorLive = Editor.layer(
+  Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
 
     return {
-      model: { body: '' },
+      init: () => ({ body: '' }),
       update: {
         // ❌ Bad
         // update runs at decision time. Assigning the UUID first does not defer it.

@@ -1,8 +1,8 @@
 import {
   Context,
   Effect,
-  Effectable,
   Layer,
+  Option,
   Predicate,
   Schema,
   type Scope,
@@ -13,30 +13,26 @@ import type { Document, Html, HtmlBuilder } from '../html/index.js'
 import {
   type AnyHandlerDefinition,
   type BlockMessage,
-  BlockParent,
+  BlockTypeId,
   GateEntryTypeId,
-  type InstancePath,
+  type InitContext,
   InstanceTypeId,
-  type NotConnected,
   OnEntryTypeId,
-  type OnTarget,
   type RuntimeBlock,
-  type RuntimeConstructor,
+  type RuntimeImplementation,
   type RuntimeInstance,
+  type RuntimeModule,
   SendTypeId,
   blockMessage,
-  instanceGraph,
-  instancePath,
+  defineInstanceFields,
   isInstance,
-  makePending,
-  registerCollection,
+  makeModule,
   renderInstance,
-  use,
 } from './engine.js'
 import { instanceJsonLink } from './preservation.js'
 
-export type { BlockMessage, Path } from './engine.js'
-export { InstancePath, NotConnected, isBlockMessage } from './engine.js'
+export type { BlockMessage, InitContext, Path } from './engine.js'
+export { isBlockMessage } from './engine.js'
 
 // CONTRACT
 
@@ -149,14 +145,14 @@ type HandlerRecord<Definitions> = {
 /** @internal Types the OutMessage handler entries spread into an update record. */
 export const OnSlotTypeId: unique symbol = Symbol.for('foldkit/Block/OnSlot')
 
-/** A Message sent from a parent to one of its child instances. Return it under
+/** A Message sent from a parent to one of its children. Return it under
  *  `messages` from an update handler. */
 export interface Send {
   readonly [SendTypeId]: true
 }
 
-/** OutMessage handlers for one child instance or collection, spread into the
- *  parent's update record. It carries the Model, OutMessage, and Command
+/** OutMessage handlers or a Message gate for one child Block, spread into
+ *  the parent's update record. It carries the Model, OutMessage, and Command
  *  types its handlers return, so the parent's update record accepts it only
  *  when they are the parent's own. */
 export interface OnEntry<Model, OutMessage = never, Command = never> {
@@ -184,8 +180,8 @@ type UpdateHandlers<Model, Message, OutMessage, Command> = [Message] extends [
       }
     : never
 
-/** The update record a Block implementation returns: one handler per Message,
- *  plus the OutMessage handler entries of its children. */
+/** The update record a Block's Layer returns: one handler per Message, plus
+ *  the OutMessage handlers and gates of the Blocks its Model holds. */
 export type UpdateRecord<Model, Message, OutMessage, Command> = UpdateHandlers<
   Model,
   Message,
@@ -255,9 +251,11 @@ export type AllOutMessageHandlers<
 
 // IMPLEMENTATION
 
-type ModelSlot<Model> = [Model] extends [undefined]
-  ? { readonly model?: undefined }
-  : { readonly model: Model }
+type InitSlot<Model, Args> = [Model] extends [undefined]
+  ? {
+      readonly init?: (args: Args, context: InitContext) => undefined
+    }
+  : { readonly init: (args: Args, context: InitContext) => Model }
 
 type UpdateSlot<Model, Message, OutMessage, Command> = [Message] extends [never]
   ? { readonly update?: UpdateRecord<Model, Message, OutMessage, Command> }
@@ -269,9 +267,10 @@ type HandlersSlot<Key extends string, Definitions> = [Definitions] extends [
   ? { readonly [K in Key]?: undefined }
   : { readonly [K in Key]: HandlerRecord<Definitions> }
 
-/** A Stream that runs while its dependencies stay the same. The runtime
- *  recomputes the dependencies from the instance's Model after every update
- *  and restarts the Stream when they change. */
+/** A Stream that runs while its instance is in the Model and its
+ *  dependencies stay the same. The runtime recomputes the dependencies from
+ *  the instance's Model after every update and restarts the Stream when they
+ *  change. */
 export type Subscription<Model, Message> = Readonly<{
   dependencies: (model: Model) => unknown
   stream: (
@@ -283,10 +282,6 @@ export type Subscription<Model, Message> = Readonly<{
    *  `readDependencies`. */
   keepAliveEquivalence?: (previous: any, next: any) => boolean
 }>
-
-type ExposeSlot<Exposed> = [Exposed] extends [never]
-  ? { readonly expose?: undefined }
-  : { readonly expose: Exposed }
 
 type MountRequirementsOf<Definition> =
   InvocationOf<Definition> extends Readonly<{
@@ -308,16 +303,18 @@ type ViewFunction<Model, Message, ViewInput, MountRequirements> = [
       input: ViewInput,
     ) => Html | Document
 
-/** What a Block constructor returns: the starting Model, the Commands to run
- *  when the instance enters the Model (`start`), the update handlers, the
- *  view, Command and Mount handlers, a Stream of Messages that runs while the
- *  instance exists, Subscriptions that depend on its Model, and a value the
- *  instance exposes to its parent's Commands. */
+/** What a Block's Layer constructor returns. It is the Block's module,
+ *  shared by every instance: `init` turns an instance's args into its
+ *  starting Model, `start` lists the Commands to run when an instance
+ *  appears in the Model, from its Model and args, `update` handles its Messages and its children's
+ *  OutMessages, `commands` and `mounts` implement its Commands and Mounts,
+ *  `subscriptions` are Streams that depend on its Model, and `view` renders
+ *  it. */
 export type Implementation<
   C extends Contract,
+  Args = void,
   ViewInput = void,
-  Exposed = never,
-> = ModelSlot<ModelOf<C>> &
+> = InitSlot<ModelOf<C>, Args> &
   UpdateSlot<
     ModelOf<C>,
     MessageOf<C>,
@@ -326,133 +323,75 @@ export type Implementation<
   > &
   HandlersSlot<'commands', DefinitionsOf<C, 'Command'>> &
   HandlersSlot<'mounts', DefinitionsOf<C, 'Mount'>> &
-  ExposeSlot<Exposed> &
   Readonly<{
+    start?: (
+      model: ModelOf<C>,
+      args: Args,
+    ) => ReadonlyArray<CommandOf<DefinitionsOf<C, 'Command'>, MessageOf<C>>>
     view?: ViewFunction<
       ModelOf<C>,
       MessageOf<C>,
       ViewInput,
       MountRequirementsOf<DefinitionsOf<C, 'Mount'>>
     >
-    stream?: Stream.Stream<MessageOf<C>>
     subscriptions?: Readonly<
       Record<string, Subscription<ModelOf<C>, MessageOf<C>>>
     >
-    start?: ReadonlyArray<CommandOf<DefinitionsOf<C, 'Command'>, MessageOf<C>>>
   }>
 
 // INSTANCE
 
-/** The members of a Block instance. Create one with `new Block(id, args)` in
- *  a parent constructor and put it in the parent's Model. While it is in the
- *  Model it holds its current Model and renders itself. */
+/** The members of a Block instance. Create one with `new Block(id, args)` and
+ *  put it in a parent's Model. The value holds the instance's id and its
+ *  current Model; what runs for it, its Subscriptions and Commands, runs
+ *  while a Model holds it. */
 export interface InstanceMembers<
-  Self,
   C extends Contract,
   Args = void,
   ViewInput = void,
-  Exposed = never,
 > {
-  /** The instance id, unique within its parent. */
+  /** The instance id, unique among its parent's children. */
   readonly id: string
   /** The instance's current Model. */
   readonly model: ModelOf<C>
-  /** Renders the instance. Its Messages are routed back to it. Functions in
-   *  the input run as the parent, so the Messages they create are the
-   *  parent's. */
+  /** Renders the instance from its parent's view. Its Messages are routed
+   *  back to it. Functions in the input run as the parent, so the Messages
+   *  they create are the parent's. */
   view(...input: [ViewInput] extends [void] ? [] : [input: ViewInput]): Html
   /** Creates a Message for this instance. Return it under `messages` from a
    *  parent update handler. */
   send(message: MessageOf<C>): Send
-  /** Handles this instance's OutMessages in the parent. Spread the result
-   *  into the parent's update record. An OutMessage without a handler is
-   *  dropped. */
-  on<ParentModel, ParentOutMessage = never, ParentCommand = never>(
-    handlers: OutMessageHandlers<
-      NoInfer<ParentModel>,
-      OutMessageOf<C>,
-      Self,
-      NoInfer<ParentOutMessage>,
-      NoInfer<ParentCommand>
-    >,
-  ): OnEntry<ParentModel, ParentOutMessage, ParentCommand>
-  /** Handles every OutMessage of this instance in the parent. Like `on`,
-   *  but it requires a handler for each OutMessage tag, so adding an
-   *  OutMessage to the child is a type error until the parent handles it. */
-  onAll<ParentModel, ParentOutMessage = never, ParentCommand = never>(
-    handlers: AllOutMessageHandlers<
-      NoInfer<ParentModel>,
-      OutMessageOf<C>,
-      Self,
-      NoInfer<ParentOutMessage>,
-      NoInfer<ParentCommand>
-    >,
-  ): OnEntry<ParentModel, ParentOutMessage, ParentCommand>
-  /** Gates the Messages this instance receives. A Message from the
-   *  instance's view, Commands, Stream, or Subscriptions reaches its update
-   *  only when the predicate returns true for the parent's current Model and
-   *  the Message; otherwise it is dropped. Messages the parent sends with
-   *  `send` are not gated. Spread the result into the parent's update
-   *  record. */
-  when<ParentModel>(
-    predicate: (model: ParentModel, message: MessageOf<C>) => boolean,
-  ): OnEntry<ParentModel>
-  /** The value the instance exposes. Fails with `NotConnected` while the
-   *  instance is not in its parent's Model. */
-  readonly use: Effect.Effect<Exposed, NotConnected>
   /** @internal Carries the constructor args type. */
   readonly '~args'?: (args: Args) => Args
 }
 
-/** A factory returned by `yield* Block.each(...)`. Calling it with a key
- *  creates a new instance, constructed when it is put into the Model. Putting
- *  it in place of a live instance with the same key replaces that instance:
- *  its scope closes and the new one starts from its constructor's Model. To
- *  keep a row's state, keep its existing instance in the collection and call
- *  the factory only for new keys. */
-export interface Factory<
-  Self,
-  C extends Contract,
-  Args = void,
-  HasDefaultArgs extends boolean = true,
-> {
-  /** Creates the instance for `key`. Args given here override the factory's
-   *  args; a factory created without args requires them on every call. */
-  (
-    key: string,
-    ...args: [Args] extends [void]
-      ? []
-      : HasDefaultArgs extends true
-        ? [args?: Args]
-        : [args: Args]
-  ): Self
-  /** Handles OutMessages from every instance this factory creates. */
-  on<ParentModel, ParentOutMessage = never, ParentCommand = never>(
-    handlers: OutMessageHandlers<
-      NoInfer<ParentModel>,
-      OutMessageOf<C>,
-      Self,
-      NoInfer<ParentOutMessage>,
-      NoInfer<ParentCommand>
-    >,
-  ): OnEntry<ParentModel, ParentOutMessage, ParentCommand>
-  /** Handles every OutMessage of every instance this factory creates,
-   *  requiring a handler for each OutMessage tag. */
-  onAll<ParentModel, ParentOutMessage = never, ParentCommand = never>(
-    handlers: AllOutMessageHandlers<
-      NoInfer<ParentModel>,
-      OutMessageOf<C>,
-      Self,
-      NoInfer<ParentOutMessage>,
-      NoInfer<ParentCommand>
-    >,
-  ): OnEntry<ParentModel, ParentOutMessage, ParentCommand>
-  /** Gates the Messages every instance this factory creates receives. See
-   *  the instance's `when`. */
-  when<ParentModel>(
-    predicate: (model: ParentModel, message: MessageOf<C>) => boolean,
-  ): OnEntry<ParentModel>
-}
+type AnyInstance = Readonly<{ send: (message: never) => Send }>
+
+/** The Block instances a value holds, without descending into the
+ *  instances' own Models. */
+type InstancesIn<
+  T,
+  Depth extends ReadonlyArray<unknown> = [],
+> = Depth['length'] extends 6
+  ? never
+  : T extends AnyInstance
+    ? T
+    : T extends ReadonlyArray<infer Item>
+      ? InstancesIn<Item, [...Depth, unknown]>
+      : T extends Option.Option<infer Value>
+        ? InstancesIn<Value, [...Depth, unknown]>
+        : T extends Readonly<Record<string, unknown>>
+          ? {
+              [K in keyof T]-?: InstancesIn<
+                Exclude<T[K], undefined>,
+                [...Depth, unknown]
+              >
+            }[keyof T]
+          : never
+
+/** The child Blocks a Block's Layer requires: the Blocks its Model holds,
+ *  other than itself. */
+export type ChildBlocksOf<Self, Model> = Exclude<InstancesIn<Model>, Self>
 
 type ConstructorArgs<Args> = [Args] extends [void] ? [] : [args: Args]
 
@@ -463,13 +402,11 @@ export type BlockClass<
   Id extends string,
   Args,
   ViewInput,
-  Exposed,
   C extends Contract,
 > = (new (
   id: string,
   ...args: ConstructorArgs<Args>
-) => InstanceMembers<Self, C, Args, ViewInput, Exposed> &
-  Effect.Effect<Self, never, Self | BlockParent>) &
+) => InstanceMembers<C, Args, ViewInput>) &
   Omit<Schema.declare<Self>, 'make'> &
   Readonly<{
     /** The Block id. */
@@ -484,30 +421,52 @@ export type BlockClass<
     Command: C['Command']
     /** The Mounts this Block owns. */
     Mount: C['Mount']
-    /** Implements the Block. The constructor runs once per instance and
-     *  receives the instance id and args. Returns a Layer that provides the
-     *  Block to every parent that creates it. */
-    make: <E, R>(
-      constructor: (
-        id: string,
-        args: Args,
-      ) => Effect.Effect<Implementation<C, ViewInput, Exposed>, E, R>,
+    /** Implements the Block. The constructor runs once, when the program's
+     *  Layer is built: it yields the services the Block uses and returns
+     *  its module, which every instance shares. The returned Layer requires
+     *  the Layers of the Blocks its Model holds. */
+    layer: <E, R>(
+      constructor: Effect.Effect<Implementation<C, Args, ViewInput>, E, R>,
     ) => Layer.Layer<
       Self,
       E,
-      Exclude<R, BlockParent | InstancePath | Scope.Scope>
+      Exclude<R, Scope.Scope> | ChildBlocksOf<Self, ModelOf<C>>
     >
-    /** Creates a factory for a keyed collection of instances stored in the
-     *  parent Model. */
-    each: {
-      (
-        collection: string,
-        ...args: ConstructorArgs<Args>
-      ): Effect.Effect<Factory<Self, C, Args>, never, Self | BlockParent>
-      (
-        collection: string,
-      ): Effect.Effect<Factory<Self, C, Args, false>, never, Self | BlockParent>
-    }
+    /** Handles the OutMessages of every instance of this Block that the
+     *  parent's Model holds. Spread the result into the parent's update
+     *  record. An OutMessage without a handler is dropped. */
+    on: <ParentModel, ParentOutMessage = never, ParentCommand = never>(
+      handlers: OutMessageHandlers<
+        NoInfer<ParentModel>,
+        OutMessageOf<C>,
+        Self,
+        NoInfer<ParentOutMessage>,
+        NoInfer<ParentCommand>
+      >,
+    ) => OnEntry<ParentModel, ParentOutMessage, ParentCommand>
+    /** Like `on`, but it requires a handler for every OutMessage tag, so
+     *  adding an OutMessage to this Block is a type error in every parent
+     *  until the parent handles it. */
+    onAll: <ParentModel, ParentOutMessage = never, ParentCommand = never>(
+      handlers: AllOutMessageHandlers<
+        NoInfer<ParentModel>,
+        OutMessageOf<C>,
+        Self,
+        NoInfer<ParentOutMessage>,
+        NoInfer<ParentCommand>
+      >,
+    ) => OnEntry<ParentModel, ParentOutMessage, ParentCommand>
+    /** Gates the Messages every instance of this Block in the parent's
+     *  Model receives. A Message from an instance's view, Commands, or
+     *  Subscriptions reaches its update only when the predicate returns true
+     *  for the parent's current Model and the Message; otherwise it is
+     *  dropped. Messages the parent sends with `send` are not gated. */
+    when: <ParentModel>(
+      predicate: (
+        model: NoInfer<ParentModel>,
+        message: MessageOf<C>,
+      ) => boolean,
+    ) => OnEntry<ParentModel>
   }>
 
 const nonCopiedSchemaKeys: ReadonlySet<PropertyKey> = new Set([
@@ -564,57 +523,56 @@ export const runtimeBlockOf = (block: object): RuntimeBlock => {
   return runtimeBlock
 }
 
-const onEntry = (target: OnTarget, handlers: unknown): unknown => ({
+const onEntry = (block: RuntimeBlock, handlers: unknown): unknown => ({
   [Symbol('foldkit/Block/on')]: {
     [OnEntryTypeId]: true,
-    target,
+    block,
     handlers,
   },
 })
 
-const gateEntry = (target: OnTarget, predicate: unknown): unknown => ({
+const gateEntry = (block: RuntimeBlock, predicate: unknown): unknown => ({
   [Symbol('foldkit/Block/when')]: {
     [GateEntryTypeId]: true,
-    target,
+    block,
     predicate,
   },
 })
 
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
-const asRuntimeInstance = (instance: object): RuntimeInstance =>
-  instance as RuntimeInstance
-
 const asDefinitions = (
   definitions: ReadonlyArray<AnyDefinition> | undefined,
 ): ReadonlyArray<AnyHandlerDefinition> =>
   (definitions ?? []) as unknown as ReadonlyArray<AnyHandlerDefinition>
+
+const asRuntimeInstance = (instance: object): RuntimeInstance =>
+  instance as RuntimeInstance
 /* eslint-enable @typescript-eslint/consistent-type-assertions */
 
 /**
  * Declares a Block class. The class is the Block's contract: its Model,
- * Message, OutMessage, Command, and Mount lists. Implement it with `make`,
- * create instances with `new` inside a parent constructor, and connect them by
- * putting them in the parent's Model.
+ * Message, OutMessage, Command, and Mount lists. Implement it with `layer`,
+ * create instances with `new` anywhere, and connect them by putting them in
+ * a parent's Model.
  *
- * The type parameters are the class itself, its constructor args, the input
- * its view takes from a parent, and the value it exposes to the parent's
- * Commands.
+ * The type parameters are the class itself, its instances' args, and the
+ * input its view takes from a parent.
  *
  * ```ts
  * export class Counter extends Block<Counter, { readonly max: number }>()('Counter', {
- *   Model: Schema.Struct({ count: Schema.Number }),
+ *   Model: Schema.Struct({ count: Schema.Number, max: Schema.Number }),
  *   Message: defineMessageUnion({ ClickedIncrement: {} }),
  * }) {}
  * ```
  */
 export const Block =
-  <Self, Args = void, ViewInput = void, Exposed = never>() =>
+  <Self, Args = void, ViewInput = void>() =>
   <const Id extends string, const C extends Contract = {}>(
     id: Id,
     contract?: C,
-  ): BlockClass<Self, Id, Args, ViewInput, Exposed, C> => {
+  ): BlockClass<Self, Id, Args, ViewInput, C> => {
     blockCount += 1
-    const service = Context.Service<unknown, RuntimeConstructor>(
+    const service = Context.Service<unknown, RuntimeModule>(
       `foldkit/Block/${id}#${blockCount}`,
     )
 
@@ -626,35 +584,12 @@ export const Block =
       service,
     }
 
-    class Instance extends Effectable.Class<unknown, never, unknown> {
+    class Instance {
       declare readonly id: string
-      declare readonly args: unknown
+      declare readonly model: unknown
 
       constructor(instanceId: string, args?: unknown) {
-        super()
-        Object.defineProperty(this, 'id', {
-          value: instanceId,
-          enumerable: true,
-        })
-        Object.defineProperty(this, 'args', { value: args, enumerable: false })
-      }
-
-      asEffect(): Effect.Effect<unknown, never, unknown> {
-        const { id: instanceId, args } = this
-        return Effect.gen(function* () {
-          const parent = yield* BlockParent
-          const context = yield* Effect.context<never>()
-          return makePending(
-            {
-              graph: parent.graph,
-              block: runtimeBlock,
-              path: [...parent.path, instanceId],
-              args,
-              context,
-            },
-            instanceId,
-          )
-        })
+        defineInstanceFields(this, instanceId, args, Option.none())
       }
 
       view(input?: unknown): unknown {
@@ -662,42 +597,18 @@ export const Block =
       }
 
       send(message: unknown): unknown {
-        return {
-          [SendTypeId]: true,
-          target: instancePath(asRuntimeInstance(this)),
-          message,
-        }
+        return { [SendTypeId]: true, childId: this.id, message }
       }
 
-      on(handlers: unknown): unknown {
-        return onEntry(
-          { kind: 'Instance', path: instancePath(asRuntimeInstance(this)) },
-          handlers,
-        )
-      }
-
-      onAll(handlers: unknown): unknown {
-        return this.on(handlers)
-      }
-
-      when(predicate: unknown): unknown {
-        return gateEntry(
-          { kind: 'Instance', path: instancePath(asRuntimeInstance(this)) },
-          predicate,
-        )
-      }
-
-      get use(): Effect.Effect<unknown, NotConnected> {
-        const instance = asRuntimeInstance(this)
-        return use(instanceGraph(instance), instancePath(instance))
-      }
-
-      override toJSON(): unknown {
-        return { _tag: id, id: this.id, model: Reflect.get(this, 'model') }
+      toJSON(): unknown {
+        return { _tag: id, id: this.id, model: this.model }
       }
     }
 
     Object.defineProperty(Instance.prototype, InstanceTypeId, { value: true })
+    Object.defineProperty(Instance.prototype, BlockTypeId, {
+      value: runtimeBlock,
+    })
     Object.defineProperty(runtimeBlock, 'prototype', {
       value: Instance.prototype,
     })
@@ -723,48 +634,16 @@ export const Block =
       OutMessage: contract?.OutMessage,
       Command: contract?.Command,
       Mount: contract?.Mount,
-      make: (constructor: RuntimeConstructor) =>
+      layer: (
+        constructor: Effect.Effect<RuntimeImplementation, unknown, unknown>,
+      ) =>
         Layer.effect(
           service,
-          Effect.map(
-            Effect.context<never>(),
-            (captured): RuntimeConstructor =>
-              (instanceId, args) =>
-                Effect.updateContext(constructor(instanceId, args), context =>
-                  Context.merge(captured, context),
-                ),
-          ),
+          Effect.flatMap(constructor, impl => makeModule(runtimeBlock, impl)),
         ),
-      each: (collection: string, args?: unknown) =>
-        Effect.gen(function* () {
-          const parent = yield* BlockParent
-          const context = yield* Effect.context<never>()
-          const collectionPath = [...parent.path, collection]
-          registerCollection({
-            graph: parent.graph,
-            block: runtimeBlock,
-            path: collectionPath,
-            args,
-            context,
-          })
-          const factory = (key: string, ...keyArgs: ReadonlyArray<unknown>) =>
-            makePending(
-              {
-                graph: parent.graph,
-                block: runtimeBlock,
-                path: [...collectionPath, key],
-                args: keyArgs.length === 0 ? args : keyArgs[0],
-                context,
-              },
-              key,
-            )
-          factory.on = (handlers: unknown) =>
-            onEntry({ kind: 'Collection', path: collectionPath }, handlers)
-          factory.onAll = factory.on
-          factory.when = (predicate: unknown) =>
-            gateEntry({ kind: 'Collection', path: collectionPath }, predicate)
-          return factory
-        }),
+      on: (handlers: unknown) => onEntry(runtimeBlock, handlers),
+      onAll: (handlers: unknown) => onEntry(runtimeBlock, handlers),
+      when: (predicate: unknown) => gateEntry(runtimeBlock, predicate),
     }
 
     for (const [key, value] of Object.entries(statics)) {
@@ -776,14 +655,7 @@ export const Block =
     }
 
     /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-    return Instance as unknown as BlockClass<
-      Self,
-      Id,
-      Args,
-      ViewInput,
-      Exposed,
-      C
-    >
+    return Instance as unknown as BlockClass<Self, Id, Args, ViewInput, C>
   }
 
 /** Addresses a Message to a Block instance by its path from the root. Use it

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Animation coordinates CSS enter and leave phases with a state machine and data attributes. Create an `Animation.Animation` instance in the parent's constructor and hold it in the parent Model. The parent starts transitions by sending it `RequestedShow()`, `RequestedHide()`, or `RequestedToggle()`. Animation's own update records each lifecycle phase in its Model and returns the Commands that wait for paint and settlement. The transitions stay visible in DevTools and can be tested through update without waiting for a browser animation.
+Animation coordinates CSS enter and leave phases with a state machine and data attributes. Create an instance with `new Animation.Animation('animation', { id })` in the parent's `init` and hold it in the parent Model. The parent starts transitions by sending it `RequestedShow()`, `RequestedHide()`, or `RequestedToggle()`. Animation's own update records each lifecycle phase in its Model and returns the Commands that wait for paint and settlement. The transitions stay visible in DevTools and can be tested through update without waiting for a browser animation.
 
 Animation reports what happens through [OutMessages](/core/block#surfacing-facts). The parent handles `StartedLeaveAnimating` by sending `RequestedWaitForLeaveSettlement()` or by starting its own Command, and handles `TransitionedOut` when post-animation cleanup can begin. Dialog, Menu, Popover, Listbox, and Combobox use the same Block internally when `isAnimated` is true.
 
@@ -146,7 +146,7 @@ Pass these fields to the instance's `view`, as in `model.animation.view({ ... })
 
 ### OutMessage
 
-Facts the component reports to its parent. Handle them by spreading the instance's `.on({ ... })` into the parent's update record. Variants without a handler are ignored.
+Facts the component reports to its parent. Handle them by spreading `...Animation.Animation.on({ ... })` into the parent's update record. Each handler receives the reporting instance as its third argument. Variants without a handler are ignored.
 
 | Name                    | Type         | Default | Description                                                                                                                                                                                                                                                        |
 | ----------------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

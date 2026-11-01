@@ -17,10 +17,10 @@ export class Panel extends Block<Panel>()('Panel', {
   Mount: [MeasurePanel],
 }) {}
 
-export const PanelLive = Panel.make(
-  Effect.fn(function* () {
+export const PanelLive = Panel.layer(
+  Effect.gen(function* () {
     return {
-      model: { height: 0 },
+      init: () => ({ height: 0 }),
 
       update: {
         CompletedMeasurePanel: (model, { height }) => ({

@@ -7,7 +7,7 @@ import { expect, it } from '@effect/vitest'
 import { Message, Note, NotesLive, Save } from './notes'
 
 const toNote = (noteId: string, noteMessage: typeof Note.Message.Type) =>
-  Block.deliver(Note, ['notes', noteId], noteMessage)
+  Block.deliver(Note, noteId, noteMessage)
 
 it.effect('saves one note and deletes the other', () =>
   story(
@@ -15,7 +15,7 @@ it.effect('saves one note and deletes the other', () =>
     message(Message.ClickedAddNote()),
     message(Message.ClickedAddNote()),
 
-    // A Message for one child instance, addressed by collection and key.
+    // A Message for one child instance, addressed by its id.
     message(toNote('note-1', Note.Message.ClickedSave())),
     Command.expectExact(Save({ noteId: 'note-1' })),
 
