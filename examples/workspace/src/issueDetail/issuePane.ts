@@ -68,7 +68,7 @@ export const IssuePaneLive = IssuePane.make(
             informIssueChanged(model, issue),
           ),
         }),
-        ...issueDetail.on<Model>({
+        ...issueDetail.on({
           Saved: (model, { savedIssue }) => ({
             model,
             outMessage: OutMessage.Saved({ savedIssue }),

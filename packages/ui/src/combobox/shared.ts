@@ -771,7 +771,7 @@ export const makeUpdate = <Item extends string>(
 
   return {
     ...cases,
-    ...animation.on<Model>({
+    ...animation.on({
       StartedLeaveAnimating: (model, { generation }) => ({
         model,
         commands: [DetectMovementOrAnimationEnd({ id: model.id, generation })],

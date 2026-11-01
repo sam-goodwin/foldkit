@@ -399,7 +399,7 @@ Record these in the crib and keep them visible while generating:
 - **`messages` on `Command.define` and `Mount.define` is required and always an array**, even for one Message.
 - **A child's Model field Schema is the child class itself**, not `Child.Model`: `Schema.Struct({ search: Search })`.
 - **Every Block the graph creates needs its Live Layer provided** to the parent Layer that creates it. A missing Layer is a type error on `Program.make`'s `layer`, or on `story` / `scene` in tests.
-- **`.on(...)` entries are spread into the update record**: `...search.on({ SubmittedQuery: (model, { query }) => ... })`. When the parent Model type does not reach the handler, pass it explicitly: `...search.on<Model>({ ... })`.
+- **`.on(...)` entries are spread into the update record**: `...search.on({ SubmittedQuery: (model, { query }) => ... })`. The handlers take their types from the parent's update record, so they can return only the parent's own Model, Commands, and OutMessages.
 - **The root view returns a `Document` (`{ title, body }`) with `Program.make`.** Every other view, and the root of `Program.makeElement`, returns `Html`.
 - **`makeRules` takes `{ required?: Rule.RuleMessage, rules: Array<Rule.Rule> }` where `Rule.Rule = [Predicate, Rule.RuleMessage]`**, a tuple, NOT `{ test, message }`.
 - **`Field.Invalid` has `errors: NonEmptyArray<string>`, not `error: string`.** Use `Array.headNonEmpty(errors)` for the first message.

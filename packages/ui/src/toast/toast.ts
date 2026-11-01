@@ -238,7 +238,6 @@ export const makeBlock = <A, I>(
 ): Completed<A, I> => {
   const runtime = makeRuntime(payloadSchema)
   type Entry = typeof runtime.Entry.Type
-  type Model = typeof runtime.Model.Type
   type ToastMessage = typeof runtime.Message.Type
 
   const contract: Contract<A, I> = {
@@ -264,7 +263,7 @@ export const makeBlock = <A, I>(
 
         update: {
           ...runtime.makeUpdate(entryAnimation),
-          ...entryAnimation.on<Model>(runtime.entryAnimationHandlers),
+          ...entryAnimation.on(runtime.entryAnimationHandlers),
         },
 
         commands: commandHandlers,

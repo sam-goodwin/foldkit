@@ -31,7 +31,7 @@ export const MemberSwitcherLive = MemberSwitcher.make(
       model: { activeMemberId: 'maya', activeMemberListbox },
 
       update: {
-        ...activeMemberListbox.on<Model>({
+        ...activeMemberListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeMemberId: () => value }),
           }),

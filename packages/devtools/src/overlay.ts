@@ -914,12 +914,12 @@ const ApplicationLive = Application.make(
             ? modifyFields(model, { copyStates: HashMap.remove(targetId) })
             : model,
         }),
-        ...inspectorTabs.on<Model>({
+        ...inspectorTabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeInspectorTab: () => value }),
           }),
         }),
-        ...blockFilterListbox.on<Model>({
+        ...blockFilterListbox.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, {
               maybeBlockFilter: () =>
@@ -931,7 +931,7 @@ const ApplicationLive = Application.make(
         // and inspecting the corresponding state is expensive. Keep only the
         // latest host index until TickedScrubFrame flushes one navigation on
         // the next frame.
-        ...scrubberSlider.on<Model>({
+        ...scrubberSlider.on({
           ChangedValue: (model, { value }) => ({
             model: modifyFields(model, {
               scrubberValue: () => value,

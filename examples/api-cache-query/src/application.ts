@@ -66,7 +66,7 @@ export const ApplicationLive = Application.make(
             model.statsTab.send(StatsTab.Message.RequestedRevalidation()),
           ],
         }),
-        ...tabs.on<Model>({
+        ...tabs.on({
           Selected: (model, { value }) => ({
             model: modifyFields(model, { activeTab: () => value }),
             messages: [loadTab(model, value)],

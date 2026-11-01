@@ -92,7 +92,7 @@ export const ApplicationLive = Application.make(
 
         FailedCompute: model => ({ model }),
 
-        ...computeEngine.on<Model>({
+        ...computeEngine.on({
           Started: (model, { engineId }) => ({
             model: modifyFields(model, {
               engine: () => EngineState.Ready({ engineId }),

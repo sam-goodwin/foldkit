@@ -168,7 +168,7 @@ export const ApplicationLive = Application.make(
           }
         },
 
-        ...chatSocket.on<Model>({
+        ...chatSocket.on({
           Connected: model => ({
             model: modifyFields(model, {
               connection: () => ConnectionState.Connected(),

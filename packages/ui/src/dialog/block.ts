@@ -485,7 +485,7 @@ export const DialogLive = Dialog.make(
 
         CompletedReleaseDialogResources: model => ({ model }),
 
-        ...animation.on<Model>({
+        ...animation.on({
           StartedLeaveAnimating: model => ({
             model,
             messages: [

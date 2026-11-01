@@ -240,7 +240,7 @@ export const ApplicationLive = Application.make(
         SucceededSaveSession: model => ({ model }),
         SucceededClearSession: model => ({ model }),
 
-        ...loggedOut.on<Model>({
+        ...loggedOut.on({
           SucceededLogin: (_model, { session }) => ({
             model: LoggedInModel({
               route: ApplicationRoute.Dashboard(),

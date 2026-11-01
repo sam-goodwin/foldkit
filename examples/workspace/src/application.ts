@@ -274,7 +274,7 @@ export const ApplicationLive = Application.make(
         CompletedSimulateSaveFailure: showNoticeStep(
           'The next save will fail. Your draft will be kept so you can retry.',
         ),
-        ...teammateActivity.on<Model>({
+        ...teammateActivity.on({
           AddedComment: (model, { issueId, comment }) =>
             applyIssueCommentStep(issueId, comment)(model),
           AssignedIssue: (model, { savedIssue, actorId, createdAt }) => {
@@ -303,7 +303,7 @@ export const ApplicationLive = Application.make(
             ])
           },
         }),
-        ...createIssue.on<Model>({
+        ...createIssue.on({
           Created: (model, { issue }) =>
             openIssue(
               modifyFields(model, {
@@ -315,10 +315,10 @@ export const ApplicationLive = Application.make(
               issue.id,
             ),
         }),
-        ...notificationCenter.on<Model>({
+        ...notificationCenter.on({
           SelectedIssue: (model, { issueId }) => openIssue(model, issueId),
         }),
-        ...issuePane.on<Model>({
+        ...issuePane.on({
           Saved: (model, { savedIssue }) =>
             combineSteps(model, [
               applySavedIssueStep(savedIssue),
@@ -330,7 +330,7 @@ export const ApplicationLive = Application.make(
             applyIssueSnapshotStep(issue)(model),
           Closed: closeIssue,
         }),
-        ...issueList.on<Model>({
+        ...issueList.on({
           SavedFilter: (model, { name, filters }) => ({
             model: modifyFields(model, {
               savedViews: Array.append(
@@ -378,7 +378,7 @@ export const ApplicationLive = Application.make(
             ),
           RequestedCreation: requestCreation,
         }),
-        ...issueBoard.on<Model>({
+        ...issueBoard.on({
           RequestedCreation: (model, { status }, board) => ({
             model,
             messages: [
@@ -393,7 +393,7 @@ export const ApplicationLive = Application.make(
           RequestedMove: (model, { issueId, status, insertionIndex }) =>
             requestIssueMoveStep(issueId, status, insertionIndex)(model),
         }),
-        ...issueMove.on<Model>({
+        ...issueMove.on({
           Moved: (model, { movedIssue }) =>
             combineSteps(model, [
               applyMovedIssueStep(movedIssue),
@@ -410,14 +410,14 @@ export const ApplicationLive = Application.make(
           RequestedRetry: (model, { issueId, status, insertionIndex }) =>
             requestIssueMoveStep(issueId, status, insertionIndex)(model),
         }),
-        ...commandPalette.on<Model>({
+        ...commandPalette.on({
           SelectedIssue: (model, { issueId }) => openIssue(model, issueId),
           SelectedProject: (model, { projectId }) => ({
             model,
             commands: [NavigateInternal({ url: projectRouter({ projectId }) })],
           }),
         }),
-        ...projectSettings.on<Model>({
+        ...projectSettings.on({
           Saved: (model, { project }) =>
             updateWorkspaceStep(workspace =>
               modifyFields(workspace, {

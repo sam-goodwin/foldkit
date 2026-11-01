@@ -701,7 +701,7 @@ export const makeUpdate = <Value extends string>(
 
   return {
     ...handlers,
-    ...animation.on<Model>({
+    ...animation.on({
       StartedLeaveAnimating: (model, { generation }) => ({
         model,
         commands: [

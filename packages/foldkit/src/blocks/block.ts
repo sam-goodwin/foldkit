@@ -12,7 +12,6 @@ import {
 
 import type { Document, Html, HtmlBuilder } from '../html/index.js'
 import {
-  type AnyCommand,
   type AnyHandlerDefinition,
   type BlockMessage,
   BlockParent,
@@ -159,9 +158,11 @@ export interface Send {
 }
 
 /** OutMessage handlers for one child instance or collection, spread into the
- *  parent's update record. */
-export interface OnEntry<Model> {
-  readonly [OnSlotTypeId]: (model: Model) => Model
+ *  parent's update record. It carries the Model, OutMessage, and Command
+ *  types its handlers return, so the parent's update record accepts it only
+ *  when they are the parent's own. */
+export interface OnEntry<Model, OutMessage = never, Command = never> {
+  readonly [OnSlotTypeId]: (model: Model) => Result<Model, OutMessage, Command>
 }
 
 /** What an update handler returns. */
@@ -192,19 +193,32 @@ export type UpdateRecord<Model, Message, OutMessage, Command> = UpdateHandlers<
   Message,
   OutMessage,
   Command
-> & { readonly [OnSlotTypeId]?: (model: Model) => Model }
+> & {
+  readonly [OnSlotTypeId]?: (model: Model) => Result<Model, OutMessage, Command>
+}
 
-type OutMessageHandler<ParentModel, OutMessage, Tag, Instance> = (
+type OutMessageHandler<
+  ParentModel,
+  OutMessage,
+  Tag,
+  Instance,
+  ParentOutMessage,
+  ParentCommand,
+> = (
   model: ParentModel,
   outMessage: Extract<OutMessage, Readonly<{ _tag: Tag }>>,
   instance: Instance,
-) => Result<ParentModel, unknown, AnyCommand>
+) => Result<ParentModel, ParentOutMessage, ParentCommand>
 
 /** OutMessage handlers keyed by OutMessage tag. Each receives the parent
  *  Model, the OutMessage, and the child instance that reported it. */
-export type OutMessageHandlers<ParentModel, OutMessage, Instance> = [
+export type OutMessageHandlers<
+  ParentModel,
   OutMessage,
-] extends [never]
+  Instance,
+  ParentOutMessage = never,
+  ParentCommand = never,
+> = [OutMessage] extends [never]
   ? {}
   : [OutMessage] extends [Tagged]
     ? {
@@ -212,15 +226,21 @@ export type OutMessageHandlers<ParentModel, OutMessage, Instance> = [
           ParentModel,
           OutMessage,
           Tag,
-          Instance
+          Instance,
+          ParentOutMessage,
+          ParentCommand
         >
       }
     : never
 
 /** OutMessage handlers with one handler for every OutMessage tag. */
-export type AllOutMessageHandlers<ParentModel, OutMessage, Instance> = [
+export type AllOutMessageHandlers<
+  ParentModel,
   OutMessage,
-] extends [never]
+  Instance,
+  ParentOutMessage = never,
+  ParentCommand = never,
+> = [OutMessage] extends [never]
   ? {}
   : [OutMessage] extends [Tagged]
     ? {
@@ -228,7 +248,9 @@ export type AllOutMessageHandlers<ParentModel, OutMessage, Instance> = [
           ParentModel,
           OutMessage,
           Tag,
-          Instance
+          Instance,
+          ParentOutMessage,
+          ParentCommand
         >
       }
     : never
@@ -366,15 +388,27 @@ export interface InstanceMembers<
   /** Handles this instance's OutMessages in the parent. Spread the result
    *  into the parent's update record. An OutMessage without a handler is
    *  dropped. */
-  on<ParentModel>(
-    handlers: OutMessageHandlers<ParentModel, OutMessageOf<C>, Self>,
-  ): OnEntry<ParentModel>
+  on<ParentModel, ParentOutMessage = never, ParentCommand = never>(
+    handlers: OutMessageHandlers<
+      NoInfer<ParentModel>,
+      OutMessageOf<C>,
+      Self,
+      NoInfer<ParentOutMessage>,
+      NoInfer<ParentCommand>
+    >,
+  ): OnEntry<ParentModel, ParentOutMessage, ParentCommand>
   /** Handles every OutMessage of this instance in the parent. Like `on`,
    *  but it requires a handler for each OutMessage tag, so adding an
    *  OutMessage to the child is a type error until the parent handles it. */
-  onAll<ParentModel>(
-    handlers: AllOutMessageHandlers<ParentModel, OutMessageOf<C>, Self>,
-  ): OnEntry<ParentModel>
+  onAll<ParentModel, ParentOutMessage = never, ParentCommand = never>(
+    handlers: AllOutMessageHandlers<
+      NoInfer<ParentModel>,
+      OutMessageOf<C>,
+      Self,
+      NoInfer<ParentOutMessage>,
+      NoInfer<ParentCommand>
+    >,
+  ): OnEntry<ParentModel, ParentOutMessage, ParentCommand>
   /** Gates the Messages this instance receives. A Message from the
    *  instance's view, Commands, Stream, or Subscriptions reaches its update
    *  only when the predicate returns true for the parent's current Model and
@@ -414,14 +448,26 @@ export interface Factory<
         : [args: Args]
   ): Self
   /** Handles OutMessages from every instance this factory creates. */
-  on<ParentModel>(
-    handlers: OutMessageHandlers<ParentModel, OutMessageOf<C>, Self>,
-  ): OnEntry<ParentModel>
+  on<ParentModel, ParentOutMessage = never, ParentCommand = never>(
+    handlers: OutMessageHandlers<
+      NoInfer<ParentModel>,
+      OutMessageOf<C>,
+      Self,
+      NoInfer<ParentOutMessage>,
+      NoInfer<ParentCommand>
+    >,
+  ): OnEntry<ParentModel, ParentOutMessage, ParentCommand>
   /** Handles every OutMessage of every instance this factory creates,
    *  requiring a handler for each OutMessage tag. */
-  onAll<ParentModel>(
-    handlers: AllOutMessageHandlers<ParentModel, OutMessageOf<C>, Self>,
-  ): OnEntry<ParentModel>
+  onAll<ParentModel, ParentOutMessage = never, ParentCommand = never>(
+    handlers: AllOutMessageHandlers<
+      NoInfer<ParentModel>,
+      OutMessageOf<C>,
+      Self,
+      NoInfer<ParentOutMessage>,
+      NoInfer<ParentCommand>
+    >,
+  ): OnEntry<ParentModel, ParentOutMessage, ParentCommand>
   /** Gates the Messages every instance this factory creates receives. See
    *  the instance's `when`. */
   when<ParentModel>(

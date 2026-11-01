@@ -269,7 +269,7 @@ export const BrowseLive = Browse.make(
           ],
         }),
 
-        ...dietListbox.on<Model>({
+        ...dietListbox.on({
           Selected: (model, { value }) => ({
             model,
             commands: [
@@ -281,7 +281,7 @@ export const BrowseLive = Browse.make(
           }),
         }),
 
-        ...periodListbox.on<Model>({
+        ...periodListbox.on({
           Selected: (model, { value }) => ({
             model,
             commands: [

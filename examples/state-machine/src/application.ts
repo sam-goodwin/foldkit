@@ -107,7 +107,7 @@ export const ApplicationLive = Application.make(
         UpdatedPromoCode: handleMachineMessage,
         SubmittedPromoCode: handleMachineMessage,
         CompletedPlaceOrder: handleMachineMessage,
-        ...cartStep.on<Model>({
+        ...cartStep.on({
           RequestedCancel: stepMachine(Message.ClickedCancel()),
           RequestedContinue: stepMachine(Message.ClickedContinue()),
           SelectedEdition: (model, { isShippingRequired }) =>
