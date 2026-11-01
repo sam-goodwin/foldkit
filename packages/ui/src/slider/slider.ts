@@ -802,31 +802,27 @@ const implementSlider = (
   SliderClass: SliderBlockClass,
   getTrackRoot: () => Document | ShadowRoot,
 ): Layer.Layer<Slider> =>
-  SliderClass.layer(
-    Effect.gen(function* () {
-      return {
-        init: makeInitialModel,
-        update,
-        subscriptions: {
-          dragPointer: {
-            dependencies: (model: Model): DragPointerDependencies => ({
-              dragActivity: dragActivityFromModel(model),
-              id: model.id,
-              min: model.min,
-              max: model.max,
-            }),
-            stream: (dependencies: DragPointerDependencies) =>
-              dragPointerStream(getTrackRoot, dependencies),
-          },
-          dragEscape: {
-            dependencies: dragActivityFromModel,
-            stream: dragEscapeStream,
-          },
-        },
-        view: (model, h, viewInputs) => renderView(model, viewInputs, h),
-      }
-    }),
-  )
+  SliderClass.toLayer(() => ({
+    init: makeInitialModel,
+    update,
+    subscriptions: {
+      dragPointer: {
+        dependencies: (model: Model): DragPointerDependencies => ({
+          dragActivity: dragActivityFromModel(model),
+          id: model.id,
+          min: model.min,
+          max: model.max,
+        }),
+        stream: (dependencies: DragPointerDependencies) =>
+          dragPointerStream(getTrackRoot, dependencies),
+      },
+      dragEscape: {
+        dependencies: dragActivityFromModel,
+        stream: dragEscapeStream,
+      },
+    },
+    view: (model, h, viewInputs) => renderView(model, viewInputs, h),
+  }))
 
 /** The Slider Layer, with drag Subscriptions that look up the track via
  *  `document`. */

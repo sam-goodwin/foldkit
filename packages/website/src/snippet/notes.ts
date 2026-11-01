@@ -22,44 +22,40 @@ export class Note extends Block<Note>()('Note', {
   Command: [Save],
 }) {}
 
-export const NoteLive = Note.layer(
-  Effect.gen(function* () {
-    return {
-      init: (_, { id }) => ({ noteId: id, status: 'Draft' }),
+export const NoteLive = Note.toLayer(() => ({
+  init: (_, { id }) => ({ noteId: id, status: 'Draft' }),
 
-      update: {
-        ClickedSave: model => ({
-          model: modifyFields(model, { status: () => 'Saving' }),
-          commands: [Save({ noteId: model.noteId })],
-        }),
-        SucceededSave: model => ({
-          model: modifyFields(model, { status: () => 'Saved' }),
-        }),
-        FailedSave: (model, { reason }) => ({
-          model: modifyFields(model, { status: () => reason }),
-        }),
-        ClickedDelete: model => ({
-          model,
-          outMessage: Note.OutMessage.RequestedDelete(),
-        }),
-      },
+  update: {
+    ClickedSave: model => ({
+      model: modifyFields(model, { status: () => 'Saving' }),
+      commands: [Save({ noteId: model.noteId })],
+    }),
+    SucceededSave: model => ({
+      model: modifyFields(model, { status: () => 'Saved' }),
+    }),
+    FailedSave: (model, { reason }) => ({
+      model: modifyFields(model, { status: () => reason }),
+    }),
+    ClickedDelete: model => ({
+      model,
+      outMessage: Note.OutMessage.RequestedDelete(),
+    }),
+  },
 
-      commands: {
-        Save: () => Effect.succeed(Note.Message.SucceededSave()),
-      },
+  commands: {
+    Save: () => Effect.succeed(Note.Message.SucceededSave()),
+  },
 
-      view: (model, h) =>
-        h.section(
-          [h.AriaLabel(model.noteId)],
-          [
-            h.p([h.Role('status')], [model.status]),
-            h.button([h.OnClick(Note.Message.ClickedSave())], ['Save']),
-            h.button([h.OnClick(Note.Message.ClickedDelete())], ['Delete']),
-          ],
-        ),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.section(
+      [h.AriaLabel(model.noteId)],
+      [
+        h.p([h.Role('status')], [model.status]),
+        h.button([h.OnClick(Note.Message.ClickedSave())], ['Save']),
+        h.button([h.OnClick(Note.Message.ClickedDelete())], ['Delete']),
+      ],
+    ),
+}))
 
 export const Message = defineMessageUnion({ ClickedAddNote: {} })
 
@@ -71,37 +67,33 @@ export class Notes extends Block<Notes>()('Notes', {
   Message,
 }) {}
 
-export const NotesLive = Notes.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ notes: [], nextNoteNumber: 1 }),
+export const NotesLive = Notes.toLayer(() => ({
+  init: () => ({ notes: [], nextNoteNumber: 1 }),
 
-      update: {
-        ClickedAddNote: model => ({
-          model: modifyFields(model, {
-            notes: Array.append(new Note(`note-${model.nextNoteNumber}`)),
-            nextNoteNumber: Number.increment,
-          }),
+  update: {
+    ClickedAddNote: model => ({
+      model: modifyFields(model, {
+        notes: Array.append(new Note(`note-${model.nextNoteNumber}`)),
+        nextNoteNumber: Number.increment,
+      }),
+    }),
+    ...Note.on({
+      RequestedDelete: (model, _outMessage, deletedNote) => ({
+        model: modifyFields(model, {
+          notes: Array.filter(({ id }) => id !== deletedNote.id),
         }),
-        ...Note.on({
-          RequestedDelete: (model, _outMessage, deletedNote) => ({
-            model: modifyFields(model, {
-              notes: Array.filter(({ id }) => id !== deletedNote.id),
-            }),
-          }),
-        }),
-      },
+      }),
+    }),
+  },
 
-      view: (model, h) =>
-        h.main(
-          [],
-          [
-            h.button([h.OnClick(Message.ClickedAddNote())], ['Add note']),
-            ...Array.map(model.notes, note =>
-              h.keyed('div')(note.id, [], [note.view()]),
-            ),
-          ],
+  view: (model, h) =>
+    h.main(
+      [],
+      [
+        h.button([h.OnClick(Message.ClickedAddNote())], ['Add note']),
+        ...Array.map(model.notes, note =>
+          h.keyed('div')(note.id, [], [note.view()]),
         ),
-    }
-  }),
-).pipe(Layer.provide(NoteLive))
+      ],
+    ),
+})).pipe(Layer.provide(NoteLive))

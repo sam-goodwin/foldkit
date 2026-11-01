@@ -21,7 +21,10 @@ export const StatsQuery = Query.define({
   name: 'Stats',
   data: StatsData,
   error: Schema.String,
-  handler: function* () {
+})
+
+export const StatsQueryLive = StatsQuery.toLayer(
+  Effect.gen(function* () {
     const clock = yield* Clock.Clock
 
     return () =>
@@ -31,8 +34,8 @@ export const StatsQuery = Query.define({
 
         return { stats, fetchedAt }
       })
-  },
-})
+  }),
+)
 
 const Model = Schema.Struct({
   stats: StatsQuery,
@@ -52,106 +55,95 @@ export class StatsTab extends Block<StatsTab>()('StatsTab', {
   Message,
 }) {}
 
-export const StatsTabLive = StatsTab.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ stats: new StatsQuery('stats', {}) }),
+export const StatsTabLive = StatsTab.toLayer(() => ({
+  init: () => ({ stats: new StatsQuery('stats', {}) }),
 
-      update: {
-        RequestedLoadIfMissing: model => ({
-          model,
-          messages: [
-            model.stats.send(StatsQuery.Message.RequestedLoadIfMissing()),
-          ],
-        }),
-        RequestedRevalidation: model => ({
-          model,
-          messages: [
-            model.stats.send(StatsQuery.Message.RequestedRevalidation()),
-          ],
-        }),
-        ClickedRefreshStats: model => ({
-          model,
-          messages: [
-            model.stats.send(StatsQuery.Message.RequestedRevalidationOrLoad()),
-          ],
-        }),
-        ClickedRetryStats: model => ({
-          model,
-          messages: [
-            model.stats.send(StatsQuery.Message.RequestedRevalidationOrLoad()),
-          ],
-        }),
-      },
+  update: {
+    RequestedLoadIfMissing: model => ({
+      model,
+      messages: [model.stats.send(StatsQuery.Message.RequestedLoadIfMissing())],
+    }),
+    RequestedRevalidation: model => ({
+      model,
+      messages: [model.stats.send(StatsQuery.Message.RequestedRevalidation())],
+    }),
+    ClickedRefreshStats: model => ({
+      model,
+      messages: [
+        model.stats.send(StatsQuery.Message.RequestedRevalidationOrLoad()),
+      ],
+    }),
+    ClickedRetryStats: model => ({
+      model,
+      messages: [
+        model.stats.send(StatsQuery.Message.RequestedRevalidationOrLoad()),
+      ],
+    }),
+  },
 
-      view: (model, h) => {
-        const statsAsyncData = StatsQuery.read(model.stats.model)
-        const isPending = AsyncData.isPending(statsAsyncData)
+  view: (model, h) => {
+    const statsAsyncData = StatsQuery.read(model.stats.model)
+    const isPending = AsyncData.isPending(statsAsyncData)
 
-        return h.div(
-          [h.Class('flex flex-col gap-4')],
+    return h.div(
+      [h.Class('flex flex-col gap-4')],
+      [
+        h.div(
+          [h.Class('flex items-center justify-between')],
           [
+            h.h2([h.Class('text-xl font-bold text-slate-800')], ['Stats']),
+            Button.view(
+              {
+                onClick: Message.ClickedRefreshStats(),
+                isDisabled: isPending,
+                toView: attributes =>
+                  h.button(
+                    [...attributes.button, h.Class(toolbarButtonClassName)],
+                    [isPending ? 'Refreshing…' : 'Refresh'],
+                  ),
+              },
+              h,
+            ),
+          ],
+        ),
+        h.p(
+          [h.Class('text-sm text-slate-500')],
+          [
+            'Stats refetch every 5 seconds while this tab is open. The old numbers stay on screen while the new ones load.',
+          ],
+        ),
+        AsyncData.matchData(statsAsyncData, {
+          onEmpty: () => loadingPanel('Loading stats…', h),
+          onFailure: error =>
+            errorPanel({ error, retryMessage: Message.ClickedRetryStats() }, h),
+          onData: ({ stats, fetchedAt }) =>
             h.div(
-              [h.Class('flex items-center justify-between')],
+              [h.Class('flex flex-col gap-4')],
               [
-                h.h2([h.Class('text-xl font-bold text-slate-800')], ['Stats']),
-                Button.view(
+                ...Option.match(AsyncData.getError(statsAsyncData), {
+                  onNone: () => [],
+                  onSome: error => [
+                    errorPanel(
+                      { error, retryMessage: Message.ClickedRetryStats() },
+                      h,
+                    ),
+                  ],
+                }),
+                statsCards(
                   {
-                    onClick: Message.ClickedRefreshStats(),
-                    isDisabled: isPending,
-                    toView: attributes =>
-                      h.button(
-                        [...attributes.button, h.Class(toolbarButtonClassName)],
-                        [isPending ? 'Refreshing…' : 'Refresh'],
-                      ),
+                    stats,
+                    fetchedAt,
+                    isRefreshing: AsyncData.isRefreshing(statsAsyncData),
                   },
                   h,
                 ),
               ],
             ),
-            h.p(
-              [h.Class('text-sm text-slate-500')],
-              [
-                'Stats refetch every 5 seconds while this tab is open. The old numbers stay on screen while the new ones load.',
-              ],
-            ),
-            AsyncData.matchData(statsAsyncData, {
-              onEmpty: () => loadingPanel('Loading stats…', h),
-              onFailure: error =>
-                errorPanel(
-                  { error, retryMessage: Message.ClickedRetryStats() },
-                  h,
-                ),
-              onData: ({ stats, fetchedAt }) =>
-                h.div(
-                  [h.Class('flex flex-col gap-4')],
-                  [
-                    ...Option.match(AsyncData.getError(statsAsyncData), {
-                      onNone: () => [],
-                      onSome: error => [
-                        errorPanel(
-                          { error, retryMessage: Message.ClickedRetryStats() },
-                          h,
-                        ),
-                      ],
-                    }),
-                    statsCards(
-                      {
-                        stats,
-                        fetchedAt,
-                        isRefreshing: AsyncData.isRefreshing(statsAsyncData),
-                      },
-                      h,
-                    ),
-                  ],
-                ),
-            }),
-          ],
-        )
-      },
-    }
-  }),
-).pipe(Layer.provide(StatsQuery.Live))
+        }),
+      ],
+    )
+  },
+})).pipe(Layer.provide(StatsQueryLive))
 
 type StatsTabViewBuilder = HtmlBuilder<Message>
 

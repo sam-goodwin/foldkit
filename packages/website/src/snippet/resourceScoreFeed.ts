@@ -34,29 +34,22 @@ const scoreEvents = (matchId: string) =>
     ),
   )
 
-export const LiveScoreLive = LiveScore.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ matchId }) => ({ matchId, maybeScore: Option.none() }),
+export const LiveScoreLive = LiveScore.toLayer(() => ({
+  init: ({ matchId }) => ({ matchId, maybeScore: Option.none() }),
 
-      subscriptions: {
-        scoreEvents: {
-          dependencies: model => model.matchId,
-          stream: scoreEvents,
-        },
-      },
+  subscriptions: {
+    scoreEvents: {
+      dependencies: model => model.matchId,
+      stream: scoreEvents,
+    },
+  },
 
-      update: {
-        ReceivedScore: (model, { score }) => ({
-          model: modifyFields(model, { maybeScore: () => Option.some(score) }),
-        }),
-      },
+  update: {
+    ReceivedScore: (model, { score }) => ({
+      model: modifyFields(model, { maybeScore: () => Option.some(score) }),
+    }),
+  },
 
-      view: (model, h) =>
-        h.p(
-          [],
-          [Option.getOrElse(model.maybeScore, () => 'Waiting for kickoff')],
-        ),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.p([], [Option.getOrElse(model.maybeScore, () => 'Waiting for kickoff')]),
+}))

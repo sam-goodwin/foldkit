@@ -104,113 +104,109 @@ const elementSelector = (id: string): string => idSelector(id)
 
 /** Implements {@link Animation}. Results from an earlier transition generation
  *  leave the Model unchanged. */
-export const AnimationLive = Animation.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ id, isShowing = false }, { id: instanceId }) => ({
-        id: id ?? instanceId,
-        isShowing,
-        transitionState: 'Idle',
-        transitionGeneration: 0,
-      }),
+export const AnimationLive = Animation.toLayer(() => ({
+  init: ({ id, isShowing = false }, { id: instanceId }) => ({
+    id: id ?? instanceId,
+    isShowing,
+    transitionState: 'Idle',
+    transitionGeneration: 0,
+  }),
 
-      update: {
-        Showed: showTransition,
-        Hid: hideTransition,
-        RequestedShow: showTransition,
-        RequestedHide: hideTransition,
-        RequestedWaitForLeaveSettlement: waitForLeaveSettlement,
-        RequestedFinish: (model, { generation }) =>
-          finishTransition(model, generation),
-        RequestedToggle: toggleTransition,
-        RequestedResume: resumeTransition,
-        RequestedImmediateReset: resetImmediately,
-        CompletedWaitForPaint: (model, { generation }) =>
-          completeWaitForPaint(model, generation),
-        EndedAnimation: (model, { generation }) =>
-          finishTransition(model, generation),
-      },
+  update: {
+    Showed: showTransition,
+    Hid: hideTransition,
+    RequestedShow: showTransition,
+    RequestedHide: hideTransition,
+    RequestedWaitForLeaveSettlement: waitForLeaveSettlement,
+    RequestedFinish: (model, { generation }) =>
+      finishTransition(model, generation),
+    RequestedToggle: toggleTransition,
+    RequestedResume: resumeTransition,
+    RequestedImmediateReset: resetImmediately,
+    CompletedWaitForPaint: (model, { generation }) =>
+      completeWaitForPaint(model, generation),
+    EndedAnimation: (model, { generation }) =>
+      finishTransition(model, generation),
+  },
 
-      commands: {
-        WaitForPaint: ({ generation }) =>
-          Render.afterPaint.pipe(
-            Effect.as(Message.CompletedWaitForPaint({ generation })),
-          ),
-        WaitForAnimationSettled: ({ id: elementId, generation }) =>
-          Dom.waitForAnimationSettled(elementSelector(elementId)).pipe(
-            Effect.as(Message.EndedAnimation({ generation })),
-          ),
-      },
+  commands: {
+    WaitForPaint: ({ generation }) =>
+      Render.afterPaint.pipe(
+        Effect.as(Message.CompletedWaitForPaint({ generation })),
+      ),
+    WaitForAnimationSettled: ({ id: elementId, generation }) =>
+      Dom.waitForAnimationSettled(elementSelector(elementId)).pipe(
+        Effect.as(Message.EndedAnimation({ generation })),
+      ),
+  },
 
-      view: (model, h, viewInput) => {
-        const { transitionState } = model
-        const {
-          toView,
-          className,
-          attributes = [],
-          element = 'div',
-          animateSize = false,
-        } = viewInput
+  view: (model, h, viewInput) => {
+    const { transitionState } = model
+    const {
+      toView,
+      className,
+      attributes = [],
+      element = 'div',
+      animateSize = false,
+    } = viewInput
 
-        const isVisible = model.isShowing || isLeaving(transitionState)
-        const dataAttributes = transitionAttributes(h, transitionState)
+    const isVisible = model.isShowing || isLeaving(transitionState)
+    const dataAttributes = transitionAttributes(h, transitionState)
 
-        if (animateSize) {
-          const isClosed =
-            transitionState === 'EnterStart' ||
-            transitionState === 'LeaveAnimating' ||
-            !isVisible
+    if (animateSize) {
+      const isClosed =
+        transitionState === 'EnterStart' ||
+        transitionState === 'LeaveAnimating' ||
+        !isVisible
 
-          return h.div(
+      return h.div(
+        [
+          h.Style({
+            display: 'grid',
+            gridTemplateRows: isClosed ? '0fr' : '1fr',
+            transition: 'grid-template-rows 200ms ease-out',
+            overflow: 'hidden',
+          }),
+        ],
+        [
+          h.div(
             [
-              h.Style({
-                display: 'grid',
-                gridTemplateRows: isClosed ? '0fr' : '1fr',
-                transition: 'grid-template-rows 200ms ease-out',
-                overflow: 'hidden',
-              }),
+              h.Style({ minHeight: '0px', overflow: 'hidden' }),
+              ...(!isVisible ? [h.AriaHidden(true)] : []),
             ],
             [
-              h.div(
+              h.keyed(element)(
+                model.id,
                 [
-                  h.Style({ minHeight: '0px', overflow: 'hidden' }),
-                  ...(!isVisible ? [h.AriaHidden(true)] : []),
+                  h.Id(model.id),
+                  ...(isClosed && transitionState === 'Idle'
+                    ? [h.DataAttribute('closed', '')]
+                    : []),
+                  ...dataAttributes,
+                  ...(className ? [h.Class(className)] : []),
+                  ...attributes,
                 ],
-                [
-                  h.keyed(element)(
-                    model.id,
-                    [
-                      h.Id(model.id),
-                      ...(isClosed && transitionState === 'Idle'
-                        ? [h.DataAttribute('closed', '')]
-                        : []),
-                      ...dataAttributes,
-                      ...(className ? [h.Class(className)] : []),
-                      ...attributes,
-                    ],
-                    [toView()],
-                  ),
-                ],
+                [toView()],
               ),
             ],
-          )
-        }
-
-        if (!isVisible) {
-          return h.empty
-        }
-
-        return h.keyed(element)(
-          model.id,
-          [
-            h.Id(model.id),
-            ...dataAttributes,
-            ...(className ? [h.Class(className)] : []),
-            ...attributes,
-          ],
-          [toView()],
-        )
-      },
+          ),
+        ],
+      )
     }
-  }),
-)
+
+    if (!isVisible) {
+      return h.empty
+    }
+
+    return h.keyed(element)(
+      model.id,
+      [
+        h.Id(model.id),
+        ...dataAttributes,
+        ...(className ? [h.Class(className)] : []),
+        ...attributes,
+      ],
+      [toView()],
+    )
+  },
+}))

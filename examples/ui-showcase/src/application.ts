@@ -105,98 +105,92 @@ export class Application extends Block<
   Command: [NavigateInternal, LoadExternal],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags: { today }, url }) => ({
-        route: urlToApplicationRoute(url),
-        navigation: new Navigation('navigation'),
-        animationPage: new AnimationPage('animationPage'),
-        buttonPage: new ButtonPage('buttonPage'),
-        calendarPage: new CalendarPage('calendarPage', { today }),
-        checkboxPage: new CheckboxPage('checkboxPage'),
-        comboboxPage: new ComboboxPage('comboboxPage'),
-        datePickerPage: new DatePickerPage('datePickerPage', { today }),
-        dialogPage: new DialogPage('dialogPage'),
-        disclosurePage: new DisclosurePage('disclosurePage'),
-        dragAndDropPage: new DragAndDropPage('dragAndDropPage'),
-        fieldsetPage: new FieldsetPage('fieldsetPage'),
-        fileDropPage: new FileDropPage('fileDropPage'),
-        hoverIntentPage: new HoverIntentPage('hoverIntentPage'),
-        inputPage: new InputPage('inputPage'),
-        listboxPage: new ListboxPage('listboxPage'),
-        menuPage: new MenuPage('menuPage'),
-        popoverPage: new PopoverPage('popoverPage'),
-        radioGroupPage: new RadioGroupPage('radioGroupPage'),
-        selectPage: new SelectPage('selectPage'),
-        sliderPage: new SliderPage('sliderPage'),
-        switchPage: new SwitchPage('switchPage'),
-        tabsPage: new TabsPage('tabsPage'),
-        textareaPage: new TextareaPage('textareaPage'),
-        toastPage: new ToastPage('toastPage'),
-        tooltipPage: new TooltipPage('tooltipPage'),
-        virtualListPage: new VirtualListPage('virtualListPage'),
-      }),
-
-      update: {
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
-
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url }) => ({
-              model,
-              commands: [NavigateInternal({ url: urlToString(url) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
-
-        ChangedUrl: (model, { url }) => ({
-          model: modifyFields(model, {
-            route: () => urlToApplicationRoute(url),
-          }),
-          messages: [
-            model.navigation.send(
-              Navigation.Message.RequestedCloseMobileMenu(),
-            ),
-          ],
-        }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url }) =>
-          pushUrl(url).pipe(Effect.as(Message.CompletedNavigateInternal())),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-      },
-
-      view: (model, h) => ({
-        title: routeTitle(model.route),
-        body: h.div(
-          [h.Class('flex flex-col md:flex-row min-h-screen bg-white')],
-          [
-            model.navigation.view({ _tag: 'MobileHeader' }),
-            model.navigation.view({
-              _tag: 'MobileMenu',
-              currentRoute: model.route,
-            }),
-            model.navigation.view({
-              _tag: 'Sidebar',
-              currentRoute: model.route,
-            }),
-            h.main(
-              [h.Class('flex-1 p-4 md:p-8 overflow-auto')],
-              [contentView(model, h)],
-            ),
-          ],
-        ),
-      }),
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags: { today }, url }) => ({
+    route: urlToApplicationRoute(url),
+    navigation: new Navigation('navigation'),
+    animationPage: new AnimationPage('animationPage'),
+    buttonPage: new ButtonPage('buttonPage'),
+    calendarPage: new CalendarPage('calendarPage', { today }),
+    checkboxPage: new CheckboxPage('checkboxPage'),
+    comboboxPage: new ComboboxPage('comboboxPage'),
+    datePickerPage: new DatePickerPage('datePickerPage', { today }),
+    dialogPage: new DialogPage('dialogPage'),
+    disclosurePage: new DisclosurePage('disclosurePage'),
+    dragAndDropPage: new DragAndDropPage('dragAndDropPage'),
+    fieldsetPage: new FieldsetPage('fieldsetPage'),
+    fileDropPage: new FileDropPage('fileDropPage'),
+    hoverIntentPage: new HoverIntentPage('hoverIntentPage'),
+    inputPage: new InputPage('inputPage'),
+    listboxPage: new ListboxPage('listboxPage'),
+    menuPage: new MenuPage('menuPage'),
+    popoverPage: new PopoverPage('popoverPage'),
+    radioGroupPage: new RadioGroupPage('radioGroupPage'),
+    selectPage: new SelectPage('selectPage'),
+    sliderPage: new SliderPage('sliderPage'),
+    switchPage: new SwitchPage('switchPage'),
+    tabsPage: new TabsPage('tabsPage'),
+    textareaPage: new TextareaPage('textareaPage'),
+    toastPage: new ToastPage('toastPage'),
+    tooltipPage: new TooltipPage('tooltipPage'),
+    virtualListPage: new VirtualListPage('virtualListPage'),
   }),
-).pipe(
+
+  update: {
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url }) => ({
+          model,
+          commands: [NavigateInternal({ url: urlToString(url) })],
+        }),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
+      }),
+
+    ChangedUrl: (model, { url }) => ({
+      model: modifyFields(model, {
+        route: () => urlToApplicationRoute(url),
+      }),
+      messages: [
+        model.navigation.send(Navigation.Message.RequestedCloseMobileMenu()),
+      ],
+    }),
+  },
+
+  commands: {
+    NavigateInternal: ({ url }) =>
+      pushUrl(url).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
+
+  view: (model, h) => ({
+    title: routeTitle(model.route),
+    body: h.div(
+      [h.Class('flex flex-col md:flex-row min-h-screen bg-white')],
+      [
+        model.navigation.view({ _tag: 'MobileHeader' }),
+        model.navigation.view({
+          _tag: 'MobileMenu',
+          currentRoute: model.route,
+        }),
+        model.navigation.view({
+          _tag: 'Sidebar',
+          currentRoute: model.route,
+        }),
+        h.main(
+          [h.Class('flex-1 p-4 md:p-8 overflow-auto')],
+          [contentView(model, h)],
+        ),
+      ],
+    ),
+  }),
+})).pipe(
   Layer.provide(
     Layer.mergeAll(
       NavigationLive,

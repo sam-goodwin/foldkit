@@ -31,7 +31,10 @@ export const PostsQuery = Query.define({
   name: 'Posts',
   data: PostsData,
   error: Schema.String,
-  handler: function* () {
+})
+
+export const PostsQueryLive = PostsQuery.toLayer(
+  Effect.gen(function* () {
     const clock = yield* Clock.Clock
 
     return () =>
@@ -41,15 +44,18 @@ export const PostsQuery = Query.define({
 
         return { posts, fetchedAt }
       })
-  },
-})
+  }),
+)
 
 export const PostQuery = Query.define({
   name: 'Post',
   args: { postId: Schema.String },
   data: PostData,
   error: Schema.String,
-  handler: function* () {
+})
+
+export const PostQueryLive = PostQuery.toLayer(
+  Effect.gen(function* () {
     const clock = yield* Clock.Clock
 
     return ({ postId }) =>
@@ -59,8 +65,8 @@ export const PostQuery = Query.define({
 
         return { post, fetchedAt }
       })
-  },
-})
+  }),
+)
 
 const Model = Schema.Struct({
   posts: PostsQuery,
@@ -84,78 +90,69 @@ export class PostsTab extends Block<PostsTab>()('PostsTab', {
   Message,
 }) {}
 
-export const PostsTabLive = PostsTab.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        posts: new PostsQuery('posts', { isLoadingOnStart: true }),
-        postDetails: new PostQuery('postDetails', {}),
-        maybeSelectedPostId: Option.none(),
-      }),
-
-      update: {
-        RequestedLoadIfMissing: model => ({
-          model,
-          messages: [
-            model.posts.send(PostsQuery.Message.RequestedLoadIfMissing()),
-          ],
-        }),
-        ClickedPost: (model, { postId }) => ({
-          model: modifyFields(model, {
-            maybeSelectedPostId: () => Option.some(postId),
-          }),
-          messages: [
-            model.postDetails.send(
-              PostQuery.Message.RequestedLoadIfMissing({ args: { postId } }),
-            ),
-          ],
-        }),
-        ClickedBackToPosts: model => ({
-          model: modifyFields(model, {
-            maybeSelectedPostId: () => Option.none(),
-          }),
-        }),
-        ClickedRefreshPosts: model => ({
-          model,
-          messages: [
-            model.posts.send(PostsQuery.Message.RequestedRevalidationOrLoad()),
-          ],
-        }),
-        ClickedRetryPosts: model => ({
-          model,
-          messages: [
-            model.posts.send(PostsQuery.Message.RequestedRevalidationOrLoad()),
-          ],
-        }),
-        ClickedRetryPost: (model, { postId }) => ({
-          model,
-          messages: [
-            model.postDetails.send(
-              PostQuery.Message.RequestedRevalidationOrLoad({
-                args: { postId },
-              }),
-            ),
-          ],
-        }),
-      },
-
-      view: (model, h) =>
-        Option.match(model.maybeSelectedPostId, {
-          onNone: () =>
-            h.section(
-              [h.Class('flex flex-col gap-4')],
-              [postsListView(model, h)],
-            ),
-          onSome: postId =>
-            h.keyed('section')(
-              postId,
-              [h.Class('flex flex-col gap-4')],
-              [postDetailView({ model, postId }, h)],
-            ),
-        }),
-    }
+export const PostsTabLive = PostsTab.toLayer(() => ({
+  init: () => ({
+    posts: new PostsQuery('posts', { isLoadingOnStart: true }),
+    postDetails: new PostQuery('postDetails', {}),
+    maybeSelectedPostId: Option.none(),
   }),
-).pipe(Layer.provide(Layer.mergeAll(PostsQuery.Live, PostQuery.Live)))
+
+  update: {
+    RequestedLoadIfMissing: model => ({
+      model,
+      messages: [model.posts.send(PostsQuery.Message.RequestedLoadIfMissing())],
+    }),
+    ClickedPost: (model, { postId }) => ({
+      model: modifyFields(model, {
+        maybeSelectedPostId: () => Option.some(postId),
+      }),
+      messages: [
+        model.postDetails.send(
+          PostQuery.Message.RequestedLoadIfMissing({ args: { postId } }),
+        ),
+      ],
+    }),
+    ClickedBackToPosts: model => ({
+      model: modifyFields(model, {
+        maybeSelectedPostId: () => Option.none(),
+      }),
+    }),
+    ClickedRefreshPosts: model => ({
+      model,
+      messages: [
+        model.posts.send(PostsQuery.Message.RequestedRevalidationOrLoad()),
+      ],
+    }),
+    ClickedRetryPosts: model => ({
+      model,
+      messages: [
+        model.posts.send(PostsQuery.Message.RequestedRevalidationOrLoad()),
+      ],
+    }),
+    ClickedRetryPost: (model, { postId }) => ({
+      model,
+      messages: [
+        model.postDetails.send(
+          PostQuery.Message.RequestedRevalidationOrLoad({
+            args: { postId },
+          }),
+        ),
+      ],
+    }),
+  },
+
+  view: (model, h) =>
+    Option.match(model.maybeSelectedPostId, {
+      onNone: () =>
+        h.section([h.Class('flex flex-col gap-4')], [postsListView(model, h)]),
+      onSome: postId =>
+        h.keyed('section')(
+          postId,
+          [h.Class('flex flex-col gap-4')],
+          [postDetailView({ model, postId }, h)],
+        ),
+    }),
+})).pipe(Layer.provide(Layer.mergeAll(PostsQueryLive, PostQueryLive)))
 
 type PostsTabViewBuilder = HtmlBuilder<Message>
 

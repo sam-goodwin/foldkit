@@ -1,4 +1,4 @@
-import { Array, Effect, Number, Schema } from 'effect'
+import { Array, Number, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -27,82 +27,71 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        counters: Array.makeBy(
-          INITIAL_COUNTER_COUNT,
-          counterId => new Counter(`counter-${counterId}`),
-        ),
-        nextCounterId: INITIAL_COUNTER_COUNT,
-      }),
-
-      update: {
-        ClickedAddCounter: model => ({
-          model: modifyFields(model, {
-            counters: Array.append(
-              new Counter(`counter-${model.nextCounterId}`),
-            ),
-            nextCounterId: Number.increment,
-          }),
-        }),
-        ClickedRemoveCounter: (model, { id }) => ({
-          model: modifyFields(model, {
-            counters: Array.filter(
-              counterInstance => counterInstance.id !== id,
-            ),
-          }),
-        }),
-      },
-
-      view: (model, h) => ({
-        title: `Counters (${model.counters.length})`,
-        body: h.div(
-          [
-            h.Class(
-              'min-h-screen bg-white flex flex-col items-center py-12 px-6 gap-6',
-            ),
-          ],
-          [
-            h.h1(
-              [h.Class('text-2xl font-semibold text-gray-900')],
-              ['Counters'],
-            ),
-            h.p(
-              [h.Class('text-sm text-gray-500 max-w-md text-center')],
-              [
-                'Each instance is a Counter Block. The parent renders each instance and Foldkit routes its Messages to the matching instance.',
-              ],
-            ),
-            h.div(
-              [h.Class('flex flex-col gap-3 w-full max-w-md')],
-              Array.map(model.counters, counterInstance =>
-                counterInstanceView(counterInstance, h),
-              ),
-            ),
-            Button.view(
-              {
-                onClick: Message.ClickedAddCounter(),
-                toView: attributes =>
-                  h.button(
-                    [
-                      ...attributes.button,
-                      h.Class(
-                        'rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition cursor-pointer',
-                      ),
-                    ],
-                    ['+ Add Counter'],
-                  ),
-              },
-              h,
-            ),
-          ],
-        ),
-      }),
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    counters: Array.makeBy(
+      INITIAL_COUNTER_COUNT,
+      counterId => new Counter(`counter-${counterId}`),
+    ),
+    nextCounterId: INITIAL_COUNTER_COUNT,
   }),
-)
+
+  update: {
+    ClickedAddCounter: model => ({
+      model: modifyFields(model, {
+        counters: Array.append(new Counter(`counter-${model.nextCounterId}`)),
+        nextCounterId: Number.increment,
+      }),
+    }),
+    ClickedRemoveCounter: (model, { id }) => ({
+      model: modifyFields(model, {
+        counters: Array.filter(counterInstance => counterInstance.id !== id),
+      }),
+    }),
+  },
+
+  view: (model, h) => ({
+    title: `Counters (${model.counters.length})`,
+    body: h.div(
+      [
+        h.Class(
+          'min-h-screen bg-white flex flex-col items-center py-12 px-6 gap-6',
+        ),
+      ],
+      [
+        h.h1([h.Class('text-2xl font-semibold text-gray-900')], ['Counters']),
+        h.p(
+          [h.Class('text-sm text-gray-500 max-w-md text-center')],
+          [
+            'Each instance is a Counter Block. The parent renders each instance and Foldkit routes its Messages to the matching instance.',
+          ],
+        ),
+        h.div(
+          [h.Class('flex flex-col gap-3 w-full max-w-md')],
+          Array.map(model.counters, counterInstance =>
+            counterInstanceView(counterInstance, h),
+          ),
+        ),
+        Button.view(
+          {
+            onClick: Message.ClickedAddCounter(),
+            toView: attributes =>
+              h.button(
+                [
+                  ...attributes.button,
+                  h.Class(
+                    'rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition cursor-pointer',
+                  ),
+                ],
+                ['+ Add Counter'],
+              ),
+          },
+          h,
+        ),
+      ],
+    ),
+  }),
+}))
 
 const counterInstanceView = (counter: Counter, h: HtmlBuilder<Message>): Html =>
   h.keyed('div')(

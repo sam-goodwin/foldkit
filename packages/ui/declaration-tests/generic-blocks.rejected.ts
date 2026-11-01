@@ -45,7 +45,7 @@ class Orchard extends Block<Orchard>()('Orchard', {
 // @ts-expect-error Menu constructor args require the DOM id.
 export const missingIdMenu = new MenuPicker('missingId', {})
 
-export const OrchardLive = Orchard.layer(
+export const OrchardLive = Orchard.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({

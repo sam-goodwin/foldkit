@@ -13,7 +13,7 @@ export class Application extends Block<Application>()('Application', {
   Command: [LoadPreferences],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ isTicking: false }),

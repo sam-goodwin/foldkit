@@ -4,6 +4,7 @@ import { isBlockMessage } from './engine.js'
 export type {
   AllOutMessageHandlers,
   BlockClass,
+  BlockClassDeclaration,
   BlockMessage,
   ChildBlocksOf,
   Contract,
@@ -36,7 +37,7 @@ export { OnSlotTypeId } from './block.js'
  *   Message: defineMessageUnion({ ClickedIncrement: {} }),
  * }) {}
  *
- * export const CounterLive = Counter.layer(
+ * export const CounterLive = Counter.toLayer(
  *   Effect.gen(function* () {
  *     return {
  *       init: ({ max }) => ({ count: 0, max }),

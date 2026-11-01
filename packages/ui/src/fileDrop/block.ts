@@ -1,4 +1,4 @@
-import { Array, Effect, Schema } from 'effect'
+import { Array, Schema } from 'effect'
 import { Block } from 'foldkit'
 import * as File from 'foldkit/file'
 import { type ChildAttribute, type Html, childAttributes } from 'foldkit/html'
@@ -87,70 +87,61 @@ const dispatchDroppedFiles = (files: ReadonlyArray<File.File>) =>
 
 /** The FileDrop implementation. Provide it to every parent that creates a
  *  FileDrop instance. */
-export const FileDropLive = FileDrop.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ id }) => ({ id, isDragOver: false }),
+export const FileDropLive = FileDrop.toLayer(() => ({
+  init: ({ id }) => ({ id, isDragOver: false }),
 
-      update: {
-        EnteredDragZone: model => ({
-          model: modifyFields(model, { isDragOver: () => true }),
-        }),
-        LeftDragZone: model => ({
-          model: modifyFields(model, { isDragOver: () => false }),
-        }),
-        DroppedFiles: (model, { files }) => ({
-          model: modifyFields(model, { isDragOver: () => false }),
-          outMessage: OutMessage.ReceivedFiles({ files }),
-        }),
-        DroppedNonFiles: model => ({
-          model: modifyFields(model, { isDragOver: () => false }),
-          outMessage: OutMessage.RejectedNonFiles(),
-        }),
-      },
+  update: {
+    EnteredDragZone: model => ({
+      model: modifyFields(model, { isDragOver: () => true }),
+    }),
+    LeftDragZone: model => ({
+      model: modifyFields(model, { isDragOver: () => false }),
+    }),
+    DroppedFiles: (model, { files }) => ({
+      model: modifyFields(model, { isDragOver: () => false }),
+      outMessage: OutMessage.ReceivedFiles({ files }),
+    }),
+    DroppedNonFiles: model => ({
+      model: modifyFields(model, { isDragOver: () => false }),
+      outMessage: OutMessage.RejectedNonFiles(),
+    }),
+  },
 
-      view: (model, h, viewInputs) => {
-        const { isDragOver } = model
-        const {
-          toView,
-          accept,
-          multiple = false,
-          isDisabled = false,
-        } = viewInputs
+  view: (model, h, viewInputs) => {
+    const { isDragOver } = model
+    const { toView, accept, multiple = false, isDisabled = false } = viewInputs
 
-        const stateAttributes = [
-          ...(isDragOver ? [h.DataAttribute('drag-over', '')] : []),
-          ...(isDisabled ? [h.DataAttribute('disabled', '')] : []),
+    const stateAttributes = [
+      ...(isDragOver ? [h.DataAttribute('drag-over', '')] : []),
+      ...(isDisabled ? [h.DataAttribute('disabled', '')] : []),
+    ]
+
+    const rootAttributes = isDisabled
+      ? stateAttributes
+      : [
+          ...stateAttributes,
+          h.OnDragEnter(Message.EnteredDragZone()),
+          h.OnDragLeave(Message.LeftDragZone()),
+          h.AllowDrop(),
+          h.OnDropFiles(dispatchDroppedFiles),
         ]
 
-        const rootAttributes = isDisabled
-          ? stateAttributes
-          : [
-              ...stateAttributes,
-              h.OnDragEnter(Message.EnteredDragZone()),
-              h.OnDragLeave(Message.LeftDragZone()),
-              h.AllowDrop(),
-              h.OnDropFiles(dispatchDroppedFiles),
-            ]
+    const inputAttributes = [
+      h.Id(model.id),
+      h.Type('file'),
+      h.Class('sr-only'),
+      ...(multiple ? [h.Multiple(true)] : []),
+      ...(accept !== undefined && accept.length > 0
+        ? [h.Accept(accept.join(','))]
+        : []),
+      ...(isDisabled
+        ? [h.Disabled(true)]
+        : [h.OnFileChange(dispatchDroppedFiles)]),
+    ]
 
-        const inputAttributes = [
-          h.Id(model.id),
-          h.Type('file'),
-          h.Class('sr-only'),
-          ...(multiple ? [h.Multiple(true)] : []),
-          ...(accept !== undefined && accept.length > 0
-            ? [h.Accept(accept.join(','))]
-            : []),
-          ...(isDisabled
-            ? [h.Disabled(true)]
-            : [h.OnFileChange(dispatchDroppedFiles)]),
-        ]
-
-        return toView({
-          root: childAttributes(rootAttributes),
-          input: childAttributes(inputAttributes),
-        })
-      },
-    }
-  }),
-)
+    return toView({
+      root: childAttributes(rootAttributes),
+      input: childAttributes(inputAttributes),
+    })
+  },
+}))

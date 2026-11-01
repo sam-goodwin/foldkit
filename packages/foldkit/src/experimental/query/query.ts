@@ -16,6 +16,7 @@ import { Block } from '../../blocks/block.js'
 import type * as BlockTypes from '../../blocks/public.js'
 import * as Command from '../../command/index.js'
 import { __CurrentRegistry } from '../../command/interruptible/interruptible.js'
+import type { HandlerRequirements } from '../../definitionIdentity.js'
 import { defineMessageUnion } from '../../message/index.js'
 import { modifyFields } from '../../struct/index.js'
 import {
@@ -24,6 +25,7 @@ import {
   makeFetcher,
   makeFetcherLayer,
   runWhileHoldingKey,
+  withQueryStatics,
   withoutChildBlocks,
 } from './internal.js'
 import { cancelData, isFresh, resolveStaleTime } from './policy.js'
@@ -395,11 +397,9 @@ type QueryPolicy<Name extends string, A, AI, E, EI> = ReturnType<
   typeof makeQueryPolicy<Name, A, AI, E, EI>
 >
 
-type FetchBuild<A, E, R, BuildE, BuildR> = Effect.Effect<
-  () => Effect.Effect<A, E, R>,
-  BuildE,
-  BuildR
->
+type FetchBuild<A, E, R, BuildE, BuildR> =
+  | Effect.Effect<() => Effect.Effect<A, E, R>, BuildE, BuildR>
+  | (() => Effect.Effect<A, E, R>)
 
 type CompletedFetch<A, AI, E, EI> = QueryMessage<
   A,
@@ -514,15 +514,17 @@ export type QueryStatics<
   /** Runs the fetch function directly and returns settled AsyncData. Provide
    *  the Query's Layer to supply the fetch function. */
   run: Effect.Effect<AsyncData.AsyncData<A, E>, never, QueryFetcher<Name>>
-  /** Builds the Query's Layer from an Effect that constructs its fetch
-   *  function. The fetch function is constructed once when the Layer is
-   *  built and runs for every Fetch Command. */
+  /** Implements the Query. Pass an Effect that yields the services the fetch
+   *  function uses and returns it. The Effect runs once when the Layer is
+   *  built; the fetch function runs for every Fetch Command. The returned
+   *  Layer provides the Query Block and its fetcher, and requires only what
+   *  the Effect and the fetch function require. */
   toLayer: <R, BuildE = never, BuildR = never>(
     build: FetchBuild<A, E, R, BuildE, BuildR>,
   ) => Layer.Layer<
     Query<Name, A, AI, E, EI, Notify> | QueryFetcher<Name>,
     BuildE,
-    Exclude<R | BuildR, Scope.Scope>
+    Exclude<HandlerRequirements<R> | BuildR, Scope.Scope>
   >
 }>
 
@@ -539,7 +541,7 @@ export type QueryClass<
   E,
   EI,
   Notify extends boolean = false,
-> = BlockTypes.BlockClass<
+> = BlockTypes.BlockClassDeclaration<
   Query<Name, A, AI, E, EI, Notify>,
   Name,
   QueryArgs,
@@ -547,27 +549,6 @@ export type QueryClass<
   QueryContract<Name, A, AI, E, EI, Notify>
 > &
   QueryStatics<Name, A, AI, E, EI, Notify>
-
-/** A Query class whose definition included a `handler`, with its Layer
- *  attached as `Live`. */
-export type QueryWithLive<
-  Name extends string,
-  A,
-  AI,
-  E,
-  EI,
-  Notify extends boolean,
-  BuildE,
-  R,
-> = QueryClass<Name, A, AI, E, EI, Notify> &
-  Readonly<{
-    /** The Query's Layer, built from its `handler`. */
-    Live: Layer.Layer<
-      Query<Name, A, AI, E, EI, Notify> | QueryFetcher<Name>,
-      BuildE,
-      Exclude<R, Scope.Scope>
-    >
-  }>
 
 const makeImplementation = <Name extends string, A, AI, E, EI, Update>(
   policy: QueryPolicy<Name, A, AI, E, EI>,
@@ -604,20 +585,21 @@ const makePlainQuery = <Name extends string, A, AI, E, EI>(
     policy.name,
     contract,
   )
-  const toLayer = <R, BuildE = never, BuildR = never>(
+  const implementBlock = QueryBlock.toLayer
+  const layer = <R, BuildE = never, BuildR = never>(
     build: FetchBuild<A, E, R, BuildE, BuildR>,
   ) =>
     withoutChildBlocks<Query<Name, A, AI, E, EI, false>, QueryFetcher<Name>>(
-      QueryBlock.layer(makeImplementation(policy, policy.updateHandlers)),
+      implementBlock(makeImplementation(policy, policy.updateHandlers)),
     ).pipe(Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)))
 
-  return Object.assign(QueryBlock, {
+  return withQueryStatics(QueryBlock, {
     Fetch: policy.Fetch,
     CancelFetch: policy.CancelFetch,
     read: policy.read,
     isFresh: policy.isFresh,
     run: policy.run,
-    toLayer,
+    toLayer: layer,
   })
 }
 
@@ -634,40 +616,35 @@ const makeNotifyingQuery = <Name extends string, A, AI, E, EI>(
     policy.name,
     contract,
   )
-  const toLayer = <R, BuildE = never, BuildR = never>(
+  const implementBlock = QueryBlock.toLayer
+  const layer = <R, BuildE = never, BuildR = never>(
     build: FetchBuild<A, E, R, BuildE, BuildR>,
   ) =>
     withoutChildBlocks<Query<Name, A, AI, E, EI, true>, QueryFetcher<Name>>(
-      QueryBlock.layer(
+      implementBlock(
         makeImplementation(policy, policy.notifyingUpdateHandlers),
       ),
     ).pipe(Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)))
 
-  return Object.assign(QueryBlock, {
+  return withQueryStatics(QueryBlock, {
     Fetch: policy.Fetch,
     CancelFetch: policy.CancelFetch,
     read: policy.read,
     isFresh: policy.isFresh,
     run: policy.run,
-    toLayer,
+    toLayer: layer,
   })
 }
 
-/** @internal Defines an unkeyed Query class, attaching `Live` when a fetch
- *  constructor is given. */
+/** @internal Defines an unkeyed Query class. */
 export const defineQuery = <Name extends string, A, AI, E, EI>(
   config: QueryConfig<Name, A, AI, E, EI, boolean>,
-  build?: FetchBuild<A, E, never, never, never>,
 ): unknown => {
   const policy = makeQueryPolicy(config)
-  const query =
-    config.notifyOnCompletion === true
-      ? makeNotifyingQuery(policy)
-      : makePlainQuery(policy)
 
-  if (build === undefined) {
-    return query
+  if (config.notifyOnCompletion === true) {
+    return makeNotifyingQuery(policy)
   } else {
-    return Object.assign(query, { Live: query.toLayer(build) })
+    return makePlainQuery(policy)
   }
 }

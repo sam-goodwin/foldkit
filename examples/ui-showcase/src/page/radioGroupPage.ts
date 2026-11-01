@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -23,40 +23,35 @@ export class RadioGroupPage extends Block<RadioGroupPage>()('RadioGroupPage', {
   Model,
 }) {}
 
-export const RadioGroupPageLive = RadioGroupPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        verticalRadioGroupDemo: new PlanRadioGroup('verticalRadioGroupDemo', {
-          id: 'vertical-radio-group-demo',
-        }),
-        verticalRadioGroupDemoValue: Option.none(),
-        horizontalRadioGroupDemo: new PlanRadioGroup(
-          'horizontalRadioGroupDemo',
-          { id: 'horizontal-radio-group-demo' },
-        ),
-        horizontalRadioGroupDemoValue: Option.none(),
-      }),
-
-      update: {
-        ...PlanRadioGroup.on({
-          Selected: (model, { value }, { id }) => ({
-            model:
-              id === 'verticalRadioGroupDemo'
-                ? modifyFields(model, {
-                    verticalRadioGroupDemoValue: () => Option.some(value),
-                  })
-                : modifyFields(model, {
-                    horizontalRadioGroupDemoValue: () => Option.some(value),
-                  }),
-          }),
-        }),
-      },
-
-      view,
-    }
+export const RadioGroupPageLive = RadioGroupPage.toLayer(() => ({
+  init: () => ({
+    verticalRadioGroupDemo: new PlanRadioGroup('verticalRadioGroupDemo', {
+      id: 'vertical-radio-group-demo',
+    }),
+    verticalRadioGroupDemoValue: Option.none(),
+    horizontalRadioGroupDemo: new PlanRadioGroup('horizontalRadioGroupDemo', {
+      id: 'horizontal-radio-group-demo',
+    }),
+    horizontalRadioGroupDemoValue: Option.none(),
   }),
-).pipe(Layer.provide(PlanRadioGroup.Live))
+
+  update: {
+    ...PlanRadioGroup.on({
+      Selected: (model, { value }, { id }) => ({
+        model:
+          id === 'verticalRadioGroupDemo'
+            ? modifyFields(model, {
+                verticalRadioGroupDemoValue: () => Option.some(value),
+              })
+            : modifyFields(model, {
+                horizontalRadioGroupDemoValue: () => Option.some(value),
+              }),
+      }),
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(PlanRadioGroup.Live))
 
 const plans: ReadonlyArray<Plan> = ['Startup', 'Business', 'Enterprise']
 

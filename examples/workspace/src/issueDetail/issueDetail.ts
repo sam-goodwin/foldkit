@@ -139,7 +139,7 @@ export class IssueDetail extends Block<
 
 // LIVE
 
-export const IssueDetailLive = IssueDetail.layer(
+export const IssueDetailLive = IssueDetail.toLayer(
   Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 

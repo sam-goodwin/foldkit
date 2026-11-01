@@ -467,37 +467,33 @@ export const makeBlock = <
     /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
     contract.OutMessage.Selected({ value: value as Value, index })
 
-  const RadioGroupLive = RadioGroupClass.layer(
-    Effect.gen(function* () {
-      return {
-        init: config => ({ id: config.id, maybeFocusedIndex: Option.none() }),
-        update: {
-          SelectedOption: (model, { index, value }) => ({
-            model: modifyFields(model, {
-              maybeFocusedIndex: () => Option.none(),
-            }),
-            commands: [FocusOption({ id: model.id, index })],
-            outMessage: selected(value, index),
-          }),
-          FocusedOption: (model, { index }) => ({
-            model: modifyFields(model, {
-              maybeFocusedIndex: () => Option.some(index),
-            }),
-            commands: [FocusOption({ id: model.id, index })],
-          }),
-          CompletedFocusOption: model => ({ model }),
-        },
-        commands: {
-          FocusOption: ({ id, index }) =>
-            Dom.focus(idSelector(optionId(id, index))).pipe(
-              Effect.ignore,
-              Effect.as(Message.CompletedFocusOption()),
-            ),
-        },
-        view: (model, h, viewInputs) => renderView(model, viewInputs, h),
-      }
-    }),
-  )
+  const RadioGroupLive = RadioGroupClass.toLayer(() => ({
+    init: config => ({ id: config.id, maybeFocusedIndex: Option.none() }),
+    update: {
+      SelectedOption: (model, { index, value }) => ({
+        model: modifyFields(model, {
+          maybeFocusedIndex: () => Option.none(),
+        }),
+        commands: [FocusOption({ id: model.id, index })],
+        outMessage: selected(value, index),
+      }),
+      FocusedOption: (model, { index }) => ({
+        model: modifyFields(model, {
+          maybeFocusedIndex: () => Option.some(index),
+        }),
+        commands: [FocusOption({ id: model.id, index })],
+      }),
+      CompletedFocusOption: model => ({ model }),
+    },
+    commands: {
+      FocusOption: ({ id, index }) =>
+        Dom.focus(idSelector(optionId(id, index))).pipe(
+          Effect.ignore,
+          Effect.as(Message.CompletedFocusOption()),
+        ),
+    },
+    view: (model, h, viewInputs) => renderView(model, viewInputs, h),
+  }))
 
   return Object.assign(RadioGroupClass, { Live: RadioGroupLive })
 }

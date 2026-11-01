@@ -22,7 +22,7 @@ export class Application extends Block<
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     return {
       init: ({ flags }) => ({ count: flags.start }),

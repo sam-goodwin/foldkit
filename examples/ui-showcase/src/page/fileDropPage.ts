@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Match, Number, Schema } from 'effect'
+import { Array, Layer, Match, Number, Schema } from 'effect'
 import { Block, File } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -23,37 +23,33 @@ export class FileDropPage extends Block<FileDropPage>()('FileDropPage', {
   Message,
 }) {}
 
-export const FileDropPageLive = FileDropPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        fileDropBasicDemo: new FileDrop.FileDrop('fileDropBasicDemo', {
-          id: 'file-drop-basic-demo',
-        }),
-        fileDropBasicDemoFiles: [],
-      }),
-
-      update: {
-        ClickedRemoveFileDropDemoFile: (model, { fileIndex }) => ({
-          model: modifyFields(model, {
-            fileDropBasicDemoFiles: Array.remove(fileIndex),
-          }),
-        }),
-
-        ...FileDrop.FileDrop.on({
-          ReceivedFiles: (model, { files }) => ({
-            model: modifyFields(model, {
-              fileDropBasicDemoFiles: Array.appendAll(files),
-            }),
-          }),
-          RejectedNonFiles: model => ({ model }),
-        }),
-      },
-
-      view,
-    }
+export const FileDropPageLive = FileDropPage.toLayer(() => ({
+  init: () => ({
+    fileDropBasicDemo: new FileDrop.FileDrop('fileDropBasicDemo', {
+      id: 'file-drop-basic-demo',
+    }),
+    fileDropBasicDemoFiles: [],
   }),
-).pipe(Layer.provide(FileDrop.FileDropLive))
+
+  update: {
+    ClickedRemoveFileDropDemoFile: (model, { fileIndex }) => ({
+      model: modifyFields(model, {
+        fileDropBasicDemoFiles: Array.remove(fileIndex),
+      }),
+    }),
+
+    ...FileDrop.FileDrop.on({
+      ReceivedFiles: (model, { files }) => ({
+        model: modifyFields(model, {
+          fileDropBasicDemoFiles: Array.appendAll(files),
+        }),
+      }),
+      RejectedNonFiles: model => ({ model }),
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(FileDrop.FileDropLive))
 
 const dropZoneClassName =
   'flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center hover:border-accent-400 select-none data-[drag-over]:border-accent-500 data-[drag-over]:bg-accent-50'

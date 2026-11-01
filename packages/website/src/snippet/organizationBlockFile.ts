@@ -80,7 +80,7 @@ const view = (model: Model, h: SearchViewBuilder): Html =>
     ],
   )
 
-export const SearchLive = Search.layer(
+export const SearchLive = Search.toLayer(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 

@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -17,52 +17,42 @@ class PopoverSiblingRuntimeTest extends Block<PopoverSiblingRuntimeTest>()(
   },
 ) {}
 
-const PopoverSiblingRuntimeTestLive = PopoverSiblingRuntimeTest.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        popover: new Popover('popover', { id: popoverId }),
-        isBadgeShown: false,
-      }),
-      update: {
-        ClickedToggleBadge: model => ({
-          model: modifyFields(model, { isBadgeShown: isShown => !isShown }),
-        }),
-      },
-      view: (model, h) =>
-        h.main(
-          [],
-          [
-            h.button(
-              [
-                h.Id('toggle-badge'),
-                h.OnClick(
-                  PopoverSiblingRuntimeTest.Message.ClickedToggleBadge(),
-                ),
-              ],
-              ['Toggle badge'],
-            ),
-            model.popover.view({
-              anchor: { placement: 'bottom-start' },
-              toView: ({ button, panel, isVisible }) =>
-                h.div(
-                  [h.Id('wrapper')],
-                  [
-                    h.button([...button], ['Open']),
-                    ...(model.isBadgeShown
-                      ? [h.span([h.Id('badge')], ['!'])]
-                      : []),
-                    ...(isVisible
-                      ? [h.div([...panel], ['Panel content'])]
-                      : []),
-                  ],
-                ),
-            }),
-          ],
-        ),
-    }
+const PopoverSiblingRuntimeTestLive = PopoverSiblingRuntimeTest.toLayer(() => ({
+  init: () => ({
+    popover: new Popover('popover', { id: popoverId }),
+    isBadgeShown: false,
   }),
-).pipe(Layer.provide(PopoverLive))
+  update: {
+    ClickedToggleBadge: model => ({
+      model: modifyFields(model, { isBadgeShown: isShown => !isShown }),
+    }),
+  },
+  view: (model, h) =>
+    h.main(
+      [],
+      [
+        h.button(
+          [
+            h.Id('toggle-badge'),
+            h.OnClick(PopoverSiblingRuntimeTest.Message.ClickedToggleBadge()),
+          ],
+          ['Toggle badge'],
+        ),
+        model.popover.view({
+          anchor: { placement: 'bottom-start' },
+          toView: ({ button, panel, isVisible }) =>
+            h.div(
+              [h.Id('wrapper')],
+              [
+                h.button([...button], ['Open']),
+                ...(model.isBadgeShown ? [h.span([h.Id('badge')], ['!'])] : []),
+                ...(isVisible ? [h.div([...panel], ['Panel content'])] : []),
+              ],
+            ),
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(PopoverLive))
 
 describe('Popover with a portaled panel', () => {
   afterEach(() => {

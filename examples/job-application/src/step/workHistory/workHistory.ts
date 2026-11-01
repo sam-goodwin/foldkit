@@ -54,7 +54,7 @@ export class WorkHistory extends Block<WorkHistory, WorkHistoryArgs>()(
   },
 ) {}
 
-export const WorkHistoryLive = WorkHistory.layer(
+export const WorkHistoryLive = WorkHistory.toLayer(
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
 

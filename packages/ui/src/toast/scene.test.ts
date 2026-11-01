@@ -1,4 +1,4 @@
-import { Array, Duration, Effect, Layer, Option, Schema } from 'effect'
+import { Array, Duration, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Resolved } from 'foldkit/block'
 import { inertHtml as ih } from 'foldkit/html'
@@ -87,57 +87,50 @@ class ToastScene extends Block<ToastScene>()('ToastScene', {
 }) {}
 
 const makeToastSceneLive = ({ seed, entryView, ariaLabel }: ToastSceneArgs) =>
-  ToastScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ toast: new Toast('toast', { id: 'test' }) }),
-        update: {
-          ClickedSeed: model => ({
-            model,
-            messages: Array.map(seed, entry =>
-              model.toast.send(Toast.Message.Added({ entry })),
-            ),
-          }),
-        },
-        view: (model, h) =>
-          h.div(
-            [],
-            [
-              h.button(
-                [
-                  h.Id('toast-seed'),
-                  h.OnClick(ToastScene.Message.ClickedSeed()),
-                ],
-                ['Seed'],
-              ),
-              model.toast.view({
-                position: 'BottomRight',
-                ...(ariaLabel === undefined ? {} : { ariaLabel }),
-                entryToView: (entry, handlers) => {
-                  if (entryView === 'DismissButton') {
-                    return h.button(handlers.dismiss, ['Dismiss'])
-                  } else if (entryView === 'SwipeTargets') {
-                    return ih.div(
-                      [],
-                      [
-                        ih.button([ih.AriaLabel('Close')], ['Close']),
-                        ih.span(
-                          [ih.DataAttribute('toast-swipe-ignore', '')],
-                          ['Selectable'],
-                        ),
-                        ih.div([ih.DataAttribute('swipe-area', '')], ['Drag']),
-                      ],
-                    )
-                  } else {
-                    return ih.div([], [ih.span([], [entry.payload.body])])
-                  }
-                },
-              }),
-            ],
+  ToastScene.toLayer(() => ({
+    init: () => ({ toast: new Toast('toast', { id: 'test' }) }),
+    update: {
+      ClickedSeed: model => ({
+        model,
+        messages: Array.map(seed, entry =>
+          model.toast.send(Toast.Message.Added({ entry })),
+        ),
+      }),
+    },
+    view: (model, h) =>
+      h.div(
+        [],
+        [
+          h.button(
+            [h.Id('toast-seed'), h.OnClick(ToastScene.Message.ClickedSeed())],
+            ['Seed'],
           ),
-      }
-    }),
-  ).pipe(Layer.provide(Toast.Live))
+          model.toast.view({
+            position: 'BottomRight',
+            ...(ariaLabel === undefined ? {} : { ariaLabel }),
+            entryToView: (entry, handlers) => {
+              if (entryView === 'DismissButton') {
+                return h.button(handlers.dismiss, ['Dismiss'])
+              } else if (entryView === 'SwipeTargets') {
+                return ih.div(
+                  [],
+                  [
+                    ih.button([ih.AriaLabel('Close')], ['Close']),
+                    ih.span(
+                      [ih.DataAttribute('toast-swipe-ignore', '')],
+                      ['Selectable'],
+                    ),
+                    ih.div([ih.DataAttribute('swipe-area', '')], ['Drag']),
+                  ],
+                )
+              } else {
+                return ih.div([], [ih.span([], [entry.payload.body])])
+              }
+            },
+          }),
+        ],
+      ),
+  })).pipe(Layer.provide(Toast.Live))
 
 const discardSeedCommands = <SimulationModel, SimulationMessage, OutMessage>(
   simulation: Scene.SceneSimulation<

@@ -1,9 +1,9 @@
-import { Effect, Layer, Option, Result, Schema } from 'effect'
+import { Layer, Option, Result, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-import { PostQuery } from './queryKeyedDefine'
+import { PostQuery, PostQueryLive } from './queryKeyedDefine'
 
 const Message = defineMessageUnion({
   ClickedPost: { postId: Schema.String },
@@ -17,40 +17,36 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        postDetails: new PostQuery('postDetails', {}),
-        maybeNotice: Option.none(),
-      }),
-      update: {
-        ClickedPost: (model, { postId }) => ({
-          model,
-          messages: [
-            model.postDetails.send(
-              PostQuery.Message.RequestedLoadIfMissing({ args: { postId } }),
-            ),
-          ],
-        }),
-        // Runs only for completions the KeyedQuery accepted.
-        ...PostQuery.on({
-          CompletedFetch: (model, { args, result }) => {
-            if (Result.isFailure(result)) {
-              return {
-                model: modifyFields(model, {
-                  maybeNotice: () =>
-                    Option.some(
-                      `Could not load post ${args.postId}: ${result.failure}`,
-                    ),
-                }),
-              }
-            } else {
-              return { model }
-            }
-          },
-        }),
-      },
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    postDetails: new PostQuery('postDetails', {}),
+    maybeNotice: Option.none(),
   }),
-).pipe(Layer.provide(PostQuery.Live))
+  update: {
+    ClickedPost: (model, { postId }) => ({
+      model,
+      messages: [
+        model.postDetails.send(
+          PostQuery.Message.RequestedLoadIfMissing({ args: { postId } }),
+        ),
+      ],
+    }),
+    // Runs only for completions the KeyedQuery accepted.
+    ...PostQuery.on({
+      CompletedFetch: (model, { args, result }) => {
+        if (Result.isFailure(result)) {
+          return {
+            model: modifyFields(model, {
+              maybeNotice: () =>
+                Option.some(
+                  `Could not load post ${args.postId}: ${result.failure}`,
+                ),
+            }),
+          }
+        } else {
+          return { model }
+        }
+      },
+    }),
+  },
+})).pipe(Layer.provide(PostQueryLive))

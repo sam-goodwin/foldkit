@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 
 import { Settings } from './blockSettingsContract'
@@ -11,17 +11,13 @@ export class Application extends Block<
   Model: Schema.Struct({ settings: Settings }),
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({
-        settings: new Settings('settings', { initialTheme: flags.savedTheme }),
-      }),
-
-      view: model => ({
-        title: 'Settings',
-        body: model.settings.view(),
-      }),
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) => ({
+    settings: new Settings('settings', { initialTheme: flags.savedTheme }),
   }),
-)
+
+  view: model => ({
+    title: 'Settings',
+    body: model.settings.view(),
+  }),
+}))

@@ -26,7 +26,7 @@ class Notes extends Block<Notes>()('Notes', {
   Command: [LoadAllNotes],
 }) {}
 
-const NotesLive = Notes.layer(
+const NotesLive = Notes.toLayer(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 

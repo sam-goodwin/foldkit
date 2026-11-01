@@ -63,77 +63,72 @@ export class People extends Block<People, Readonly<{ route: PeopleRoute }>>()(
   },
 ) {}
 
-export const PeopleLive = People.layer(
-  Effect.gen(function* () {
+export const PeopleLive = People.toLayer(() => ({
+  init: ({ route }) => {
+    const searchText = routeSearchText(route)
     return {
-      init: ({ route }) => {
-        const searchText = routeSearchText(route)
-        return {
-          searchInput: searchText,
-          searchHistory: addSearchToHistory([], searchText),
-          results: SearchResults.Loading(),
-        }
-      },
-
-      start: model => [FetchPeople({ searchText: model.searchInput })],
-
-      update: {
-        ChangedSearchInput: (model, { value }) => ({
-          model: modifyFields(model, { searchInput: () => value }),
-        }),
-
-        SubmittedSearch: model => ({
-          model,
-          commands: [
-            PushSearchUrl({
-              searchText: Option.fromNullishOr(model.searchInput || null),
-            }),
-          ],
-        }),
-
-        InformedOfRouteChange: (model, { route: nextRoute }) => {
-          const nextSearchText = routeSearchText(nextRoute)
-          return {
-            model: modifyFields(model, {
-              searchInput: () => nextSearchText,
-              searchHistory: searchHistory =>
-                addSearchToHistory(searchHistory, nextSearchText),
-              results: () => SearchResults.Loading(),
-            }),
-            commands: [FetchPeople({ searchText: nextSearchText })],
-          }
-        },
-
-        CompletedFetchPeople: (model, { query, people: fetchedPeople }) => ({
-          model: modifyFields(model, {
-            results: () =>
-              SearchResults.Loaded({ query, people: fetchedPeople }),
-          }),
-        }),
-
-        CompletedPushSearchUrl: model => ({ model }),
-      },
-
-      commands: {
-        PushSearchUrl: ({ searchText: maybeSearchText }) =>
-          pushUrl(peopleRouter({ searchText: maybeSearchText })).pipe(
-            Effect.as(Message.CompletedPushSearchUrl()),
-          ),
-        FetchPeople: ({ searchText: query }) =>
-          Effect.sleep(SEARCH_LATENCY).pipe(
-            Effect.as(
-              Message.CompletedFetchPeople({
-                query,
-                people: searchPeople(query),
-              }),
-            ),
-          ),
-      },
-
-      view,
+      searchInput: searchText,
+      searchHistory: addSearchToHistory([], searchText),
+      results: SearchResults.Loading(),
     }
-  }),
-)
+  },
+
+  start: model => [FetchPeople({ searchText: model.searchInput })],
+
+  update: {
+    ChangedSearchInput: (model, { value }) => ({
+      model: modifyFields(model, { searchInput: () => value }),
+    }),
+
+    SubmittedSearch: model => ({
+      model,
+      commands: [
+        PushSearchUrl({
+          searchText: Option.fromNullishOr(model.searchInput || null),
+        }),
+      ],
+    }),
+
+    InformedOfRouteChange: (model, { route: nextRoute }) => {
+      const nextSearchText = routeSearchText(nextRoute)
+      return {
+        model: modifyFields(model, {
+          searchInput: () => nextSearchText,
+          searchHistory: searchHistory =>
+            addSearchToHistory(searchHistory, nextSearchText),
+          results: () => SearchResults.Loading(),
+        }),
+        commands: [FetchPeople({ searchText: nextSearchText })],
+      }
+    },
+
+    CompletedFetchPeople: (model, { query, people: fetchedPeople }) => ({
+      model: modifyFields(model, {
+        results: () => SearchResults.Loaded({ query, people: fetchedPeople }),
+      }),
+    }),
+
+    CompletedPushSearchUrl: model => ({ model }),
+  },
+
+  commands: {
+    PushSearchUrl: ({ searchText: maybeSearchText }) =>
+      pushUrl(peopleRouter({ searchText: maybeSearchText })).pipe(
+        Effect.as(Message.CompletedPushSearchUrl()),
+      ),
+    FetchPeople: ({ searchText: query }) =>
+      Effect.sleep(SEARCH_LATENCY).pipe(
+        Effect.as(
+          Message.CompletedFetchPeople({
+            query,
+            people: searchPeople(query),
+          }),
+        ),
+      ),
+  },
+
+  view,
+}))
 
 const addSearchToHistory = (
   history: ReadonlyArray<string>,

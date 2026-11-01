@@ -230,80 +230,76 @@ export class Browse extends Block<Browse, Readonly<{ fields: BrowseFields }>>()(
   },
 ) {}
 
-export const BrowseLive = Browse.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ fields }) => ({
-        fields,
-        dietListbox: new DietListbox('dietListbox', { id: 'diet-filter' }),
-        periodListbox: new PeriodListbox('periodListbox', {
-          id: 'period-filter',
-        }),
-      }),
-
-      update: {
-        InformedOfRouteChange: (model, { fields }) => ({
-          model: modifyFields(model, { fields: () => fields }),
-        }),
-
-        CompletedReplaceFilters: model => ({ model }),
-
-        ChangedSearchInput: (model, { value }) => ({
-          model,
-          commands: [
-            ReplaceFilters({
-              ...model.fields,
-              search: Option.liftPredicate(value, String.isNonEmpty),
-            }),
-          ],
-        }),
-
-        ClickedColumnHeader: (model, { column }) => ({
-          model,
-          commands: [
-            ReplaceFilters({
-              ...model.fields,
-              sorting: nextSorting(model.fields.sorting, column),
-            }),
-          ],
-        }),
-
-        ...DietListbox.on({
-          Selected: (model, { value }) => ({
-            model,
-            commands: [
-              ReplaceFilters({
-                ...model.fields,
-                diet: selectionToParam(Option.some(value), Diet),
-              }),
-            ],
-          }),
-        }),
-
-        ...PeriodListbox.on({
-          Selected: (model, { value }) => ({
-            model,
-            commands: [
-              ReplaceFilters({
-                ...model.fields,
-                period: selectionToParam(Option.some(value), Period),
-              }),
-            ],
-          }),
-        }),
-      },
-
-      commands: {
-        ReplaceFilters: fields =>
-          replaceUrl(browseRouter(fields)).pipe(
-            Effect.as(Message.CompletedReplaceFilters()),
-          ),
-      },
-
-      view: browseView,
-    }
+export const BrowseLive = Browse.toLayer(() => ({
+  init: ({ fields }) => ({
+    fields,
+    dietListbox: new DietListbox('dietListbox', { id: 'diet-filter' }),
+    periodListbox: new PeriodListbox('periodListbox', {
+      id: 'period-filter',
+    }),
   }),
-).pipe(Layer.provide(Layer.mergeAll(DietListbox.Live, PeriodListbox.Live)))
+
+  update: {
+    InformedOfRouteChange: (model, { fields }) => ({
+      model: modifyFields(model, { fields: () => fields }),
+    }),
+
+    CompletedReplaceFilters: model => ({ model }),
+
+    ChangedSearchInput: (model, { value }) => ({
+      model,
+      commands: [
+        ReplaceFilters({
+          ...model.fields,
+          search: Option.liftPredicate(value, String.isNonEmpty),
+        }),
+      ],
+    }),
+
+    ClickedColumnHeader: (model, { column }) => ({
+      model,
+      commands: [
+        ReplaceFilters({
+          ...model.fields,
+          sorting: nextSorting(model.fields.sorting, column),
+        }),
+      ],
+    }),
+
+    ...DietListbox.on({
+      Selected: (model, { value }) => ({
+        model,
+        commands: [
+          ReplaceFilters({
+            ...model.fields,
+            diet: selectionToParam(Option.some(value), Diet),
+          }),
+        ],
+      }),
+    }),
+
+    ...PeriodListbox.on({
+      Selected: (model, { value }) => ({
+        model,
+        commands: [
+          ReplaceFilters({
+            ...model.fields,
+            period: selectionToParam(Option.some(value), Period),
+          }),
+        ],
+      }),
+    }),
+  },
+
+  commands: {
+    ReplaceFilters: fields =>
+      replaceUrl(browseRouter(fields)).pipe(
+        Effect.as(Message.CompletedReplaceFilters()),
+      ),
+  },
+
+  view: browseView,
+})).pipe(Layer.provide(Layer.mergeAll(DietListbox.Live, PeriodListbox.Live)))
 
 type BrowseViewBuilder = HtmlBuilder<Message>
 

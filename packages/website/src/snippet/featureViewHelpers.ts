@@ -1,4 +1,4 @@
-import { Array, Effect, Schema } from 'effect'
+import { Array, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -36,17 +36,13 @@ export class Articles extends Block<Articles>()('Articles', {
   Message,
 }) {}
 
-export const ArticlesLive = Articles.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ articles: [] }),
+export const ArticlesLive = Articles.toLayer(() => ({
+  init: () => ({ articles: [] }),
 
-      update: {
-        ClickedArticle: model => ({ model }),
-      },
+  update: {
+    ClickedArticle: model => ({ model }),
+  },
 
-      view: (model, h) =>
-        h.section([], [headerView(h), h.ul([], articleItems(model, h))]),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.section([], [headerView(h), h.ul([], articleItems(model, h))]),
+}))

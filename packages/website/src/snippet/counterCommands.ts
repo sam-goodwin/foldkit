@@ -19,48 +19,44 @@ export class Application extends Block<Application>()('Application', {
   Command: [WaitBeforeReset],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0 }),
 
-      update: {
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: Number.increment }),
-        }),
-        ClickedResetAfterDelay: model => ({
-          model,
-          commands: [WaitBeforeReset()],
-        }),
-        CompletedWaitBeforeReset: model => ({
-          model: modifyFields(model, { count: () => 0 }),
-        }),
-      },
+  update: {
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+    ClickedResetAfterDelay: model => ({
+      model,
+      commands: [WaitBeforeReset()],
+    }),
+    CompletedWaitBeforeReset: model => ({
+      model: modifyFields(model, { count: () => 0 }),
+    }),
+  },
 
-      commands: {
-        WaitBeforeReset: () =>
-          Effect.sleep('1 second').pipe(
-            Effect.as(Application.Message.CompletedWaitBeforeReset()),
-          ),
-      },
+  commands: {
+    WaitBeforeReset: () =>
+      Effect.sleep('1 second').pipe(
+        Effect.as(Application.Message.CompletedWaitBeforeReset()),
+      ),
+  },
 
-      view: (model, h) => ({
-        title: `Counter: ${model.count}`,
-        body: h.main(
-          [],
-          [
-            h.p([], [`Count: ${model.count}`]),
-            h.button(
-              [h.OnClick(Application.Message.ClickedIncrement())],
-              ['Increment'],
-            ),
-            h.button(
-              [h.OnClick(Application.Message.ClickedResetAfterDelay())],
-              ['Reset after one second'],
-            ),
-          ],
+  view: (model, h) => ({
+    title: `Counter: ${model.count}`,
+    body: h.main(
+      [],
+      [
+        h.p([], [`Count: ${model.count}`]),
+        h.button(
+          [h.OnClick(Application.Message.ClickedIncrement())],
+          ['Increment'],
         ),
-      }),
-    }
+        h.button(
+          [h.OnClick(Application.Message.ClickedResetAfterDelay())],
+          ['Reset after one second'],
+        ),
+      ],
+    ),
   }),
-)
+}))

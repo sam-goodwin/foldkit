@@ -70,7 +70,7 @@ export class Typing extends Block<Typing, void, TypingViewInput>()('Typing', {
   Command: [UpdatePlayerProgress, FocusUserGameTextInput],
 }) {}
 
-export const TypingLive = Typing.layer(
+export const TypingLive = Typing.toLayer(
   Effect.gen(function* () {
     const client = yield* RoomsClient
 

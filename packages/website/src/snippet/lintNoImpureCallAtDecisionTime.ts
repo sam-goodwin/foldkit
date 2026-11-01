@@ -28,7 +28,7 @@ class Editor extends Block<Editor>()('Editor', {
   Command: [SaveDraft, SaveDraftWithId],
 }) {}
 
-export const EditorLive = Editor.layer(
+export const EditorLive = Editor.toLayer(
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
 

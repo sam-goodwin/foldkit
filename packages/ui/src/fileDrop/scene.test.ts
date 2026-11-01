@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { expect, given, scene, selector } from 'foldkit/scene'
 
@@ -13,24 +13,20 @@ class FileDropScene extends Block<FileDropScene>()('FileDropScene', {
 }) {}
 
 const makeFileDropSceneLive = (overrides: Overrides) =>
-  FileDropScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          fileDrop: new FileDrop('fileDrop', { id: 'uploader' }),
-        }),
-        view: (model, h) =>
-          model.fileDrop.view({
-            toView: attributes =>
-              h.label(attributes.root, [
-                h.p([], ['Drop files or click to upload']),
-                h.input(attributes.input),
-              ]),
-            ...overrides,
-          }),
-      }
+  FileDropScene.toLayer(() => ({
+    init: () => ({
+      fileDrop: new FileDrop('fileDrop', { id: 'uploader' }),
     }),
-  ).pipe(Layer.provide(FileDropLive))
+    view: (model, h) =>
+      model.fileDrop.view({
+        toView: attributes =>
+          h.label(attributes.root, [
+            h.p([], ['Drop files or click to upload']),
+            h.input(attributes.input),
+          ]),
+        ...overrides,
+      }),
+  })).pipe(Layer.provide(FileDropLive))
 
 const dropZone = selector('label')
 const fileInput = selector('input[type="file"]')

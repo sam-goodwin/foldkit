@@ -1,4 +1,4 @@
-import { Array, Effect, Option, Schema } from 'effect'
+import { Array, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -17,68 +17,58 @@ export class Chat extends Block<Chat>()('Chat', {
   }),
 }) {}
 
-export const ChatLive = Chat.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ lines: [], maybeSocket: Option.none() }),
+export const ChatLive = Chat.toLayer(() => ({
+  init: () => ({ lines: [], maybeSocket: Option.none() }),
 
-      update: {
-        ClickedConnect: model => ({
-          model: modifyFields(model, {
-            maybeSocket: () =>
-              Option.some(new Socket('socket', { roomId: 'general' })),
-          }),
-        }),
-        ClickedDisconnect: model => ({
-          model: modifyFields(model, { maybeSocket: () => Option.none() }),
-        }),
-        ClickedSendHello: model => ({
-          model,
-          messages: Option.toArray(
-            Option.map(model.maybeSocket, socket =>
-              socket.send(Socket.Message.RequestedSend({ data: 'hello' })),
-            ),
-          ),
-        }),
-
-        ...Socket.on({
-          Received: (model, { data }) => ({
-            model: modifyFields(model, { lines: Array.append(data) }),
-          }),
-          FailedToSend: (model, { reason }) => ({
-            model: modifyFields(model, {
-              lines: Array.append(`Not sent: ${reason}`),
-            }),
-          }),
-        }),
-      },
-
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            Option.match(model.maybeSocket, {
-              onNone: () =>
-                h.button(
-                  [h.OnClick(Chat.Message.ClickedConnect())],
-                  ['Connect'],
-                ),
-              onSome: () =>
-                h.button(
-                  [h.OnClick(Chat.Message.ClickedDisconnect())],
-                  ['Disconnect'],
-                ),
-            }),
-            h.button(
-              [h.OnClick(Chat.Message.ClickedSendHello())],
-              ['Say hello'],
-            ),
-            h.ul(
-              [],
-              Array.map(model.lines, line => h.li([], [line])),
-            ),
-          ],
+  update: {
+    ClickedConnect: model => ({
+      model: modifyFields(model, {
+        maybeSocket: () =>
+          Option.some(new Socket('socket', { roomId: 'general' })),
+      }),
+    }),
+    ClickedDisconnect: model => ({
+      model: modifyFields(model, { maybeSocket: () => Option.none() }),
+    }),
+    ClickedSendHello: model => ({
+      model,
+      messages: Option.toArray(
+        Option.map(model.maybeSocket, socket =>
+          socket.send(Socket.Message.RequestedSend({ data: 'hello' })),
         ),
-    }
-  }),
-)
+      ),
+    }),
+
+    ...Socket.on({
+      Received: (model, { data }) => ({
+        model: modifyFields(model, { lines: Array.append(data) }),
+      }),
+      FailedToSend: (model, { reason }) => ({
+        model: modifyFields(model, {
+          lines: Array.append(`Not sent: ${reason}`),
+        }),
+      }),
+    }),
+  },
+
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        Option.match(model.maybeSocket, {
+          onNone: () =>
+            h.button([h.OnClick(Chat.Message.ClickedConnect())], ['Connect']),
+          onSome: () =>
+            h.button(
+              [h.OnClick(Chat.Message.ClickedDisconnect())],
+              ['Disconnect'],
+            ),
+        }),
+        h.button([h.OnClick(Chat.Message.ClickedSendHello())], ['Say hello']),
+        h.ul(
+          [],
+          Array.map(model.lines, line => h.li([], [line])),
+        ),
+      ],
+    ),
+}))

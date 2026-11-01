@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Array, Effect, Layer, Option, Schema, pipe } from 'effect'
+import { Array, Layer, Option, Schema, pipe } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -75,113 +75,102 @@ export class IssueBoard extends Block<IssueBoard, void, ViewInput>()(
   { Model, Message, OutMessage },
 ) {}
 
-export const IssueBoardLive = IssueBoard.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dragAndDrop: new DragAndDrop.DragAndDrop('dragAndDrop', {
-          id: 'workspace-issue-board',
-        }),
-        announcement: '',
+export const IssueBoardLive = IssueBoard.toLayer(() => ({
+  init: () => ({
+    dragAndDrop: new DragAndDrop.DragAndDrop('dragAndDrop', {
+      id: 'workspace-issue-board',
+    }),
+    announcement: '',
+  }),
+  update: {
+    InformedOfIssueMove: (model, { status, insertionIndex }) => ({
+      model: modifyFields(model, {
+        announcement: () =>
+          `Moved to ${issueStatusLabel(status)}, position ${insertionIndex + 1}.`,
       }),
-      update: {
-        InformedOfIssueMove: (model, { status, insertionIndex }) => ({
-          model: modifyFields(model, {
-            announcement: () =>
-              `Moved to ${issueStatusLabel(status)}, position ${insertionIndex + 1}.`,
-          }),
+    }),
+    InformedOfIssueMoveFailure: model => ({
+      model: modifyFields(model, {
+        announcement: () => 'Could not save the move. Issue position restored.',
+      }),
+    }),
+    ClickedCreateIssue: (model, { status }) => ({
+      model,
+      outMessage: OutMessage.RequestedCreation({ status }),
+    }),
+    ...DragAndDrop.DragAndDrop.on({
+      StartedKeyboardDrag: model => ({
+        model: modifyFields(model, {
+          announcement: () =>
+            'Issue picked up. Use arrow keys to change position, Tab to change status, Space to drop, or Escape to cancel.',
         }),
-        InformedOfIssueMoveFailure: model => ({
-          model: modifyFields(model, {
-            announcement: () =>
-              'Could not save the move. Issue position restored.',
-          }),
+      }),
+      ChangedKeyboardTarget: (model, { toContainerId, toIndex }) => ({
+        model: modifyFields(model, {
+          announcement: announcement =>
+            Option.match(maybeStatusFromContainerId(toContainerId), {
+              onNone: () => announcement,
+              onSome: status =>
+                `Position ${toIndex + 1} in ${issueStatusLabel(status)}.`,
+            }),
         }),
-        ClickedCreateIssue: (model, { status }) => ({
-          model,
-          outMessage: OutMessage.RequestedCreation({ status }),
+      }),
+      Reordered: (model, reordered) =>
+        Option.match(maybeMoveFromDrop(reordered), {
+          onNone: () => ({ model }),
+          onSome: outMessage => ({ model, outMessage }),
         }),
-        ...DragAndDrop.DragAndDrop.on({
-          StartedKeyboardDrag: model => ({
-            model: modifyFields(model, {
-              announcement: () =>
-                'Issue picked up. Use arrow keys to change position, Tab to change status, Space to drop, or Escape to cancel.',
-            }),
-          }),
-          ChangedKeyboardTarget: (model, { toContainerId, toIndex }) => ({
-            model: modifyFields(model, {
-              announcement: announcement =>
-                Option.match(maybeStatusFromContainerId(toContainerId), {
-                  onNone: () => announcement,
-                  onSome: status =>
-                    `Position ${toIndex + 1} in ${issueStatusLabel(status)}.`,
-                }),
-            }),
-          }),
-          Reordered: (model, reordered) =>
-            Option.match(maybeMoveFromDrop(reordered), {
-              onNone: () => ({ model }),
-              onSome: outMessage => ({ model, outMessage }),
-            }),
-          Cancelled: model => ({
-            model: modifyFields(model, {
-              announcement: () => 'Drag cancelled. Issue order is unchanged.',
-            }),
-          }),
+      Cancelled: model => ({
+        model: modifyFields(model, {
+          announcement: () => 'Drag cancelled. Issue order is unchanged.',
         }),
-      },
-      view: (model, h, viewInput) =>
-        h.section(
+      }),
+    }),
+  },
+  view: (model, h, viewInput) =>
+    h.section(
+      [
+        h.Class('w-full min-w-0 bg-white p-5 lg:p-8'),
+        h.AriaLabel('Issue board'),
+      ],
+      [
+        h.p(
           [
-            h.Class('w-full min-w-0 bg-white p-5 lg:p-8'),
-            h.AriaLabel('Issue board'),
+            h.Id(INSTRUCTIONS_ID),
+            h.Class(
+              'mb-5 max-w-4xl text-xs font-medium leading-6 text-slate-500',
+            ),
           ],
           [
-            h.p(
-              [
-                h.Id(INSTRUCTIONS_ID),
-                h.Class(
-                  'mb-5 max-w-4xl text-xs font-medium leading-6 text-slate-500',
-                ),
-              ],
-              [
-                'Drag a handle to move an issue. With a handle focused, press Space to pick up, arrows to reorder, Tab to change status, and Space to drop.',
-              ],
-            ),
-            model.dragAndDrop.view({
-              toView: dragAndDropRenderInfo =>
-                h.div(
-                  [],
-                  [
-                    h.div(
-                      [
-                        h.Class(
-                          'grid auto-cols-[minmax(15rem,1fr)] grid-flow-col items-start gap-4 overflow-x-auto pb-4',
-                        ),
-                      ],
-                      Array.map(STATUSES, status =>
-                        column(
-                          model,
-                          status,
-                          viewInput,
-                          dragAndDropRenderInfo,
-                          h,
-                        ),
-                      ),
-                    ),
-                    ghost(model, viewInput, h),
-                  ],
-                ),
-            }),
-            h.p(
-              [h.Class('sr-only'), h.Role('status'), h.AriaLive('polite')],
-              [model.announcement],
-            ),
+            'Drag a handle to move an issue. With a handle focused, press Space to pick up, arrows to reorder, Tab to change status, and Space to drop.',
           ],
         ),
-    }
-  }),
-).pipe(Layer.provide(DragAndDrop.DragAndDropLive))
+        model.dragAndDrop.view({
+          toView: dragAndDropRenderInfo =>
+            h.div(
+              [],
+              [
+                h.div(
+                  [
+                    h.Class(
+                      'grid auto-cols-[minmax(15rem,1fr)] grid-flow-col items-start gap-4 overflow-x-auto pb-4',
+                    ),
+                  ],
+                  Array.map(STATUSES, status =>
+                    column(model, status, viewInput, dragAndDropRenderInfo, h),
+                  ),
+                ),
+                ghost(model, viewInput, h),
+              ],
+            ),
+        }),
+        h.p(
+          [h.Class('sr-only'), h.Role('status'), h.AriaLive('polite')],
+          [model.announcement],
+        ),
+      ],
+    ),
+})).pipe(Layer.provide(DragAndDrop.DragAndDropLive))
 
 export const draggableId = (issueId: string) => `${DRAGGABLE_PREFIX}${issueId}`
 

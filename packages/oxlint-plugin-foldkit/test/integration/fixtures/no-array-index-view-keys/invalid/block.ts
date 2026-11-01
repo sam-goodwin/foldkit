@@ -11,7 +11,7 @@ export class Table extends Block<Table>()('Table', {
   Message,
 }) {}
 
-export const TableLive = Table.layer(
+export const TableLive = Table.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ rows: [] }),

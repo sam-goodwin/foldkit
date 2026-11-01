@@ -1,4 +1,4 @@
-import { Effect, Number, Option, Schema } from 'effect'
+import { Number, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -23,24 +23,20 @@ export class Application extends Block<
   Message: defineMessageUnion({ ClickedIncrement: {} }),
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({ count: flags.initialCount }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) => ({ count: flags.initialCount }),
 
-      update: {
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: Number.increment }),
-        }),
-      },
+  update: {
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+  },
 
-      view: (model, h) => ({
-        title: `Count: ${model.count}`,
-        body: h.button(
-          [h.OnClick(Application.Message.ClickedIncrement())],
-          [`${model.count}`],
-        ),
-      }),
-    }
+  view: (model, h) => ({
+    title: `Count: ${model.count}`,
+    body: h.button(
+      [h.OnClick(Application.Message.ClickedIncrement())],
+      [`${model.count}`],
+    ),
   }),
-)
+}))

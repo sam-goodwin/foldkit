@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Option, Schema } from 'effect'
+import { Array, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -19,30 +19,26 @@ export class Order extends Block<Order>()('Order', {
   }),
 }) {}
 
-export const OrderLive = Order.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        fruitPicker: new FruitPicker('fruitPicker'),
-        maybeFruitName: Option.none(),
-      }),
-
-      update: {
-        ...FruitPicker.on({
-          SelectedItem: (model, { index }) => ({
-            model: modifyFields(model, {
-              maybeFruitName: () =>
-                Option.map(Array.get(FRUITS, index), toFruitLabel),
-            }),
-          }),
-        }),
-      },
-
-      view: (model, h) =>
-        h.div(
-          [],
-          [model.fruitPicker.view({ items: FRUITS, toLabel: toFruitLabel })],
-        ),
-    }
+export const OrderLive = Order.toLayer(() => ({
+  init: () => ({
+    fruitPicker: new FruitPicker('fruitPicker'),
+    maybeFruitName: Option.none(),
   }),
-).pipe(Layer.provide(FruitPicker.Live))
+
+  update: {
+    ...FruitPicker.on({
+      SelectedItem: (model, { index }) => ({
+        model: modifyFields(model, {
+          maybeFruitName: () =>
+            Option.map(Array.get(FRUITS, index), toFruitLabel),
+        }),
+      }),
+    }),
+  },
+
+  view: (model, h) =>
+    h.div(
+      [],
+      [model.fruitPicker.view({ items: FRUITS, toLabel: toFruitLabel })],
+    ),
+})).pipe(Layer.provide(FruitPicker.Live))

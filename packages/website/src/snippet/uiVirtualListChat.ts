@@ -100,116 +100,107 @@ const requestHistoryStep = (model: Model) => {
   }
 }
 
-export const ConversationLive = Conversation.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ initialMessages }) => ({
-        messages: initialMessages,
-        messageList: new MessageList('messageList', {
-          id: 'message-list',
-          rowHeightPx: 64,
-          initialScroll: { target: VirtualList.ScrollTarget.End() },
-          followEnd: { thresholdPx: 8 },
-          history: { reservePx: 800, prefetchViewports: 3 },
-        }),
-        historyLoad: HistoryLoad.Idle(),
-      }),
+export const ConversationLive = Conversation.toLayer(() => ({
+  init: ({ initialMessages }) => ({
+    messages: initialMessages,
+    messageList: new MessageList('messageList', {
+      id: 'message-list',
+      rowHeightPx: 64,
+      initialScroll: { target: VirtualList.ScrollTarget.End() },
+      followEnd: { thresholdPx: 8 },
+      history: { reservePx: 800, prefetchViewports: 3 },
+    }),
+    historyLoad: HistoryLoad.Idle(),
+  }),
 
-      update: {
-        // Tell the list which keys it now holds whenever the items change
-        ReceivedMessage: (model, { message }) => {
-          const nextMessages = Array.append(model.messages, message)
+  update: {
+    // Tell the list which keys it now holds whenever the items change
+    ReceivedMessage: (model, { message }) => {
+      const nextMessages = Array.append(model.messages, message)
 
-          return {
-            model: modifyFields(model, { messages: () => nextMessages }),
-            messages: [
-              model.messageList.send(
-                VirtualList.informItemsChanged(
-                  Array.map(nextMessages, historyRows.itemToKey),
-                ),
-              ),
-            ],
-          }
-        },
-
-        ClickedRetryHistory: requestHistoryStep,
-
-        // Prepending history keeps the visible rows in place
-        SucceededFetchHistory: (model, { response }) => {
-          const nextMessages = [...response.messages, ...model.messages]
-
-          return {
-            model: modifyFields(model, {
-              messages: () => nextMessages,
-              historyLoad: () =>
-                response.hasMore ? HistoryLoad.Idle() : HistoryLoad.Complete(),
-            }),
-            messages: [
-              model.messageList.send(
-                VirtualList.informHistoryPrepended({
-                  items: nextMessages,
-                  prependedItems: response.messages,
-                  itemToKey: historyRows.itemToKey,
-                  page: response.hasMore
-                    ? VirtualList.HistoryPage.More()
-                    : VirtualList.HistoryPage.Complete(),
-                }),
-              ),
-            ],
-          }
-        },
-
-        FailedFetchHistory: model => ({
-          model: modifyFields(model, {
-            historyLoad: () => HistoryLoad.Failed(),
-          }),
-        }),
-
-        // Load older messages when the reader scrolls near the start
-        ...MessageList.on({
-          ApproachedLoadedStart: requestHistoryStep,
-        }),
-      },
-
-      commands: { FetchHistory: fetchHistory },
-
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.div(
-              [h.Role('status')],
-              [
-                HistoryLoad.match(model.historyLoad, {
-                  Idle: () => '',
-                  Loading: () => 'Loading older messages',
-                  Failed: () => 'Could not load older messages',
-                  Complete: () => 'All older messages loaded',
-                }),
-              ],
+      return {
+        model: modifyFields(model, { messages: () => nextMessages }),
+        messages: [
+          model.messageList.send(
+            VirtualList.informItemsChanged(
+              Array.map(nextMessages, historyRows.itemToKey),
             ),
-            ...(model.historyLoad._tag === 'Failed'
-              ? [
-                  h.button(
-                    [h.OnClick(Message.ClickedRetryHistory())],
-                    ['Retry'],
-                  ),
-                ]
-              : []),
-            model.messageList.view({
-              items: model.messages,
-              ...historyRows,
-              itemToView: message =>
-                h.div([h.Class('rounded-xl px-3 py-2')], [message.body]),
-              accessibleSet:
-                model.historyLoad._tag === 'Complete'
-                  ? VirtualList.AccessibleSet.Loaded()
-                  : VirtualList.AccessibleSet.Unknown(),
-              contentAlignment: 'End',
-              containerClassName: 'h-96 overflow-auto',
+          ),
+        ],
+      }
+    },
+
+    ClickedRetryHistory: requestHistoryStep,
+
+    // Prepending history keeps the visible rows in place
+    SucceededFetchHistory: (model, { response }) => {
+      const nextMessages = [...response.messages, ...model.messages]
+
+      return {
+        model: modifyFields(model, {
+          messages: () => nextMessages,
+          historyLoad: () =>
+            response.hasMore ? HistoryLoad.Idle() : HistoryLoad.Complete(),
+        }),
+        messages: [
+          model.messageList.send(
+            VirtualList.informHistoryPrepended({
+              items: nextMessages,
+              prependedItems: response.messages,
+              itemToKey: historyRows.itemToKey,
+              page: response.hasMore
+                ? VirtualList.HistoryPage.More()
+                : VirtualList.HistoryPage.Complete(),
+            }),
+          ),
+        ],
+      }
+    },
+
+    FailedFetchHistory: model => ({
+      model: modifyFields(model, {
+        historyLoad: () => HistoryLoad.Failed(),
+      }),
+    }),
+
+    // Load older messages when the reader scrolls near the start
+    ...MessageList.on({
+      ApproachedLoadedStart: requestHistoryStep,
+    }),
+  },
+
+  commands: { FetchHistory: fetchHistory },
+
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.div(
+          [h.Role('status')],
+          [
+            HistoryLoad.match(model.historyLoad, {
+              Idle: () => '',
+              Loading: () => 'Loading older messages',
+              Failed: () => 'Could not load older messages',
+              Complete: () => 'All older messages loaded',
             }),
           ],
         ),
-    }
-  }),
-).pipe(Layer.provide(MessageList.Live))
+        ...(model.historyLoad._tag === 'Failed'
+          ? [h.button([h.OnClick(Message.ClickedRetryHistory())], ['Retry'])]
+          : []),
+        model.messageList.view({
+          items: model.messages,
+          ...historyRows,
+          itemToView: message =>
+            h.div([h.Class('rounded-xl px-3 py-2')], [message.body]),
+          accessibleSet:
+            model.historyLoad._tag === 'Complete'
+              ? VirtualList.AccessibleSet.Loaded()
+              : VirtualList.AccessibleSet.Unknown(),
+          contentAlignment: 'End',
+          containerClassName: 'h-96 overflow-auto',
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(MessageList.Live))

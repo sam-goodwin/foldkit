@@ -43,124 +43,111 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        tabs: new ApplicationTabs('tabs', { id: TABS_ID }),
-        activeTab: 'Posts',
-        postsTab: new PostsTab('postsTab'),
-        statsTab: new StatsTab('statsTab'),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    tabs: new ApplicationTabs('tabs', { id: TABS_ID }),
+    activeTab: 'Posts',
+    postsTab: new PostsTab('postsTab'),
+    statsTab: new StatsTab('statsTab'),
+  }),
+
+  update: {
+    TickedRevalidateStats: model => ({
+      model,
+      messages: [model.statsTab.send(StatsTab.Message.RequestedRevalidation())],
+    }),
+    ...ApplicationTabs.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { activeTab: () => value }),
+        messages: [loadTab(model, value)],
       }),
+    }),
+  },
 
-      update: {
-        TickedRevalidateStats: model => ({
-          model,
-          messages: [
-            model.statsTab.send(StatsTab.Message.RequestedRevalidation()),
-          ],
-        }),
-        ...ApplicationTabs.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { activeTab: () => value }),
-            messages: [loadTab(model, value)],
-          }),
-        }),
-      },
+  subscriptions: {
+    statsRevalidationTicks: {
+      dependencies: model =>
+        model.activeTab === 'Stats' && hasStatsData(model.statsTab.model),
+      stream: (isObservingStats: boolean) =>
+        Stream.when(
+          // NOTE: Stream.tick emits once immediately. Drop that first
+          // emission so freshly loaded stats are not refetched instantly.
+          Stream.tick(STATS_REFETCH_INTERVAL).pipe(
+            Stream.drop(1),
+            Stream.map(Message.TickedRevalidateStats),
+          ),
+          Effect.sync(() => isObservingStats),
+        ),
+    },
+  },
 
-      subscriptions: {
-        statsRevalidationTicks: {
-          dependencies: model =>
-            model.activeTab === 'Stats' && hasStatsData(model.statsTab.model),
-          stream: (isObservingStats: boolean) =>
-            Stream.when(
-              // NOTE: Stream.tick emits once immediately. Drop that first
-              // emission so freshly loaded stats are not refetched instantly.
-              Stream.tick(STATS_REFETCH_INTERVAL).pipe(
-                Stream.drop(1),
-                Stream.map(Message.TickedRevalidateStats),
-              ),
-              Effect.sync(() => isObservingStats),
-            ),
-        },
-      },
-
-      view: (model, h) => ({
-        title: 'API Cache',
-        body: h.div(
-          [h.Class('min-h-screen bg-slate-100 flex justify-center p-6')],
+  view: (model, h) => ({
+    title: 'API Cache',
+    body: h.div(
+      [h.Class('min-h-screen bg-slate-100 flex justify-center p-6')],
+      [
+        h.div(
+          [h.Class('w-full max-w-2xl flex flex-col gap-6')],
           [
-            h.div(
-              [h.Class('w-full max-w-2xl flex flex-col gap-6')],
+            h.header(
+              [h.Class('flex flex-col gap-1')],
               [
-                h.header(
-                  [h.Class('flex flex-col gap-1')],
+                h.h1(
+                  [h.Class('text-3xl font-bold text-slate-900')],
+                  ['API Cache'],
+                ),
+                h.p(
+                  [h.Class('text-slate-600')],
                   [
-                    h.h1(
-                      [h.Class('text-3xl font-bold text-slate-900')],
-                      ['API Cache'],
+                    'Query client patterns written as ordinary Model state, update logic, and one Subscription.',
+                  ],
+                ),
+              ],
+            ),
+            model.tabs.view({
+              tabs: Tab.literals,
+              selectedValue: model.activeTab,
+              ariaLabel: 'API cache sections',
+              toView: ({ tablist, tabs: tabInfos }) =>
+                h.div(
+                  [h.Class('flex flex-col gap-6')],
+                  [
+                    h.div(
+                      [...tablist, h.Class('flex gap-2')],
+                      Array.map(tabInfos, tabInfo =>
+                        h.keyed('button')(
+                          tabInfo.value,
+                          [...tabInfo.tab, h.Class(tabButtonClassName)],
+                          [tabInfo.value],
+                        ),
+                      ),
                     ),
-                    h.p(
-                      [h.Class('text-slate-600')],
-                      [
-                        'Query client patterns written as ordinary Model state, update logic, and one Subscription.',
-                      ],
+                    ...pipe(
+                      tabInfos,
+                      Array.filter(tabInfo => tabInfo.isActive),
+                      Array.map(tabInfo =>
+                        h.keyed('div')(
+                          tabInfo.value,
+                          [...tabInfo.panel, h.Class('flex flex-col gap-4')],
+                          [
+                            Match.value(tabInfo.value).pipe(
+                              Match.when('Posts', () => model.postsTab.view()),
+                              Match.when('Stats', () => model.statsTab.view()),
+                              Match.exhaustive,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                model.tabs.view({
-                  tabs: Tab.literals,
-                  selectedValue: model.activeTab,
-                  ariaLabel: 'API cache sections',
-                  toView: ({ tablist, tabs: tabInfos }) =>
-                    h.div(
-                      [h.Class('flex flex-col gap-6')],
-                      [
-                        h.div(
-                          [...tablist, h.Class('flex gap-2')],
-                          Array.map(tabInfos, tabInfo =>
-                            h.keyed('button')(
-                              tabInfo.value,
-                              [...tabInfo.tab, h.Class(tabButtonClassName)],
-                              [tabInfo.value],
-                            ),
-                          ),
-                        ),
-                        ...pipe(
-                          tabInfos,
-                          Array.filter(tabInfo => tabInfo.isActive),
-                          Array.map(tabInfo =>
-                            h.keyed('div')(
-                              tabInfo.value,
-                              [
-                                ...tabInfo.panel,
-                                h.Class('flex flex-col gap-4'),
-                              ],
-                              [
-                                Match.value(tabInfo.value).pipe(
-                                  Match.when('Posts', () =>
-                                    model.postsTab.view(),
-                                  ),
-                                  Match.when('Stats', () =>
-                                    model.statsTab.view(),
-                                  ),
-                                  Match.exhaustive,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                }),
-              ],
-            ),
+            }),
           ],
         ),
-      }),
-    }
+      ],
+    ),
   }),
-).pipe(
+})).pipe(
   Layer.provide(
     Layer.mergeAll(ApplicationTabs.Live, PostsTabLive, StatsTabLive),
   ),

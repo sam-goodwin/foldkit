@@ -147,7 +147,7 @@ export class Room extends Block<Room, RoomArgs>()('Room', {
 
 // LIVE
 
-export const RoomLive = Room.layer(
+export const RoomLive = Room.toLayer(
   Effect.gen(function* () {
     const client = yield* RoomsClient
     const store = yield* KeyValueStore.KeyValueStore

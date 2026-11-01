@@ -28,61 +28,57 @@ class Application extends Block<Application>()('Application', {
   Command: [RequestOpenDialog],
 }) {}
 
-const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dialog: new Dialog('dialog', { id: dialogId }),
-        dialogEvents: [],
+const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    dialog: new Dialog('dialog', { id: dialogId }),
+    dialogEvents: [],
+  }),
+  start: () => [RequestOpenDialog()],
+  update: {
+    CompletedRequestOpenDialog: model => ({
+      model,
+      messages: [model.dialog.send(Dialog.Message.RequestedOpen())],
+    }),
+    ...Dialog.on({
+      Opened: model => ({
+        model: modifyFields(model, {
+          dialogEvents: Array.append(DialogEvent.make('Opened')),
+        }),
       }),
-      start: () => [RequestOpenDialog()],
-      update: {
-        CompletedRequestOpenDialog: model => ({
-          model,
-          messages: [model.dialog.send(Dialog.Message.RequestedOpen())],
+      Closed: model => ({
+        model: modifyFields(model, {
+          dialogEvents: Array.append(DialogEvent.make('Closed')),
         }),
-        ...Dialog.on({
-          Opened: model => ({
-            model: modifyFields(model, {
-              dialogEvents: Array.append(DialogEvent.make('Opened')),
-            }),
-          }),
-          Closed: model => ({
-            model: modifyFields(model, {
-              dialogEvents: Array.append(DialogEvent.make('Closed')),
-            }),
-          }),
-        }),
-      },
-      commands: {
-        RequestOpenDialog: () =>
-          Effect.succeed(Application.Message.CompletedRequestOpenDialog()),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.p([h.Id('dialog-events')], [model.dialogEvents.join(',')]),
-            model.dialog.view({
-              toView: ({ dialog, title, panel }) =>
-                h.dialog(
-                  [...dialog],
+      }),
+    }),
+  },
+  commands: {
+    RequestOpenDialog: () =>
+      Effect.succeed(Application.Message.CompletedRequestOpenDialog()),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.p([h.Id('dialog-events')], [model.dialogEvents.join(',')]),
+        model.dialog.view({
+          toView: ({ dialog, title, panel }) =>
+            h.dialog(
+              [...dialog],
+              [
+                h.div(
+                  [...panel],
                   [
-                    h.div(
-                      [...panel],
-                      [
-                        h.h2([...title], ['Started Dialog']),
-                        h.button([h.Id('dialog-button')], ['Close']),
-                      ],
-                    ),
+                    h.h2([...title], ['Started Dialog']),
+                    h.button([h.Id('dialog-button')], ['Close']),
                   ],
                 ),
-            }),
-          ],
-        ),
-    }
-  }),
-)
+              ],
+            ),
+        }),
+      ],
+    ),
+}))
 
 describe('Dialog runtime lifecycle', () => {
   beforeEach(() => {

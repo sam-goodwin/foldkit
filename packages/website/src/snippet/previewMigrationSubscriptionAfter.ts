@@ -1,4 +1,4 @@
-import { Boolean, Duration, Effect, Number, Schema, Stream } from 'effect'
+import { Boolean, Duration, Number, Schema, Stream } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -13,36 +13,32 @@ export class Stopwatch extends Block<Stopwatch>()('Stopwatch', {
   Message,
 }) {}
 
-export const StopwatchLive = Stopwatch.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ seconds: 0, isRunning: false }),
+export const StopwatchLive = Stopwatch.toLayer(() => ({
+  init: () => ({ seconds: 0, isRunning: false }),
 
-      update: {
-        ClickedToggle: model => ({
-          model: modifyFields(model, { isRunning: Boolean.not }),
-        }),
-        Ticked: model => ({
-          model: modifyFields(model, { seconds: Number.increment }),
-        }),
-      },
+  update: {
+    ClickedToggle: model => ({
+      model: modifyFields(model, { isRunning: Boolean.not }),
+    }),
+    Ticked: model => ({
+      model: modifyFields(model, { seconds: Number.increment }),
+    }),
+  },
 
-      // Foldkit restarts the Stream whenever `dependencies` changes.
-      subscriptions: {
-        ticks: {
-          dependencies: model => model.isRunning,
-          stream: (isRunning: boolean) =>
-            isRunning
-              ? Stream.tick(Duration.seconds(1)).pipe(
-                  Stream.drop(1),
-                  Stream.as(Message.Ticked()),
-                )
-              : Stream.empty,
-        },
-      },
+  // Foldkit restarts the Stream whenever `dependencies` changes.
+  subscriptions: {
+    ticks: {
+      dependencies: model => model.isRunning,
+      stream: (isRunning: boolean) =>
+        isRunning
+          ? Stream.tick(Duration.seconds(1)).pipe(
+              Stream.drop(1),
+              Stream.as(Message.Ticked()),
+            )
+          : Stream.empty,
+    },
+  },
 
-      view: (model, h) =>
-        h.button([h.OnClick(Message.ClickedToggle())], [`${model.seconds}s`]),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.button([h.OnClick(Message.ClickedToggle())], [`${model.seconds}s`]),
+}))

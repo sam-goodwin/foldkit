@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -17,28 +17,20 @@ export class SearchBox extends Block<SearchBox>()('Search', {
   Message,
 }) {}
 
-export const searchLayer = SearchBox.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ query: '' }),
-      update: {
-        UpdatedQuery: (_model, { value }) => ({ model: { query: value } }),
-      },
-    }
-  }),
-)
+export const searchLayer = SearchBox.toLayer(() => ({
+  init: () => ({ query: '' }),
+  update: {
+    UpdatedQuery: (_model, { value }) => ({ model: { query: value } }),
+  },
+}))
 
 // ✅ Good
 // The class carries the Block id, and its Layer adds Live.
 export class Search extends Block<Search>()('Search', { Model, Message }) {}
 
-export const SearchLive = Search.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ query: '' }),
-      update: {
-        UpdatedQuery: (_model, { value }) => ({ model: { query: value } }),
-      },
-    }
-  }),
-)
+export const SearchLive = Search.toLayer(() => ({
+  init: () => ({ query: '' }),
+  update: {
+    UpdatedQuery: (_model, { value }) => ({ model: { query: value } }),
+  },
+}))

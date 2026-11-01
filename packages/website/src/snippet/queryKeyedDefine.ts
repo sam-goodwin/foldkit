@@ -34,7 +34,10 @@ export const PostQuery = Query.define({
   staleTime: '1 minute',
   maxSettledEntries: 100,
   notifyOnCompletion: true,
-  handler: function* () {
-    return ({ postId }) => fetchPost(postId)
-  },
 })
+
+export const PostQueryLive = PostQuery.toLayer(
+  Effect.gen(function* () {
+    return ({ postId }) => fetchPost(postId)
+  }),
+)

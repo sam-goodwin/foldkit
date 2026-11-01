@@ -80,67 +80,63 @@ export class Application extends Block<Application>()('Application', {
   Command: [GenerateBall],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ balls: [], nextId: 0, isRunning: true }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ balls: [], nextId: 0, isRunning: true }),
 
-      update: {
-        TickedFrame: (model, { deltaTime }) => ({
-          model: modifyFields(model, {
-            balls: Array.map(advanceBall(deltaTime / MS_PER_SECOND)),
-          }),
+  update: {
+    TickedFrame: (model, { deltaTime }) => ({
+      model: modifyFields(model, {
+        balls: Array.map(advanceBall(deltaTime / MS_PER_SECOND)),
+      }),
+    }),
+
+    ClickedCanvas: (model, { x, y }) => ({
+      model,
+      commands: [GenerateBall({ x, y })],
+    }),
+
+    CompletedGenerateBall: (model, { x, y, vx, vy, radius, color }) => ({
+      model: modifyFields(model, {
+        balls: Array.append({
+          id: model.nextId,
+          x,
+          y,
+          vx,
+          vy,
+          radius,
+          color,
         }),
+        nextId: Number.increment,
+      }),
+    }),
 
-        ClickedCanvas: (model, { x, y }) => ({
-          model,
-          commands: [GenerateBall({ x, y })],
-        }),
+    ClickedClear: model => ({
+      model: modifyFields(model, { balls: () => [] }),
+    }),
 
-        CompletedGenerateBall: (model, { x, y, vx, vy, radius, color }) => ({
-          model: modifyFields(model, {
-            balls: Array.append({
-              id: model.nextId,
-              x,
-              y,
-              vx,
-              vy,
-              radius,
-              color,
-            }),
-            nextId: Number.increment,
-          }),
-        }),
+    ClickedTogglePlay: model => ({
+      model: modifyFields(model, { isRunning: running => !running }),
+    }),
+  },
 
-        ClickedClear: model => ({
-          model: modifyFields(model, { balls: () => [] }),
-        }),
+  commands: {
+    GenerateBall: generateBall,
+  },
 
-        ClickedTogglePlay: model => ({
-          model: modifyFields(model, { isRunning: running => !running }),
-        }),
-      },
+  subscriptions: {
+    animationFrameTicks: {
+      dependencies: model => model.isRunning,
+      stream: (isActive: boolean) =>
+        isActive
+          ? Dom.animationFrameTicks.pipe(
+              Stream.map(deltaTime => Message.TickedFrame({ deltaTime })),
+            )
+          : Stream.empty,
+    },
+  },
 
-      commands: {
-        GenerateBall: generateBall,
-      },
-
-      subscriptions: {
-        animationFrameTicks: {
-          dependencies: model => model.isRunning,
-          stream: (isActive: boolean) =>
-            isActive
-              ? Dom.animationFrameTicks.pipe(
-                  Stream.map(deltaTime => Message.TickedFrame({ deltaTime })),
-                )
-              : Stream.empty,
-        },
-      },
-
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 const generateBall = ({ x, y }: Readonly<{ x: number; y: number }>) =>
   Effect.gen(function* () {

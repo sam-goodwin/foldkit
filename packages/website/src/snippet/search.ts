@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from 'effect'
+import { Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { UrlRequest } from 'foldkit/navigation'
@@ -26,22 +26,18 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({ query: queryOf(url) }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => ({ query: queryOf(url) }),
 
-      update: {
-        ClickedLink: model => ({ model }),
-        ChangedUrl: (model, { url }) => ({
-          model: modifyFields(model, { query: () => queryOf(url) }),
-        }),
-      },
+  update: {
+    ClickedLink: model => ({ model }),
+    ChangedUrl: (model, { url }) => ({
+      model: modifyFields(model, { query: () => queryOf(url) }),
+    }),
+  },
 
-      view: (model, h) => ({
-        title: 'Search',
-        body: h.p([h.Role('status')], [`Results for ${model.query}`]),
-      }),
-    }
+  view: (model, h) => ({
+    title: 'Search',
+    body: h.p([h.Role('status')], [`Results for ${model.query}`]),
   }),
-)
+}))

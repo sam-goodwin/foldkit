@@ -18,32 +18,28 @@ export class Overlay extends Block<Overlay>()('Overlay', {
   OutMessage: defineMessageUnion({ Closed: {} }),
 }) {}
 
-export const OverlayLive = Overlay.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isOpen: true }),
+export const OverlayLive = Overlay.toLayer(() => ({
+  init: () => ({ isOpen: true }),
 
-      update: {
-        ClickedClose: model => ({
-          model,
-          outMessage: Overlay.OutMessage.Closed(),
-        }),
-        CompletedPortalToBody: model => ({ model }),
-      },
+  update: {
+    ClickedClose: model => ({
+      model,
+      outMessage: Overlay.OutMessage.Closed(),
+    }),
+    CompletedPortalToBody: model => ({ model }),
+  },
 
-      mounts: {
-        PortalToBody: ({ element }) =>
-          Effect.acquireRelease(
-            Effect.sync(() => document.body.appendChild(element)),
-            () => Effect.sync(() => element.remove()),
-          ).pipe(Effect.as(Message.CompletedPortalToBody())),
-      },
+  mounts: {
+    PortalToBody: ({ element }) =>
+      Effect.acquireRelease(
+        Effect.sync(() => document.body.appendChild(element)),
+        () => Effect.sync(() => element.remove()),
+      ).pipe(Effect.as(Message.CompletedPortalToBody())),
+  },
 
-      view: (_model, h) =>
-        h.div(
-          [h.Class('fixed inset-0 bg-black/50'), h.OnMount(PortalToBody())],
-          [h.button([h.OnClick(Message.ClickedClose())], ['Close'])],
-        ),
-    }
-  }),
-)
+  view: (_model, h) =>
+    h.div(
+      [h.Class('fixed inset-0 bg-black/50'), h.OnMount(PortalToBody())],
+      [h.button([h.OnClick(Message.ClickedClose())], ['Close'])],
+    ),
+}))

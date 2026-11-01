@@ -33,11 +33,14 @@ export const SaveDraft = Command.define('SaveDraft', {
   args: SaveDraftArgs.fields,
   messages: [Message.SucceededSaveDraft],
   interrupt: true,
-  handler: function* () {
+})
+
+export const SaveDraftLive = SaveDraft.toLayer(
+  Effect.gen(function* () {
     return ({ revision }) =>
       Effect.as(Effect.never, Message.SucceededSaveDraft({ revision }))
-  },
-})
+  }),
+)
 
 // INIT
 
@@ -70,4 +73,4 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
   return { title: 'Drafts', body }
 }
 
-export const EffectsLayer = Layer.mergeAll(SaveDraft.layer)
+export const EffectsLayer = Layer.mergeAll(SaveDraftLive)

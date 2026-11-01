@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block, Scene, Story } from 'foldkit'
 import type * as BlockTypes from 'foldkit/block'
 import { modifyFields } from 'foldkit/struct'
@@ -47,38 +47,30 @@ class MenuScene extends Block<MenuScene>()('MenuScene', {
 }) {}
 
 const makeMenuSceneLive = (overrides: SceneOverrides) =>
-  MenuScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ menu: new TestMenu('menu', { id: 'test' }) }),
-        view: (model, h) =>
-          model.menu.view({
-            items: ['Edit', 'Duplicate', 'Delete'],
-            itemToConfig: item => ({ content: h.span([], [item]) }),
-            buttonContent: h.span([], ['Actions']),
-            ...overrides,
-          }),
-      }
-    }),
-  ).pipe(Layer.provide(TestMenu.Live))
+  MenuScene.toLayer(() => ({
+    init: () => ({ menu: new TestMenu('menu', { id: 'test' }) }),
+    view: (model, h) =>
+      model.menu.view({
+        items: ['Edit', 'Duplicate', 'Delete'],
+        itemToConfig: item => ({ content: h.span([], [item]) }),
+        buttonContent: h.span([], ['Actions']),
+        ...overrides,
+      }),
+  })).pipe(Layer.provide(TestMenu.Live))
 
 class RefinedMenuScene extends Block<RefinedMenuScene>()('RefinedMenuScene', {
   Model: Schema.Struct({ menu: RefinedMenu }),
 }) {}
 
-const RefinedMenuSceneLive = RefinedMenuScene.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ menu: new RefinedMenu('menu', { id: 'test' }) }),
-      view: (model, h) =>
-        model.menu.view({
-          items: ['Edit', 'Duplicate', 'Delete'],
-          itemToConfig: item => ({ content: h.span([], [item]) }),
-          buttonContent: h.span([], ['Actions']),
-        }),
-    }
-  }),
-).pipe(Layer.provide(RefinedMenu.Live))
+const RefinedMenuSceneLive = RefinedMenuScene.toLayer(() => ({
+  init: () => ({ menu: new RefinedMenu('menu', { id: 'test' }) }),
+  view: (model, h) =>
+    model.menu.view({
+      items: ['Edit', 'Duplicate', 'Delete'],
+      itemToConfig: item => ({ content: h.span([], [item]) }),
+      buttonContent: h.span([], ['Actions']),
+    }),
+})).pipe(Layer.provide(RefinedMenu.Live))
 
 const button = Scene.selector('#test-button')
 

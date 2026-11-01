@@ -19,29 +19,25 @@ export class Counter extends Block<Counter>()('Counter', {
   Command: [PersistCount],
 }) {}
 
-export const CounterLive = Counter.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
+export const CounterLive = Counter.toLayer(() => ({
+  init: () => ({ count: 0 }),
 
-      update: {
-        ClickedIncrement: model => {
-          const nextCount = model.count + 1
+  update: {
+    ClickedIncrement: model => {
+      const nextCount = model.count + 1
 
-          return {
-            model: modifyFields(model, { count: () => nextCount }),
-            commands: [PersistCount({ count: nextCount })],
-          }
-        },
-        CompletedPersistCount: model => ({ model }),
-      },
+      return {
+        model: modifyFields(model, { count: () => nextCount }),
+        commands: [PersistCount({ count: nextCount })],
+      }
+    },
+    CompletedPersistCount: model => ({ model }),
+  },
 
-      commands: {
-        PersistCount: ({ count }) =>
-          Effect.sync(() => localStorage.setItem('count', String(count))).pipe(
-            Effect.as(Counter.Message.CompletedPersistCount()),
-          ),
-      },
-    }
-  }),
-)
+  commands: {
+    PersistCount: ({ count }) =>
+      Effect.sync(() => localStorage.setItem('count', String(count))).pipe(
+        Effect.as(Counter.Message.CompletedPersistCount()),
+      ),
+  },
+}))

@@ -18,7 +18,7 @@ export class People extends Block<People, Readonly<{ route: PeopleRoute }>>()(
   { Model, Message, Command: [FetchPeople] },
 ) {}
 
-export const PeopleLive = People.layer(
+export const PeopleLive = People.toLayer(
   Effect.gen(function* () {
     const directory = yield* PeopleDirectory
 

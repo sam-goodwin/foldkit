@@ -52,53 +52,49 @@ export class Products extends Block<
   Command: [ReplaceSearchUrl],
 }) {}
 
-export const ProductsLive = Products.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ products }) => ({ products, searchText: '' }),
+export const ProductsLive = Products.toLayer(() => ({
+  init: ({ products }) => ({ products, searchText: '' }),
 
-      update: {
-        CompletedReplaceSearchUrl: model => ({ model }),
+  update: {
+    CompletedReplaceSearchUrl: model => ({ model }),
 
-        ChangedSearchInput: (model, { value }) => ({
-          model: modifyFields(model, { searchText: () => value }),
-          commands: [
-            ReplaceSearchUrl({
-              url: productsRouter({
-                searchText: Option.filter(
-                  Option.some(value),
-                  value => value !== '',
-                ),
-              }),
-            }),
-          ],
+    ChangedSearchInput: (model, { value }) => ({
+      model: modifyFields(model, { searchText: () => value }),
+      commands: [
+        ReplaceSearchUrl({
+          url: productsRouter({
+            searchText: Option.filter(
+              Option.some(value),
+              value => value !== '',
+            ),
+          }),
         }),
+      ],
+    }),
 
-        ClickedAddToCart: (model, { item }) => ({
-          model,
-          outMessage: OutMessage.AddedToCart({ item }),
-        }),
+    ClickedAddToCart: (model, { item }) => ({
+      model,
+      outMessage: OutMessage.AddedToCart({ item }),
+    }),
 
-        ClickedIncrementQuantity: (model, { itemId }) => ({
-          model,
-          outMessage: OutMessage.IncrementedQuantity({ itemId }),
-        }),
+    ClickedIncrementQuantity: (model, { itemId }) => ({
+      model,
+      outMessage: OutMessage.IncrementedQuantity({ itemId }),
+    }),
 
-        ClickedDecrementQuantity: (model, { itemId }) => ({
-          model,
-          outMessage: OutMessage.DecrementedQuantity({ itemId }),
-        }),
-      },
+    ClickedDecrementQuantity: (model, { itemId }) => ({
+      model,
+      outMessage: OutMessage.DecrementedQuantity({ itemId }),
+    }),
+  },
 
-      commands: {
-        ReplaceSearchUrl: ({ url }) =>
-          replaceUrl(url).pipe(Effect.as(Message.CompletedReplaceSearchUrl())),
-      },
+  commands: {
+    ReplaceSearchUrl: ({ url }) =>
+      replaceUrl(url).pipe(Effect.as(Message.CompletedReplaceSearchUrl())),
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 const view = (
   model: Model,

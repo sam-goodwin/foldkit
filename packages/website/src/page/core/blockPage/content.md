@@ -51,7 +51,7 @@ Every field of the contract is optional. A Block with no Model is stateless, and
 
 ## Implement a Block
 
-`Settings.layer` takes an Effect and returns `SettingsLive`, a `Layer<Settings>`:
+`Settings.toLayer` takes an Effect and returns `SettingsLive`, a `Layer<Settings>`:
 
 ::Snippet{name="blockSettingsLive" label="Implementing Settings"}
 
@@ -359,7 +359,7 @@ DevTools shows each instance's state inside its parent's Model. A Message delive
 | Name                                                            | What it does                                                                                      |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `class X extends Block<X, Args, ViewInput>()('X', contract) {}` | Declares a Block class                                                                            |
-| `X.layer(Effect.gen(function* () { ... }))`                     | Implements the Block. The Effect runs once and returns the module. Returns `Layer<X>`             |
+| `X.toLayer(Effect.gen(function* () { ... }))`                   | Implements the Block. The Effect runs once and returns the module. Returns `Layer<X>`             |
 | `new X(id, args)`                                               | Creates an instance. It starts when it appears in a Model                                         |
 | `instance.view(input?)`                                         | Renders the instance                                                                              |
 | `instance.send(message)`                                        | Creates a Message for the instance. Return it under `messages`                                    |

@@ -56,7 +56,7 @@ class Counter extends Block<Counter, { readonly max: number }>()('Counter', {
   Command: [SaveCount],
 }) {}
 
-const CounterLive = Counter.layer(
+const CounterLive = Counter.toLayer(
   Effect.gen(function* () {
     const store = yield* CountStore
 
@@ -131,30 +131,24 @@ class LinkedCounters extends Block<LinkedCounters>()('LinkedCounters', {
   Model: Schema.Struct({ left: Counter, right: Counter }),
 }) {}
 
-const LinkedCountersLive = LinkedCounters.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        left: new Counter('left', { max: 10 }),
-        right: new Counter('right', { max: 3 }),
-      }),
-      update: {
-        ...Counter.on({
-          ReachedMax: (model, _, counter) =>
-            counter.id === 'left'
-              ? {
-                  model,
-                  messages: [
-                    model.right.send(Counter.Message.RequestedReset()),
-                  ],
-                }
-              : { model },
-        }),
-      },
-      view: (model, h) => h.div([], [model.left.view(), model.right.view()]),
-    }
+const LinkedCountersLive = LinkedCounters.toLayer(() => ({
+  init: () => ({
+    left: new Counter('left', { max: 10 }),
+    right: new Counter('right', { max: 3 }),
   }),
-)
+  update: {
+    ...Counter.on({
+      ReachedMax: (model, _, counter) =>
+        counter.id === 'left'
+          ? {
+              model,
+              messages: [model.right.send(Counter.Message.RequestedReset())],
+            }
+          : { model },
+    }),
+  },
+  view: (model, h) => h.div([], [model.left.view(), model.right.view()]),
+}))
 
 class CounterList extends Block<CounterList>()('CounterList', {
   Model: Schema.Struct({
@@ -167,46 +161,42 @@ class CounterList extends Block<CounterList>()('CounterList', {
   }),
 }) {}
 
-const CounterListLive = CounterList.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ rows: [], nextRowId: 0 }),
-      update: {
-        ClickedAddRow: model => ({
-          model: {
-            rows: Array.append(
-              model.rows,
-              new Counter(`row-${model.nextRowId}`, { max: 2 }),
-            ),
-            nextRowId: model.nextRowId + 1,
-          },
-        }),
-        ClickedRemoveRow: (model, { id }) => ({
-          model: {
-            ...model,
-            rows: Array.filter(model.rows, counter => counter.id !== id),
-          },
-        }),
-        ...Counter.on({
-          ReachedMax: (model, _, counter) => ({
-            model: {
-              ...model,
-              rows: Array.filter(model.rows, ({ id }) => id !== counter.id),
-            },
-          }),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            ...Array.map(model.rows, counter => counter.view()),
-            h.button([h.OnClick(CounterList.Message.ClickedAddRow())], ['Add']),
-          ],
+const CounterListLive = CounterList.toLayer(() => ({
+  init: () => ({ rows: [], nextRowId: 0 }),
+  update: {
+    ClickedAddRow: model => ({
+      model: {
+        rows: Array.append(
+          model.rows,
+          new Counter(`row-${model.nextRowId}`, { max: 2 }),
         ),
-    }
-  }),
-)
+        nextRowId: model.nextRowId + 1,
+      },
+    }),
+    ClickedRemoveRow: (model, { id }) => ({
+      model: {
+        ...model,
+        rows: Array.filter(model.rows, counter => counter.id !== id),
+      },
+    }),
+    ...Counter.on({
+      ReachedMax: (model, _, counter) => ({
+        model: {
+          ...model,
+          rows: Array.filter(model.rows, ({ id }) => id !== counter.id),
+        },
+      }),
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        ...Array.map(model.rows, counter => counter.view()),
+        h.button([h.OnClick(CounterList.Message.ClickedAddRow())], ['Add']),
+      ],
+    ),
+}))
 
 describe('Block', () => {
   it.effect('updates a leaf Block and reports its OutMessage', () =>

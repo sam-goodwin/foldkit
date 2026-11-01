@@ -12,7 +12,7 @@ If the project uses a stable release, start with [Migrate from Stable Foldkit](/
 The Definitions preview split each feature into stages: a Definition owned the contracts and effect handlers, a Composition owned the child graph and authored init, update, and view, and assembly produced the completed `FeatureBlock`. A parent reached each child through a Binding. In this preview, a Block is one class plus one Layer:
 
 - The class declares the contract: Model, Message, OutMessage, and the Commands and Mounts the Block owns.
-- `Feature.layer(Effect.gen(function* () { ... }))` implements it and returns a Layer, `FeatureLive`. The Effect runs once, yields the services the Block uses, and returns the Block's module: `init`, update handlers, effect handlers, Subscriptions, and view. Every instance shares that module.
+- `Feature.toLayer(Effect.gen(function* () { ... }))` implements it and returns a Layer, `FeatureLive`. The Effect runs once, yields the services the Block uses, and returns the Block's module: `init`, update handlers, effect handlers, Subscriptions, and view. Every instance shares that module.
 - A child instance is plain data. The parent creates it with `new Child(id, args)` and holds it in its Model. The instance replaces the Binding: the parent sends it Messages, handles its OutMessages with `Child.on`, and renders it with `.view()`.
 
 The architecture is the same. Messages record facts, update is pure, and the Runtime performs the Commands update returns. Most changes are mechanical once you see where each old piece goes.
@@ -41,11 +41,11 @@ Use this table to find each old API. The sections after it show the larger chang
 
 | Earlier preview                                                                                                       | This preview                                                                                                                 |
 | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `Block.makeDefinition`, `makeComposition`, `prepareBlock`, `Block.assemble`, `FromAssembly*` headers, `makeNamespace` | `class X extends Block<X, Args, ViewInput>()('X', contract) {}` plus `X.layer(Effect.gen(...))`                              |
+| `Block.makeDefinition`, `makeComposition`, `prepareBlock`, `Block.assemble`, `FromAssembly*` headers, `makeNamespace` | `class X extends Block<X, Args, ViewInput>()('X', contract) {}` plus `X.toLayer(Effect.gen(...))`                            |
 | `XBlock` export                                                                                                       | `X` (the class) and `XLive` (its Layer)                                                                                      |
 | `makeInit(...)`                                                                                                       | `init: (args, { id, path }) => Model`, plus `start: (model, args) => Commands`; init args become the Block's args            |
 | `Definition.makeCommand(name, { args, messages, handler })`, `.layer`, `EffectsLayer`                                 | Module-level `Command.define(name, { args, messages })`, listed under `Command: [...]`, handled under `commands`             |
-| `makeMount` / `makeMountStream`                                                                                       | `Mount.define` / `Mount.defineStream` without `handler`, listed under `Mount: [...]`, handled under `mounts`                 |
+| `makeMount` / `makeMountStream`                                                                                       | `Mount.define` / `Mount.defineStream`, listed under `Mount: [...]`, handled under `mounts`                                   |
 | `makeSubscriptions(entry => ...)`                                                                                     | `subscriptions: { name: { dependencies, stream } }`; an always-on source has constant `dependencies`                         |
 | `makeManagedResources` / `makeResource`                                                                               | An Effect `RcMap` the Layer creates, held by a Subscription while the Model needs the handle and borrowed by Commands by key |
 | `makeBinding(Child, { field })`                                                                                       | `new Child('field', args)` stored in that field                                                                              |
@@ -260,7 +260,7 @@ The recursive-initializer and import-cycle workarounds for reciprocal Binding po
 
 ## Upgrade from Per-Instance Constructors {#per-instance-constructors}
 
-The class Blocks preview before this one implemented a Block with `X.make(Effect.fn(function* (id, args) { ... }))`. That constructor ran once for every instance, so it could close over the instance's id and args, yield child instances, and acquire resources for one instance. In this preview, `X.layer(Effect.gen(function* () { ... }))` runs once for the whole Block, and an instance is plain data. Anything the constructor captured for one instance moves into that instance's Model.
+The class Blocks preview before this one implemented a Block with `X.make(Effect.fn(function* (id, args) { ... }))`. That constructor ran once for every instance, so it could close over the instance's id and args, yield child instances, and acquire resources for one instance. In this preview, `X.toLayer(Effect.gen(function* () { ... }))` runs once for the whole Block, and an instance is plain data. Anything the constructor captured for one instance moves into that instance's Model.
 
 ::Snippet{name="previewUpgradeClassBlockBefore" label="Before: a constructor that ran once per instance"}
 
@@ -270,7 +270,7 @@ Apply these changes to each Block:
 
 | Per-instance constructor preview                                    | This preview                                                                                                   |
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `X.make(Effect.fn(function* (id, args) { ... }))`                   | `X.layer(Effect.gen(function* () { ... }))`                                                                    |
+| `X.make(Effect.fn(function* (id, args) { ... }))`                   | `X.toLayer(Effect.gen(function* () { ... }))`                                                                  |
 | `model: { ... }`                                                    | `init: (args, { id, path }) => ({ ... })`                                                                      |
 | `id` or `args` read in a handler or view                            | A Model field set by `init`, passed to Command handlers as Command args                                        |
 | `start: [Command()]`                                                | `start: (model, args) => [Command(...)]`                                                                       |

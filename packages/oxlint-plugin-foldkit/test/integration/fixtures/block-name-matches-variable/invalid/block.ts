@@ -4,7 +4,7 @@ import * as Foldkit from 'foldkit'
 
 export class CounterBlock extends AliasedBlock<CounterBlock>()('Counter', {}) {}
 
-export const Counter_ = CounterBlock.layer(
+export const Counter_ = CounterBlock.toLayer(
   Effect.gen(function* () {
     return {}
   }),
@@ -14,7 +14,7 @@ export class Badge extends Foldkit.Block<Panel>()('Badge', {}) {}
 
 export class Panel extends Foldkit.Block<Panel>()('Panel', {}) {}
 
-export const PanelLayer = Panel.layer(
+export const PanelLayer = Panel.toLayer(
   Effect.gen(function* () {
     return {}
   }),
@@ -22,7 +22,7 @@ export const PanelLayer = Panel.layer(
 
 export const makeMenu = () => {
   const MenuClass = Foldkit.Block<{ readonly kind: 'Menu' }>()('Menu', {})
-  const MenuClassLive = MenuClass.layer(
+  const MenuClassLive = MenuClass.toLayer(
     Effect.gen(function* () {
       return {}
     }),

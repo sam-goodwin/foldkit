@@ -164,7 +164,7 @@ In the preview, the root is an ordinary Block named `Application`. Its args decl
 
 Make these changes:
 
-1. Declare `class Application extends Block<Application, Args>()('Application', { Model, Message, ... }) {}` and implement it with `Application.layer(...)` as `ApplicationLive`.
+1. Declare `class Application extends Block<Application, Args>()('Application', { Model, Message, ... }) {}` and implement it with `Application.toLayer(...)` as `ApplicationLive`.
 2. Rename a root route union named `AppRoute` to `ApplicationRoute`.
 3. Move the container, Flags Schema, routing, Ports, DevTools, and other host options into `Program.make(Application, { layer, ... })`.
 4. Provide each child Block's Layer to every parent Layer whose Model holds it, or merge them into one Layer provided to the whole tree.

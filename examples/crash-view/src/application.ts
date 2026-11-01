@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block, Runtime } from 'foldkit'
 import { Document, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -19,42 +19,38 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => null,
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => null,
 
-      update: {
-        ClickedCrash: handleClickedCrash,
-      },
+  update: {
+    ClickedCrash: handleClickedCrash,
+  },
 
-      view: (_model, h) => ({
-        title: 'Crash View Example',
-        body: h.div(
-          [h.Class('min-h-screen bg-white flex items-center justify-center')],
-          [
-            Button.view(
-              {
-                onClick: Message.ClickedCrash(),
-                toView: attributes =>
-                  h.button(
-                    [
-                      ...attributes.button,
-                      h.Class(
-                        'bg-red-600 text-white text-lg font-semibold hover:bg-red-700 px-6 py-3 rounded transition cursor-pointer',
-                      ),
-                    ],
-                    ['Crash'],
+  view: (_model, h) => ({
+    title: 'Crash View Example',
+    body: h.div(
+      [h.Class('min-h-screen bg-white flex items-center justify-center')],
+      [
+        Button.view(
+          {
+            onClick: Message.ClickedCrash(),
+            toView: attributes =>
+              h.button(
+                [
+                  ...attributes.button,
+                  h.Class(
+                    'bg-red-600 text-white text-lg font-semibold hover:bg-red-700 px-6 py-3 rounded transition cursor-pointer',
                   ),
-              },
-              h,
-            ),
-          ],
+                ],
+                ['Crash'],
+              ),
+          },
+          h,
         ),
-      }),
-    }
+      ],
+    ),
   }),
-)
+}))
 
 const handleClickedCrash = (
   _model: Model,

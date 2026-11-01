@@ -1,4 +1,4 @@
-import { Effect, Schema, pipe } from 'effect'
+import { Schema, pipe } from 'effect'
 import { Block, Route, Url } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { defineRouteUnion, int, literal, slash } from 'foldkit/route'
@@ -52,25 +52,21 @@ class Application extends Block<Application, Readonly<{ url: Url.Url }>>()(
   { Model, Message },
 ) {}
 
-const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      // init parses the starting URL...
-      init: ({ url }) => ({ route: urlToApplicationRoute(url) }),
+const ApplicationLive = Application.toLayer(() => ({
+  // init parses the starting URL...
+  init: ({ url }) => ({ route: urlToApplicationRoute(url) }),
 
-      update: {
-        // ...and the ChangedUrl handler parses every later URL
-        ChangedUrl: (model, { url: nextUrl }) => ({
-          model: modifyFields(model, {
-            route: () => urlToApplicationRoute(nextUrl),
-          }),
-        }),
-      },
-
-      view: (model, h) => ({
-        title: model.route._tag,
-        body: h.main([], [model.route._tag]),
+  update: {
+    // ...and the ChangedUrl handler parses every later URL
+    ChangedUrl: (model, { url: nextUrl }) => ({
+      model: modifyFields(model, {
+        route: () => urlToApplicationRoute(nextUrl),
       }),
-    }
+    }),
+  },
+
+  view: (model, h) => ({
+    title: model.route._tag,
+    body: h.main([], [model.route._tag]),
   }),
-)
+}))

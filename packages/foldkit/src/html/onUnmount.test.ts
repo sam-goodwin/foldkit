@@ -462,20 +462,16 @@ class Dialog extends Block<Dialog, void, DialogViewInput>()('Dialog', {
   Message: DialogMessage,
 }) {}
 
-const DialogLive = Dialog.layer(
-  Effect.gen(function* () {
-    return {
-      update: { UnmountedDialog: model => ({ model }) },
-      view: (_model, h, { toView }) =>
-        toView(
-          childAttributes([
-            h.Id('child-dialog'),
-            h.OnUnmount(Dialog.Message.UnmountedDialog()),
-          ]),
-        ),
-    }
-  }),
-)
+const DialogLive = Dialog.toLayer(() => ({
+  update: { UnmountedDialog: model => ({ model }) },
+  view: (_model, h, { toView }) =>
+    toView(
+      childAttributes([
+        h.Id('child-dialog'),
+        h.OnUnmount(Dialog.Message.UnmountedDialog()),
+      ]),
+    ),
+}))
 
 // Renders with a persistent boundary registry shared across renders and a
 // `beginRender` call each pass, matching how the runtime drives Block
@@ -518,29 +514,25 @@ describe('OnUnmount across a Block boundary', () => {
           Message: ParentMessage,
         }) {}
 
-        const ParentLive = Parent.layer(
-          Effect.gen(function* () {
-            return {
-              init: () => ({ dialog: new Dialog('dialog') }),
-              update: { UnmountedParent: model => ({ model }) },
-              view: (model, h) =>
-                isDialogRendered
-                  ? h.div(
-                      [],
-                      [
-                        model.dialog.view({
-                          toView: dialogAttributes =>
-                            h.dialog([
-                              ...dialogAttributes,
-                              h.OnUnmount(Parent.Message.UnmountedParent()),
-                            ]),
-                        }),
-                      ],
-                    )
-                  : h.div([]),
-            }
-          }),
-        ).pipe(Layer.provide(DialogLive))
+        const ParentLive = Parent.toLayer(() => ({
+          init: () => ({ dialog: new Dialog('dialog') }),
+          update: { UnmountedParent: model => ({ model }) },
+          view: (model, h) =>
+            isDialogRendered
+              ? h.div(
+                  [],
+                  [
+                    model.dialog.view({
+                      toView: dialogAttributes =>
+                        h.dialog([
+                          ...dialogAttributes,
+                          h.OnUnmount(Parent.Message.UnmountedParent()),
+                        ]),
+                    }),
+                  ],
+                )
+              : h.div([]),
+        })).pipe(Layer.provide(DialogLive))
 
         const context = yield* Layer.build(ParentLive)
         const block = runtimeBlockOf(Parent)

@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type * as BlockTypes from 'foldkit/block'
 import { modifyFields } from 'foldkit/struct'
@@ -85,56 +85,52 @@ const makeComboboxClass = <Item extends string, ItemEncoded>(
     ViewInputs<Item>
   >()('Combobox', contract)
 
-  const ComboboxLive = ComboboxClass.layer(
-    Effect.gen(function* () {
-      return {
-        init: baseInit,
-        update: makeUpdate<Item>('CloseWithFocus', {
-          handleClose: (model, restingInputValue, isClearable) => {
-            if (isClearable && model.nullable && model.inputValue === '') {
-              return {
-                model: modifyFields(closedBaseModel(model), {
-                  inputValue: () => '',
-                }),
-                outMessage: OutMessage.ClearedSelection(),
-              }
-            }
+  const ComboboxLive = ComboboxClass.toLayer(() => ({
+    init: baseInit,
+    update: makeUpdate<Item>('CloseWithFocus', {
+      handleClose: (model, restingInputValue, isClearable) => {
+        if (isClearable && model.nullable && model.inputValue === '') {
+          return {
+            model: modifyFields(closedBaseModel(model), {
+              inputValue: () => '',
+            }),
+            outMessage: OutMessage.ClearedSelection(),
+          }
+        }
 
-            return {
-              model: modifyFields(closedBaseModel(model), {
-                inputValue: () => restingInputValue,
-              }),
-            }
-          },
-          handleSelectedItem: (model, item, displayText, wasSelected) => {
-            const nullableDeselect = model.nullable && wasSelected
-
-            return {
-              model: modifyFields(closedBaseModel(model), {
-                inputValue: () => (nullableDeselect ? '' : displayText),
-              }),
-              outMessage: OutMessage.Selected({ value: item }),
-            }
-          },
-          handleImmediateActivation: (model, item) => ({
-            model,
-            outMessage: OutMessage.Selected({ value: item }),
+        return {
+          model: modifyFields(closedBaseModel(model), {
+            inputValue: () => restingInputValue,
           }),
-        }),
-        commands: commandHandlers,
-        mounts: mountHandlers,
-        view: (model, h, { maybeSelectedValue, ...baseInputs }) =>
-          render(
-            model,
-            {
-              ...baseInputs,
-              selectedValues: Option.toArray(maybeSelectedValue),
-            },
-            h,
-          ),
-      }
+        }
+      },
+      handleSelectedItem: (model, item, displayText, wasSelected) => {
+        const nullableDeselect = model.nullable && wasSelected
+
+        return {
+          model: modifyFields(closedBaseModel(model), {
+            inputValue: () => (nullableDeselect ? '' : displayText),
+          }),
+          outMessage: OutMessage.Selected({ value: item }),
+        }
+      },
+      handleImmediateActivation: (model, item) => ({
+        model,
+        outMessage: OutMessage.Selected({ value: item }),
+      }),
     }),
-  ).pipe(Layer.provide(Animation.AnimationLive))
+    commands: commandHandlers,
+    mounts: mountHandlers,
+    view: (model, h, { maybeSelectedValue, ...baseInputs }) =>
+      render(
+        model,
+        {
+          ...baseInputs,
+          selectedValues: Option.toArray(maybeSelectedValue),
+        },
+        h,
+      ),
+  })).pipe(Layer.provide(Animation.AnimationLive))
 
   return Object.assign(ComboboxClass, { Live: ComboboxLive })
 }

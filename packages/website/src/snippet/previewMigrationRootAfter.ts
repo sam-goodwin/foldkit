@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -21,39 +21,35 @@ export class Application extends Block<
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({
-        settings: new Settings('settings'),
-        previewTheme: flags.savedTheme,
-      }),
-
-      update: {
-        ClickedResetSettings: model => ({
-          model,
-          messages: [model.settings.send(Settings.Message.RequestedReset())],
-        }),
-        ...Settings.on({
-          ChangedTheme: (model, { theme }) => ({
-            model: modifyFields(model, { previewTheme: () => theme }),
-          }),
-        }),
-      },
-
-      view: (model, h) => ({
-        title: `Theme: ${model.previewTheme}`,
-        body: h.main(
-          [],
-          [
-            model.settings.view(),
-            h.button(
-              [h.OnClick(Message.ClickedResetSettings())],
-              ['Reset settings'],
-            ),
-          ],
-        ),
-      }),
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) => ({
+    settings: new Settings('settings'),
+    previewTheme: flags.savedTheme,
   }),
-).pipe(Layer.provide(SettingsLive))
+
+  update: {
+    ClickedResetSettings: model => ({
+      model,
+      messages: [model.settings.send(Settings.Message.RequestedReset())],
+    }),
+    ...Settings.on({
+      ChangedTheme: (model, { theme }) => ({
+        model: modifyFields(model, { previewTheme: () => theme }),
+      }),
+    }),
+  },
+
+  view: (model, h) => ({
+    title: `Theme: ${model.previewTheme}`,
+    body: h.main(
+      [],
+      [
+        model.settings.view(),
+        h.button(
+          [h.OnClick(Message.ClickedResetSettings())],
+          ['Reset settings'],
+        ),
+      ],
+    ),
+  }),
+})).pipe(Layer.provide(SettingsLive))

@@ -1,4 +1,4 @@
-import { Effect, Match, Option, Schema } from 'effect'
+import { Match, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Send } from 'foldkit/block'
 import { defineMessageUnion } from 'foldkit/message'
@@ -17,56 +17,52 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => {
+    const route = urlToApplicationRoute(url)
+
+    const initialPeopleRoute = Match.value(route).pipe(
+      Match.tag('People', peopleRoute => peopleRoute),
+      Match.orElse(() =>
+        ApplicationRoute.People({ searchText: Option.none() }),
+      ),
+    )
+
     return {
-      init: ({ url }) => {
-        const route = urlToApplicationRoute(url)
-
-        const initialPeopleRoute = Match.value(route).pipe(
-          Match.tag('People', peopleRoute => peopleRoute),
-          Match.orElse(() =>
-            ApplicationRoute.People({ searchText: Option.none() }),
-          ),
-        )
-
-        return {
-          route,
-          people: new People('people', { route: initialPeopleRoute }),
-        }
-      },
-
-      update: {
-        ChangedUrl: (model, { url: nextUrl }) => {
-          const nextRoute = urlToApplicationRoute(nextUrl)
-
-          const transition = Transition.make(model.route, nextRoute)
-          const peopleMessages = Transition.matchOrElse<ReadonlyArray<Send>>()(
-            transition,
-            'People',
-            {
-              Entered: peopleRoute => [
-                model.people.send(
-                  People.Message.InformedOfRouteChange({ route: peopleRoute }),
-                ),
-              ],
-              Stayed: ({ nextRoute: nextPeopleRoute }) => [
-                model.people.send(
-                  People.Message.InformedOfRouteChange({
-                    route: nextPeopleRoute,
-                  }),
-                ),
-              ],
-            },
-            () => [],
-          )
-
-          return {
-            model: modifyFields(model, { route: () => nextRoute }),
-            messages: peopleMessages,
-          }
-        },
-      },
+      route,
+      people: new People('people', { route: initialPeopleRoute }),
     }
-  }),
-)
+  },
+
+  update: {
+    ChangedUrl: (model, { url: nextUrl }) => {
+      const nextRoute = urlToApplicationRoute(nextUrl)
+
+      const transition = Transition.make(model.route, nextRoute)
+      const peopleMessages = Transition.matchOrElse<ReadonlyArray<Send>>()(
+        transition,
+        'People',
+        {
+          Entered: peopleRoute => [
+            model.people.send(
+              People.Message.InformedOfRouteChange({ route: peopleRoute }),
+            ),
+          ],
+          Stayed: ({ nextRoute: nextPeopleRoute }) => [
+            model.people.send(
+              People.Message.InformedOfRouteChange({
+                route: nextPeopleRoute,
+              }),
+            ),
+          ],
+        },
+        () => [],
+      )
+
+      return {
+        model: modifyFields(model, { route: () => nextRoute }),
+        messages: peopleMessages,
+      }
+    },
+  },
+}))

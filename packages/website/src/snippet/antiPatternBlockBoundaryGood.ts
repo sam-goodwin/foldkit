@@ -1,6 +1,6 @@
 // ✅ Good: the parent sends a request Settings declares for it.
 
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -11,19 +11,15 @@ export class Account extends Block<Account>()('Account', {
   Message: defineMessageUnion({ ClickedResetSettings: {} }),
 }) {}
 
-export const AccountLive = Account.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        settings: new Settings('settings', { initialTheme: 'System' }),
-      }),
-
-      update: {
-        ClickedResetSettings: model => ({
-          model,
-          messages: [model.settings.send(Settings.Message.RequestedReset())],
-        }),
-      },
-    }
+export const AccountLive = Account.toLayer(() => ({
+  init: () => ({
+    settings: new Settings('settings', { initialTheme: 'System' }),
   }),
-)
+
+  update: {
+    ClickedResetSettings: model => ({
+      model,
+      messages: [model.settings.send(Settings.Message.RequestedReset())],
+    }),
+  },
+}))

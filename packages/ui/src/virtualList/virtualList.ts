@@ -2594,17 +2594,13 @@ export const makeBlock = <Item>(): Completed<Item> => {
     'VirtualList',
     contract,
   )
-  const VirtualListLive = VirtualList.layer(
-    Effect.gen(function* () {
-      return {
-        init: initialModel,
-        update,
-        commands: { ApplyScroll: handleApplyScroll },
-        mounts: { ObserveVirtualList: handleObserveVirtualList },
-        view: (model, h, viewInputs) => view(model, h, viewInputs),
-      }
-    }),
-  )
+  const VirtualListLive = VirtualList.toLayer(() => ({
+    init: initialModel,
+    update,
+    commands: { ApplyScroll: handleApplyScroll },
+    mounts: { ObserveVirtualList: handleObserveVirtualList },
+    view: (model, h, viewInputs) => view(model, h, viewInputs),
+  }))
 
   return Object.assign(VirtualList, { Live: VirtualListLive })
 }

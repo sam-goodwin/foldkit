@@ -58,56 +58,52 @@ export class Application extends Block<Application, { readonly url: Url }>()(
   },
 ) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({ route: urlToApplicationRoute(url), count: 0 }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => ({ route: urlToApplicationRoute(url), count: 0 }),
 
-      update: {
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: Number.increment }),
+  update: {
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url }) => ({
+          model,
+          commands: [NavigateInternal({ url: urlToString(url) })],
         }),
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url }) => ({
-              model,
-              commands: [NavigateInternal({ url: urlToString(url) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
-        ChangedUrl: (model, { url }) => ({
-          model: modifyFields(model, {
-            route: () => urlToApplicationRoute(url),
-          }),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
         }),
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url }) =>
-          pushUrl(url).pipe(Effect.as(Message.CompletedNavigateInternal())),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-      },
-
-      view: (model, h) => ({
-        title: routeTitle(model.route),
-        body: h.main(
-          [
-            h.Class(
-              'mx-auto grid min-h-screen max-w-3xl content-center gap-10 p-8',
-            ),
-          ],
-          [navigationView(h), pageView(model, h)],
-        ),
       }),
-    }
+    ChangedUrl: (model, { url }) => ({
+      model: modifyFields(model, {
+        route: () => urlToApplicationRoute(url),
+      }),
+    }),
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+  },
+
+  commands: {
+    NavigateInternal: ({ url }) =>
+      pushUrl(url).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
+
+  view: (model, h) => ({
+    title: routeTitle(model.route),
+    body: h.main(
+      [
+        h.Class(
+          'mx-auto grid min-h-screen max-w-3xl content-center gap-10 p-8',
+        ),
+      ],
+      [navigationView(h), pageView(model, h)],
+    ),
   }),
-)
+}))
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

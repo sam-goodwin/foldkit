@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { defineTaggedUnion } from 'foldkit/schema'
@@ -16,22 +16,17 @@ export class Application extends Block<Application>()('Application', {
   Message: defineMessageUnion({ ClickedHome: {}, ClickedSettings: {} }),
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ page: Page.Home() }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ page: Page.Home() }),
 
-      update: {
-        ClickedHome: model => ({
-          model: modifyFields(model, { page: () => Page.Home() }),
-        }),
-        ClickedSettings: model => ({
-          model: modifyFields(model, {
-            page: () =>
-              Page.Settings({ themeMenu: new ThemeMenu('themeMenu') }),
-          }),
-        }),
-      },
-    }
-  }),
-)
+  update: {
+    ClickedHome: model => ({
+      model: modifyFields(model, { page: () => Page.Home() }),
+    }),
+    ClickedSettings: model => ({
+      model: modifyFields(model, {
+        page: () => Page.Settings({ themeMenu: new ThemeMenu('themeMenu') }),
+      }),
+    }),
+  },
+}))

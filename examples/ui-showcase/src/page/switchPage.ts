@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -22,21 +22,17 @@ export class SwitchPage extends Block<SwitchPage>()('SwitchPage', {
   Message,
 }) {}
 
-export const SwitchPageLive = SwitchPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isSwitchDemoChecked: false }),
+export const SwitchPageLive = SwitchPage.toLayer(() => ({
+  init: () => ({ isSwitchDemoChecked: false }),
 
-      update: {
-        ToggledSwitchDemo: (model, { isChecked }) => ({
-          model: modifyFields(model, { isSwitchDemoChecked: () => isChecked }),
-        }),
-      },
+  update: {
+    ToggledSwitchDemo: (model, { isChecked }) => ({
+      model: modifyFields(model, { isSwitchDemoChecked: () => isChecked }),
+    }),
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 const SWITCH_DEMO_ID = 'switch-demo'
 

@@ -1,4 +1,4 @@
-import { Effect, Layer, Match, Schema } from 'effect'
+import { Layer, Match, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { type Html, type HtmlBuilder, childAttributes } from 'foldkit/html'
 
@@ -23,22 +23,18 @@ type Model = typeof Model.Type
 
 export class MenuPage extends Block<MenuPage>()('MenuPage', { Model }) {}
 
-export const MenuPageLive = MenuPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        menuBasicDemo: new DemoMenu('menuBasicDemo', {
-          id: 'menu-basic-demo',
-        }),
-        menuAnimatedDemo: new DemoMenu('menuAnimatedDemo', {
-          id: 'menu-animated-demo',
-          isAnimated: true,
-        }),
-      }),
-      view,
-    }
+export const MenuPageLive = MenuPage.toLayer(() => ({
+  init: () => ({
+    menuBasicDemo: new DemoMenu('menuBasicDemo', {
+      id: 'menu-basic-demo',
+    }),
+    menuAnimatedDemo: new DemoMenu('menuAnimatedDemo', {
+      id: 'menu-animated-demo',
+      isAnimated: true,
+    }),
   }),
-).pipe(Layer.provide(DemoMenu.Live))
+  view,
+})).pipe(Layer.provide(DemoMenu.Live))
 
 const triggerClassName =
   'inline-flex items-center gap-1.5 px-4 py-2 text-base font-normal cursor-pointer transition rounded-lg border border-gray-300 bg-white text-gray-900 hover:bg-gray-100 select-none'

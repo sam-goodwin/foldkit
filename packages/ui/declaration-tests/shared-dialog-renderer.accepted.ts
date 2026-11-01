@@ -38,7 +38,7 @@ export const deleteDialogInputs = (
     },
   )
 
-export const DeleteIssueLive = DeleteIssue.layer(
+export const DeleteIssueLive = DeleteIssue.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({
@@ -84,7 +84,7 @@ export class InviteMember extends Block<InviteMember>()('InviteMember', {
   Message: InviteMemberMessage,
 }) {}
 
-export const InviteMemberLive = InviteMember.layer(
+export const InviteMemberLive = InviteMember.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({

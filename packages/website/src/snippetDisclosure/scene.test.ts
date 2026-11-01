@@ -27,7 +27,7 @@ class SnippetDisclosureHost extends Block<SnippetDisclosureHost>()(
 ) {}
 
 const snippetDisclosureHostLive = (hostView: HostView) =>
-  SnippetDisclosureHost.layer(
+  SnippetDisclosureHost.toLayer(
     Effect.succeed({
       init: () => ({
         snippetDisclosure: new SnippetDisclosure('snippetDisclosure'),

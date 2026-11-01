@@ -1,4 +1,4 @@
-import { Effect, Layer, Option } from 'effect'
+import { Layer, Option } from 'effect'
 import { Block } from 'foldkit'
 import type * as BlockTypes from 'foldkit/block'
 
@@ -107,24 +107,20 @@ export const makeBlock = <
   >()('Listbox', makeContract<Value>())
   const arrayBasedView = internalView<unknown, Value>()
 
-  const ListboxLive = ListboxClass.layer(
-    Effect.gen(function* () {
-      return {
-        init: baseInit,
-        update: makeUpdate<Value>('CloseWithFocus', (model, item) => ({
-          model,
-          outMessage: selected<Value>(item),
-        })),
-        commands: commandHandlers,
-        mounts: mountHandlers,
-        view: (model, h, viewInputs) => {
-          /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-          const erased = viewInputs as ViewInputs<unknown, Value>
-          return arrayBasedView(model, toBaseViewInputs(erased), h)
-        },
-      }
-    }),
-  ).pipe(Layer.provide(Animation.AnimationLive))
+  const ListboxLive = ListboxClass.toLayer(() => ({
+    init: baseInit,
+    update: makeUpdate<Value>('CloseWithFocus', (model, item) => ({
+      model,
+      outMessage: selected<Value>(item),
+    })),
+    commands: commandHandlers,
+    mounts: mountHandlers,
+    view: (model, h, viewInputs) => {
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      const erased = viewInputs as ViewInputs<unknown, Value>
+      return arrayBasedView(model, toBaseViewInputs(erased), h)
+    },
+  })).pipe(Layer.provide(Animation.AnimationLive))
 
   return Object.assign(ListboxClass, { Live: ListboxLive })
 }

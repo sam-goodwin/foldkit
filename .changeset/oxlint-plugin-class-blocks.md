@@ -9,7 +9,7 @@ Lint class Blocks. The rules recognize a Block class, its `layer` implementation
 - `foldkit/command-define-pascal-const` also requires the const that holds a Command to have the Command's name, which `foldkit/command-binding-matches-name` used to check. Replace that rule with `foldkit/command-define-pascal-const` in explicit configurations.
 - `foldkit/mount-factory-must-use-element` checks the handlers in a Block's `mounts` record.
 - `foldkit/no-disabling-dev-guardrails` checks for `slow: false` in options passed to `Program.make` and `Program.makeElement`, imported from `foldkit` or `foldkit/program`.
-- `foldkit/no-impure-call-at-decision-time` treats the function returned by a `handler` generator, and the implementation passed to `toLayer`, as running when the Runtime performs the work, so time and randomness calls inside them are accepted.
+- `foldkit/no-impure-call-at-decision-time` treats the handler returned by the Effect passed to a definition's `layer` as running when the Runtime performs the work, so time and randomness calls inside it are accepted.
 
 Remove these rules from explicit configurations. Child instances route their own Messages, so there are no `Got*` wrappers or child folds left for them to check:
 

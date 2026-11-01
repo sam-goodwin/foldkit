@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import {
   Field,
@@ -45,124 +45,119 @@ export class SkillsEntry extends Block<SkillsEntry>()('SkillsEntry', {
   OutMessage,
 }) {}
 
-export const SkillsEntryLive = SkillsEntry.layer(
-  Effect.gen(function* () {
-    return {
-      init: (_, { id }) => ({
-        id,
-        name: NotValidated({ value: '' }),
-        proficiency: 'Intermediate',
-        proficiencyRadioGroup: new ProficiencyRadioGroup(
-          'proficiencyRadioGroup',
-          { id: `${id}-proficiency` },
-        ),
+export const SkillsEntryLive = SkillsEntry.toLayer(() => ({
+  init: (_, { id }) => ({
+    id,
+    name: NotValidated({ value: '' }),
+    proficiency: 'Intermediate',
+    proficiencyRadioGroup: new ProficiencyRadioGroup('proficiencyRadioGroup', {
+      id: `${id}-proficiency`,
+    }),
+  }),
+
+  update: {
+    UpdatedName: (model, { value }) => ({
+      model: modifyFields(model, { name: () => validateName(value) }),
+    }),
+
+    RequestedRevealErrors: model => ({
+      model: modifyFields(model, { name: revealFieldErrors(nameRules) }),
+    }),
+
+    ClickedRemoveSelf: model => ({
+      model,
+      outMessage: OutMessage.Removed(),
+    }),
+
+    ...ProficiencyRadioGroup.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { proficiency: () => value }),
       }),
+    }),
+  },
 
-      update: {
-        UpdatedName: (model, { value }) => ({
-          model: modifyFields(model, { name: () => validateName(value) }),
-        }),
-
-        RequestedRevealErrors: model => ({
-          model: modifyFields(model, { name: revealFieldErrors(nameRules) }),
-        }),
-
-        ClickedRemoveSelf: model => ({
-          model,
-          outMessage: OutMessage.Removed(),
-        }),
-
-        ...ProficiencyRadioGroup.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { proficiency: () => value }),
-          }),
-        }),
+  view: (model, h) => {
+    const nameView = FieldView.input(
+      {
+        id: `${model.id}-name`,
+        label: 'Skill',
+        field: model.name,
+        onInput: value => Message.UpdatedName({ value }),
+        placeholder: 'e.g. TypeScript, React, Effect-TS',
       },
+      h,
+    )
 
-      view: (model, h) => {
-        const nameView = FieldView.input(
-          {
-            id: `${model.id}-name`,
-            label: 'Skill',
-            field: model.name,
-            onInput: value => Message.UpdatedName({ value }),
-            placeholder: 'e.g. TypeScript, React, Effect-TS',
-          },
-          h,
-        )
-
-        const proficiencyView = model.proficiencyRadioGroup.view({
-          selectedValue: Option.some(model.proficiency),
-          options: ProficiencyLevel.all,
-          orientation: 'Horizontal',
-          ariaLabel: 'Proficiency level',
-          toView: attributes =>
+    const proficiencyView = model.proficiencyRadioGroup.view({
+      selectedValue: Option.some(model.proficiency),
+      options: ProficiencyLevel.all,
+      orientation: 'Horizontal',
+      ariaLabel: 'Proficiency level',
+      toView: attributes =>
+        h.div(
+          [...attributes.group, h.Class('inline-flex flex-wrap gap-2')],
+          attributes.options.map(option =>
             h.div(
-              [...attributes.group, h.Class('inline-flex flex-wrap gap-2')],
-              attributes.options.map(option =>
-                h.div(
-                  [
-                    ...option.option,
-                    h.Class(
-                      clsx(
-                        'cursor-pointer rounded-full border px-3 py-1 text-sm transition select-none',
-                        option.isSelected
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                          : 'border-gray-300 text-gray-600 hover:border-gray-400',
-                      ),
-                    ),
-                  ],
-                  [
-                    h.input([...option.label, h.Class('sr-only')]),
-                    h.span([], [option.value]),
-                  ],
+              [
+                ...option.option,
+                h.Class(
+                  clsx(
+                    'cursor-pointer rounded-full border px-3 py-1 text-sm transition select-none',
+                    option.isSelected
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-300 text-gray-600 hover:border-gray-400',
+                  ),
                 ),
-              ),
+              ],
+              [
+                h.input([...option.label, h.Class('sr-only')]),
+                h.span([], [option.value]),
+              ],
             ),
-        })
+          ),
+        ),
+    })
 
-        return h.keyed('div')(
-          model.id,
-          [h.Class('py-6 space-y-4 first:pt-0')],
+    return h.keyed('div')(
+      model.id,
+      [h.Class('py-6 space-y-4 first:pt-0')],
+      [
+        nameView,
+        h.div(
+          [h.Class('space-y-2')],
           [
-            nameView,
-            h.div(
-              [h.Class('space-y-2')],
-              [
-                h.span(
-                  [h.Class('block text-sm font-medium text-gray-700')],
-                  ['Proficiency'],
-                ),
-                proficiencyView,
-              ],
+            h.span(
+              [h.Class('block text-sm font-medium text-gray-700')],
+              ['Proficiency'],
             ),
-            h.div(
-              [h.Class('flex justify-end')],
-              [
-                Button.view(
-                  {
-                    onClick: Message.ClickedRemoveSelf(),
-                    toView: attributes =>
-                      h.button(
-                        [
-                          ...attributes.button,
-                          h.Class(
-                            'text-sm text-gray-400 hover:text-red-500 transition cursor-pointer',
-                          ),
-                        ],
-                        ['Remove skill'],
+            proficiencyView,
+          ],
+        ),
+        h.div(
+          [h.Class('flex justify-end')],
+          [
+            Button.view(
+              {
+                onClick: Message.ClickedRemoveSelf(),
+                toView: attributes =>
+                  h.button(
+                    [
+                      ...attributes.button,
+                      h.Class(
+                        'text-sm text-gray-400 hover:text-red-500 transition cursor-pointer',
                       ),
-                  },
-                  h,
-                ),
-              ],
+                    ],
+                    ['Remove skill'],
+                  ),
+              },
+              h,
             ),
           ],
-        )
-      },
-    }
-  }),
-).pipe(Layer.provide(ProficiencyRadioGroup.Live))
+        ),
+      ],
+    )
+  },
+})).pipe(Layer.provide(ProficiencyRadioGroup.Live))
 
 const nameRules = makeRules({
   required: 'Skill name is required',

@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -26,46 +26,42 @@ export class CheckboxPage extends Block<CheckboxPage>()('CheckboxPage', {
   Message,
 }) {}
 
-export const CheckboxPageLive = CheckboxPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        isCheckboxBasicDemoChecked: false,
-        isCheckboxOptionADemoChecked: false,
-        isCheckboxOptionBDemoChecked: false,
-      }),
-
-      update: {
-        ToggledCheckboxBasicDemo: (model, { isChecked }) => ({
-          model: modifyFields(model, {
-            isCheckboxBasicDemoChecked: () => isChecked,
-          }),
-        }),
-
-        ToggledCheckboxAllDemo: (model, { isChecked }) => ({
-          model: modifyFields(model, {
-            isCheckboxOptionADemoChecked: () => isChecked,
-            isCheckboxOptionBDemoChecked: () => isChecked,
-          }),
-        }),
-
-        ToggledCheckboxOptionADemo: (model, { isChecked }) => ({
-          model: modifyFields(model, {
-            isCheckboxOptionADemoChecked: () => isChecked,
-          }),
-        }),
-
-        ToggledCheckboxOptionBDemo: (model, { isChecked }) => ({
-          model: modifyFields(model, {
-            isCheckboxOptionBDemoChecked: () => isChecked,
-          }),
-        }),
-      },
-
-      view,
-    }
+export const CheckboxPageLive = CheckboxPage.toLayer(() => ({
+  init: () => ({
+    isCheckboxBasicDemoChecked: false,
+    isCheckboxOptionADemoChecked: false,
+    isCheckboxOptionBDemoChecked: false,
   }),
-)
+
+  update: {
+    ToggledCheckboxBasicDemo: (model, { isChecked }) => ({
+      model: modifyFields(model, {
+        isCheckboxBasicDemoChecked: () => isChecked,
+      }),
+    }),
+
+    ToggledCheckboxAllDemo: (model, { isChecked }) => ({
+      model: modifyFields(model, {
+        isCheckboxOptionADemoChecked: () => isChecked,
+        isCheckboxOptionBDemoChecked: () => isChecked,
+      }),
+    }),
+
+    ToggledCheckboxOptionADemo: (model, { isChecked }) => ({
+      model: modifyFields(model, {
+        isCheckboxOptionADemoChecked: () => isChecked,
+      }),
+    }),
+
+    ToggledCheckboxOptionBDemo: (model, { isChecked }) => ({
+      model: modifyFields(model, {
+        isCheckboxOptionBDemoChecked: () => isChecked,
+      }),
+    }),
+  },
+
+  view,
+}))
 
 const CHECKBOX_BASIC_DEMO_ID = 'checkbox-basic-demo'
 const CHECKBOX_ALL_DEMO_ID = 'checkbox-all-demo'

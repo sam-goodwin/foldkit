@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Array, Effect, Layer, Option, Schema } from 'effect'
+import { Array, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -55,70 +55,64 @@ export class Sidebar extends Block<Sidebar, void, ViewInput>()('Sidebar', {
   OutMessage,
 }) {}
 
-export const SidebarLive = Sidebar.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        chartMode: 'Adoption',
-        chartModeRadioGroup: new ChartModeRadioGroup('chartModeRadioGroup', {
-          id: CHART_MODE_RADIO_GROUP_ID,
-        }),
-        selectedPackageId: 'Core',
-        packageRadioGroup: new PackageRadioGroup('packageRadioGroup', {
-          id: PACKAGE_RADIO_GROUP_ID,
-        }),
-        period: 'LastSixteenWeeks',
-        periodRadioGroup: new PeriodRadioGroup('periodRadioGroup', {
-          id: PERIOD_RADIO_GROUP_ID,
-        }),
-      }),
-
-      update: {
-        ...ChartModeRadioGroup.on({
-          Selected: (model, { value }) =>
-            updatedChartControls(
-              modifyFields(model, { chartMode: () => value }),
-            ),
-        }),
-
-        ...PeriodRadioGroup.on({
-          Selected: (model, { value }) =>
-            updatedChartControls(modifyFields(model, { period: () => value })),
-        }),
-
-        ...PackageRadioGroup.on({
-          Selected: (model, { value }) =>
-            updatedChartControls(
-              modifyFields(model, { selectedPackageId: () => value }),
-            ),
-        }),
-      },
-
-      view: (model, h, { telemetry, maybeBanner }) =>
-        h.aside(
-          [h.Class('flex flex-col gap-4')],
-          [
-            Option.match(maybeBanner, {
-              onNone: () => h.empty,
-              onSome: banner =>
-                h.div(
-                  [
-                    h.Class(
-                      'rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950',
-                    ),
-                  ],
-                  [banner],
-                ),
-            }),
-            summaryGridView(telemetry, h),
-            controlPanelView(model, h),
-            packagePanelView(model, telemetry, h),
-            contributorsView(telemetry, h),
-          ],
-        ),
-    }
+export const SidebarLive = Sidebar.toLayer(() => ({
+  init: () => ({
+    chartMode: 'Adoption',
+    chartModeRadioGroup: new ChartModeRadioGroup('chartModeRadioGroup', {
+      id: CHART_MODE_RADIO_GROUP_ID,
+    }),
+    selectedPackageId: 'Core',
+    packageRadioGroup: new PackageRadioGroup('packageRadioGroup', {
+      id: PACKAGE_RADIO_GROUP_ID,
+    }),
+    period: 'LastSixteenWeeks',
+    periodRadioGroup: new PeriodRadioGroup('periodRadioGroup', {
+      id: PERIOD_RADIO_GROUP_ID,
+    }),
   }),
-).pipe(
+
+  update: {
+    ...ChartModeRadioGroup.on({
+      Selected: (model, { value }) =>
+        updatedChartControls(modifyFields(model, { chartMode: () => value })),
+    }),
+
+    ...PeriodRadioGroup.on({
+      Selected: (model, { value }) =>
+        updatedChartControls(modifyFields(model, { period: () => value })),
+    }),
+
+    ...PackageRadioGroup.on({
+      Selected: (model, { value }) =>
+        updatedChartControls(
+          modifyFields(model, { selectedPackageId: () => value }),
+        ),
+    }),
+  },
+
+  view: (model, h, { telemetry, maybeBanner }) =>
+    h.aside(
+      [h.Class('flex flex-col gap-4')],
+      [
+        Option.match(maybeBanner, {
+          onNone: () => h.empty,
+          onSome: banner =>
+            h.div(
+              [
+                h.Class(
+                  'rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950',
+                ),
+              ],
+              [banner],
+            ),
+        }),
+        summaryGridView(telemetry, h),
+        controlPanelView(model, h),
+        packagePanelView(model, telemetry, h),
+        contributorsView(telemetry, h),
+      ],
+    ),
+})).pipe(
   Layer.provide(
     Layer.mergeAll(
       ChartModeRadioGroup.Live,

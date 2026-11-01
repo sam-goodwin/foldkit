@@ -64,20 +64,16 @@ describe('Runtime Model preservation', () => {
       { Model },
     ) {}
     const renderedModels: Array<Model> = []
-    const DeclaredPreservationLive = DeclaredPreservation.layer(
-      Effect.gen(function* () {
-        return {
-          init: () => ({
-            date: new Date('2026-10-27T00:00:00.000Z'),
-            values: HashMap.make(['one', 1]),
-          }),
-          view: (model, h) => {
-            renderedModels.push(model)
-            return h.p([], [model.date.toISOString()])
-          },
-        }
+    const DeclaredPreservationLive = DeclaredPreservation.toLayer(() => ({
+      init: () => ({
+        date: new Date('2026-10-27T00:00:00.000Z'),
+        values: HashMap.make(['one', 1]),
       }),
-    )
+      view: (model, h) => {
+        renderedModels.push(model)
+        return h.p([], [model.date.toISOString()])
+      },
+    }))
     const renderRoot = vi.spyOn(Engine, 'renderRoot')
     const container = document.createElement('div')
     container.id = 'declared-preservation'
@@ -153,47 +149,40 @@ describe('Runtime Model preservation', () => {
         { Model, Message },
       ) {}
       const renderedModels: Array<Model> = []
-      const PreservedSnapshotLive = PreservedSnapshot.layer(
-        Effect.gen(function* () {
-          return {
-            init: () => ({
-              maybeInspectedModel: Option.some('supported'),
-              count: 0,
-            }),
-            update: {
-              ClickedUnsupported: model => ({
-                model: {
-                  maybeInspectedModel: Option.some(snapshot),
-                  count: model.count + 1,
-                },
-              }),
-              ClickedSupported: model => ({
-                model: {
-                  ...model,
-                  maybeInspectedModel: Option.some('supported'),
-                },
-              }),
-            },
-            view: (model, h) => {
-              renderedModels.push(model)
-              return h.div(
-                [],
-                [
-                  h.button(
-                    [h.OnClick(Message.ClickedUnsupported())],
-                    ['Unsupported'],
-                  ),
-                  h.button(
-                    [h.OnClick(Message.ClickedSupported())],
-                    ['Supported'],
-                  ),
-                  h.p([], [globalThis.String(model.count)]),
-                ],
-              )
-            },
-          }
+      const PreservedSnapshotLive = PreservedSnapshot.toLayer(() => ({
+        init: () => ({
+          maybeInspectedModel: Option.some('supported'),
+          count: 0,
         }),
-      )
+        update: {
+          ClickedUnsupported: model => ({
+            model: {
+              maybeInspectedModel: Option.some(snapshot),
+              count: model.count + 1,
+            },
+          }),
+          ClickedSupported: model => ({
+            model: {
+              ...model,
+              maybeInspectedModel: Option.some('supported'),
+            },
+          }),
+        },
+        view: (model, h) => {
+          renderedModels.push(model)
+          return h.div(
+            [],
+            [
+              h.button(
+                [h.OnClick(Message.ClickedUnsupported())],
+                ['Unsupported'],
+              ),
+              h.button([h.OnClick(Message.ClickedSupported())], ['Supported']),
+              h.p([], [globalThis.String(model.count)]),
+            ],
+          )
+        },
+      }))
       const renderRoot = vi.spyOn(Engine, 'renderRoot')
       const container = document.createElement('div')
       container.id = 'snapshot-preservation'

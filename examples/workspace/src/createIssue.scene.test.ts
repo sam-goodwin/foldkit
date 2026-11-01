@@ -40,42 +40,35 @@ class CreateIssueScene extends Block<CreateIssueScene>()('CreateIssueScene', {
   OutMessage,
 }) {}
 
-const CreateIssueSceneLive = CreateIssueScene.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ createIssue: new CreateIssue('createIssue') }),
-      update: {
-        ClickedOpen: model => ({
-          model,
-          messages: [
-            model.createIssue.send(
-              Message.RequestedOpen({ projectId: 'experience' }),
-            ),
-          ],
-        }),
-        ClickedClose: model => ({
-          model,
-          messages: [model.createIssue.send(Message.RequestedClose())],
-        }),
-        ...CreateIssue.on({
-          Created: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.button([h.OnClick(SceneMessage.ClickedOpen())], ['Request open']),
-            h.button(
-              [h.OnClick(SceneMessage.ClickedClose())],
-              ['Request close'],
-            ),
-            model.createIssue.view({ projects: initialWorkspace.projects }),
-          ],
+const CreateIssueSceneLive = CreateIssueScene.toLayer(() => ({
+  init: () => ({ createIssue: new CreateIssue('createIssue') }),
+  update: {
+    ClickedOpen: model => ({
+      model,
+      messages: [
+        model.createIssue.send(
+          Message.RequestedOpen({ projectId: 'experience' }),
         ),
-    }
-  }),
-).pipe(Layer.provide(CreateIssueLive))
+      ],
+    }),
+    ClickedClose: model => ({
+      model,
+      messages: [model.createIssue.send(Message.RequestedClose())],
+    }),
+    ...CreateIssue.on({
+      Created: (model, outMessage) => ({ model, outMessage }),
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.button([h.OnClick(SceneMessage.ClickedOpen())], ['Request open']),
+        h.button([h.OnClick(SceneMessage.ClickedClose())], ['Request close']),
+        model.createIssue.view({ projects: initialWorkspace.projects }),
+      ],
+    ),
+})).pipe(Layer.provide(CreateIssueLive))
 
 const requestOpen = click(role('button', { name: 'Request open' }))
 const requestClose = click(role('button', { name: 'Request close' }))

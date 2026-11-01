@@ -393,41 +393,37 @@ export const makeBlock = <
     /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
     contract.OutMessage.Selected({ value: value as Value, index })
 
-  const TabsLive = TabsClass.layer(
-    Effect.gen(function* () {
-      return {
-        init: config => ({
-          id: config.id,
-          maybeFocusedIndex: Option.none(),
-          activationMode: config.activationMode ?? 'Automatic',
-        }),
-        update: {
-          SelectedTab: (model, { index, value }) => ({
-            model: modifyFields(model, {
-              maybeFocusedIndex: () => Option.none(),
-            }),
-            commands: [FocusTab({ id: model.id, index })],
-            outMessage: selected(value, index),
-          }),
-          FocusedTab: (model, { index }) => ({
-            model: modifyFields(model, {
-              maybeFocusedIndex: () => Option.some(index),
-            }),
-            commands: [FocusTab({ id: model.id, index })],
-          }),
-          CompletedFocusTab: model => ({ model }),
-        },
-        commands: {
-          FocusTab: ({ id, index }) =>
-            Dom.focus(idSelector(tabId(id, index))).pipe(
-              Effect.ignore,
-              Effect.as(Message.CompletedFocusTab()),
-            ),
-        },
-        view: (model, h, viewInputs) => renderView(model, viewInputs, h),
-      }
+  const TabsLive = TabsClass.toLayer(() => ({
+    init: config => ({
+      id: config.id,
+      maybeFocusedIndex: Option.none(),
+      activationMode: config.activationMode ?? 'Automatic',
     }),
-  )
+    update: {
+      SelectedTab: (model, { index, value }) => ({
+        model: modifyFields(model, {
+          maybeFocusedIndex: () => Option.none(),
+        }),
+        commands: [FocusTab({ id: model.id, index })],
+        outMessage: selected(value, index),
+      }),
+      FocusedTab: (model, { index }) => ({
+        model: modifyFields(model, {
+          maybeFocusedIndex: () => Option.some(index),
+        }),
+        commands: [FocusTab({ id: model.id, index })],
+      }),
+      CompletedFocusTab: model => ({ model }),
+    },
+    commands: {
+      FocusTab: ({ id, index }) =>
+        Dom.focus(idSelector(tabId(id, index))).pipe(
+          Effect.ignore,
+          Effect.as(Message.CompletedFocusTab()),
+        ),
+    },
+    view: (model, h, viewInputs) => renderView(model, viewInputs, h),
+  }))
 
   return Object.assign(TabsClass, { Live: TabsLive })
 }

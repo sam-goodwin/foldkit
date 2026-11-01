@@ -1,5 +1,5 @@
 // counter.ts
-import { Effect, Number, Schema } from 'effect'
+import { Number, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -15,20 +15,16 @@ export class Counter extends Block<Counter>()('Counter', {
   Message,
 }) {}
 
-export const CounterLive = Counter.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
-      update: {
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: Number.increment }),
-        }),
-      },
-      view: (model, h) =>
-        h.button(
-          [h.OnClick(Message.ClickedIncrement())],
-          [`Count: ${model.count}`],
-        ),
-    }
-  }),
-)
+export const CounterLive = Counter.toLayer(() => ({
+  init: () => ({ count: 0 }),
+  update: {
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+  },
+  view: (model, h) =>
+    h.button(
+      [h.OnClick(Message.ClickedIncrement())],
+      [`Count: ${model.count}`],
+    ),
+}))

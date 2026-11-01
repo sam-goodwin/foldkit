@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -13,47 +13,43 @@ export class DeleteProject extends Block<DeleteProject>()('DeleteProject', {
   Message,
 }) {}
 
-export const DeleteProjectLive = DeleteProject.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dialog: new Dialog.Dialog('dialog', { id: 'delete-project' }),
-      }),
-
-      update: {
-        ClickedDeleteProject: model => ({
-          model,
-          messages: [model.dialog.send(Dialog.Dialog.Message.RequestedOpen())],
-        }),
-      },
-
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.button(
-              [h.OnClick(Message.ClickedDeleteProject())],
-              ['Delete project'],
-            ),
-            model.dialog.view({
-              toView: ({ dialog, panel, title, closeButton, isVisible }) =>
-                h.dialog(
-                  [...dialog],
-                  isVisible
-                    ? [
-                        h.div(
-                          [...panel],
-                          [
-                            h.h2([...title], ['Delete this project?']),
-                            h.button([...closeButton], ['Cancel']),
-                          ],
-                        ),
-                      ]
-                    : [],
-                ),
-            }),
-          ],
-        ),
-    }
+export const DeleteProjectLive = DeleteProject.toLayer(() => ({
+  init: () => ({
+    dialog: new Dialog.Dialog('dialog', { id: 'delete-project' }),
   }),
-).pipe(Layer.provide(Dialog.DialogLive))
+
+  update: {
+    ClickedDeleteProject: model => ({
+      model,
+      messages: [model.dialog.send(Dialog.Dialog.Message.RequestedOpen())],
+    }),
+  },
+
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.button(
+          [h.OnClick(Message.ClickedDeleteProject())],
+          ['Delete project'],
+        ),
+        model.dialog.view({
+          toView: ({ dialog, panel, title, closeButton, isVisible }) =>
+            h.dialog(
+              [...dialog],
+              isVisible
+                ? [
+                    h.div(
+                      [...panel],
+                      [
+                        h.h2([...title], ['Delete this project?']),
+                        h.button([...closeButton], ['Cancel']),
+                      ],
+                    ),
+                  ]
+                : [],
+            ),
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(Dialog.DialogLive))

@@ -38,7 +38,7 @@ export class ProfileCard extends Block<
   Command: [LoadProfile],
 }) {}
 
-export const ProfileCardLive = ProfileCard.layer(
+export const ProfileCardLive = ProfileCard.toLayer(
   Effect.gen(function* () {
     const profileApi = yield* ProfileApi
 

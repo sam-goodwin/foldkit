@@ -1,4 +1,3 @@
-import { Effect } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { Document, type HtmlBuilder } from 'foldkit/html'
 import { describe, it } from 'vitest'
@@ -121,27 +120,23 @@ const runProfile = async (
     Model,
     Message,
   }) {}
-  const ApplicationLive = Application.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => init_().model,
-        update: {
-          UpdatedNewTodo: wrappedUpdate.fn,
-          UpdatedEditingTodo: wrappedUpdate.fn,
-          AddedTodo: wrappedUpdate.fn,
-          DeletedTodo: wrappedUpdate.fn,
-          ToggledTodo: wrappedUpdate.fn,
-          StartedEditing: wrappedUpdate.fn,
-          SavedEdit: wrappedUpdate.fn,
-          CancelledEdit: wrappedUpdate.fn,
-          ToggledAll: wrappedUpdate.fn,
-          ClearedCompleted: wrappedUpdate.fn,
-          SelectedFilter: wrappedUpdate.fn,
-        },
-        view: captureView,
-      }
-    }),
-  )
+  const ApplicationLive = Application.toLayer(() => ({
+    init: () => init_().model,
+    update: {
+      UpdatedNewTodo: wrappedUpdate.fn,
+      UpdatedEditingTodo: wrappedUpdate.fn,
+      AddedTodo: wrappedUpdate.fn,
+      DeletedTodo: wrappedUpdate.fn,
+      ToggledTodo: wrappedUpdate.fn,
+      StartedEditing: wrappedUpdate.fn,
+      SavedEdit: wrappedUpdate.fn,
+      CancelledEdit: wrappedUpdate.fn,
+      ToggledAll: wrappedUpdate.fn,
+      ClearedCompleted: wrappedUpdate.fn,
+      SelectedFilter: wrappedUpdate.fn,
+    },
+    view: captureView,
+  }))
   const program = Program.make(Application, {
     layer: ApplicationLive,
     container,

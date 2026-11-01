@@ -271,7 +271,7 @@ const view = (model: Model, h: ApplicationViewBuilder) => ({
   ),
 })
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     return {
       init: ({ flags }) => ({

@@ -28,7 +28,7 @@ export class Chat extends Block<Chat>()('Chat', {
   Command: [SendMessage],
 }) {}
 
-export const ChatLive = Chat.layer(
+export const ChatLive = Chat.toLayer(
   Effect.gen(function* () {
     // Opens a socket on first use and closes it when its last holder releases it.
     const sockets = yield* RcMap.make({

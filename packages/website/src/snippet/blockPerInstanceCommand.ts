@@ -32,7 +32,7 @@ export class Draft extends Block<Draft>()('Draft', {
   Command: [SaveDraft],
 }) {}
 
-export const DraftLive = Draft.layer(
+export const DraftLive = Draft.toLayer(
   Effect.gen(function* () {
     const draftStore = yield* DraftStore
 

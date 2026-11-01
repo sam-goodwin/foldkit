@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Option, Schema } from 'effect'
+import { Array, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import {
@@ -31,17 +31,13 @@ class MemberDirectoryScene extends Block<MemberDirectoryScene>()(
 ) {}
 
 const makeMemberDirectorySceneLive = (viewInput: ViewInput) =>
-  MemberDirectoryScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          memberDirectory: new MemberDirectory('memberDirectory'),
-        }),
-        update: {},
-        view: model => model.memberDirectory.view(viewInput),
-      }
+  MemberDirectoryScene.toLayer(() => ({
+    init: () => ({
+      memberDirectory: new MemberDirectory('memberDirectory'),
     }),
-  ).pipe(Layer.provide(MemberDirectoryLive))
+    update: {},
+    view: model => model.memberDirectory.view(viewInput),
+  })).pipe(Layer.provide(MemberDirectoryLive))
 
 const sceneInputs = (overrides: Partial<ViewInput> = {}): ViewInput => ({
   members: initialWorkspace.members,

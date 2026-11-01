@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block, Story } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { expect } from 'vitest'
@@ -29,31 +29,27 @@ class MenuParent extends Block<MenuParent>()('MenuParent', {
   OutMessage: ParentOutMessage,
 }) {}
 
-const MenuParentLive = MenuParent.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        menu: new RefinedMenu('menu', {
-          id: 'parent-menu',
-          isAnimated: true,
-        }),
-      }),
-      update: {
-        ClickedOpenMenu: model => ({
-          model,
-          messages: [model.menu.send(RefinedMenu.Message.RequestedOpen())],
-        }),
-        ...RefinedMenu.on({
-          Selected: (model, { value }) => ({
-            model,
-            outMessage: ParentOutMessage.SelectedMenuItem({ value }),
-          }),
-          Closed: model => ({ model }),
-        }),
-      },
-    }
+const MenuParentLive = MenuParent.toLayer(() => ({
+  init: () => ({
+    menu: new RefinedMenu('menu', {
+      id: 'parent-menu',
+      isAnimated: true,
+    }),
   }),
-).pipe(Layer.provide(RefinedMenu.Live))
+  update: {
+    ClickedOpenMenu: model => ({
+      model,
+      messages: [model.menu.send(RefinedMenu.Message.RequestedOpen())],
+    }),
+    ...RefinedMenu.on({
+      Selected: (model, { value }) => ({
+        model,
+        outMessage: ParentOutMessage.SelectedMenuItem({ value }),
+      }),
+      Closed: model => ({ model }),
+    }),
+  },
+})).pipe(Layer.provide(RefinedMenu.Live))
 
 describe('Menu inside a parent', () => {
   it.effect('opens, animates, selects, and finishes leaving', () =>

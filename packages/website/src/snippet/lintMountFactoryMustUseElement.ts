@@ -22,34 +22,28 @@ class Search extends Block<Search>()('Search', {
   Mount: [TrackView, RevealResults],
 }) {}
 
-export const SearchLive = Search.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ query: '' }),
-      update: {
-        CompletedTrackView: model => ({ model }),
-        CompletedRevealResults: model => ({ model }),
-      },
-      mounts: {
-        // ❌ Bad
-        // The handler never uses its element, so Mount is the wrong primitive.
-        TrackView: () =>
-          Effect.log('search viewed').pipe(
-            Effect.as(Message.CompletedTrackView()),
-          ),
+export const SearchLive = Search.toLayer(() => ({
+  init: () => ({ query: '' }),
+  update: {
+    CompletedTrackView: model => ({ model }),
+    CompletedRevealResults: model => ({ model }),
+  },
+  mounts: {
+    // ❌ Bad
+    // The handler never uses its element, so Mount is the wrong primitive.
+    TrackView: () =>
+      Effect.log('search viewed').pipe(Effect.as(Message.CompletedTrackView())),
 
-        // ✅ Good
-        // The handler does DOM work on the element it was mounted on.
-        RevealResults: ({ element }) =>
-          Effect.sync(() => element.scrollIntoView()).pipe(
-            Effect.as(Message.CompletedRevealResults()),
-          ),
-      },
-      view: (model, h) =>
-        h.div(
-          [h.OnMount(TrackView())],
-          [h.ul([h.OnMount(RevealResults())], [model.query])],
-        ),
-    }
-  }),
-)
+    // ✅ Good
+    // The handler does DOM work on the element it was mounted on.
+    RevealResults: ({ element }) =>
+      Effect.sync(() => element.scrollIntoView()).pipe(
+        Effect.as(Message.CompletedRevealResults()),
+      ),
+  },
+  view: (model, h) =>
+    h.div(
+      [h.OnMount(TrackView())],
+      [h.ul([h.OnMount(RevealResults())], [model.query])],
+    ),
+}))

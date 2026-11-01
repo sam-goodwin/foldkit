@@ -20,30 +20,26 @@ export class Transcript extends Block<Transcript>()('Transcript', {
   Mount: [ScrollPanel],
 }) {}
 
-export const TranscriptLive = Transcript.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ lines: [], savedScroll: 0 }),
+export const TranscriptLive = Transcript.toLayer(() => ({
+  init: () => ({ lines: [], savedScroll: 0 }),
 
-      update: {
-        CompletedScrollPanel: model => ({ model }),
-      },
+  update: {
+    CompletedScrollPanel: model => ({ model }),
+  },
 
-      mounts: {
-        ScrollPanel: ({ element, initialScroll }) =>
-          Effect.sync(() => element.scrollTo({ top: initialScroll })).pipe(
-            Effect.as(Message.CompletedScrollPanel()),
-          ),
-      },
+  mounts: {
+    ScrollPanel: ({ element, initialScroll }) =>
+      Effect.sync(() => element.scrollTo({ top: initialScroll })).pipe(
+        Effect.as(Message.CompletedScrollPanel()),
+      ),
+  },
 
-      view: (model, h) =>
-        h.div(
-          [
-            h.Class('overflow-y-auto h-64'),
-            h.OnMount(ScrollPanel({ initialScroll: model.savedScroll })),
-          ],
-          Array.map(model.lines, line => h.p([], [line])),
-        ),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.div(
+      [
+        h.Class('overflow-y-auto h-64'),
+        h.OnMount(ScrollPanel({ initialScroll: model.savedScroll })),
+      ],
+      Array.map(model.lines, line => h.p([], [line])),
+    ),
+}))

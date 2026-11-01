@@ -115,7 +115,7 @@ export class Application extends Block<Application>()('Application', {
   Mount: [MountMap],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const maps = yield* MapRegistry
 

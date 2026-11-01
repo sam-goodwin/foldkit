@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from 'effect'
+import { Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { Machine } from 'foldkit/experimental'
 import { modifyFields } from 'foldkit/struct'
@@ -23,22 +23,18 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        checkout: checkoutMachine.initial,
-        isHelpOpen: false,
-      }),
-      update: {
-        ToggledHelp: (model, { isOpen }) => ({
-          model: modifyFields(model, { isHelpOpen: () => isOpen }),
-        }),
-        SelectedEdition: foldCheckout,
-        ClickedContinue: foldCheckout,
-        ClickedBack: foldCheckout,
-        ClickedCancel: foldCheckout,
-      },
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    checkout: checkoutMachine.initial,
+    isHelpOpen: false,
   }),
-)
+  update: {
+    ToggledHelp: (model, { isOpen }) => ({
+      model: modifyFields(model, { isHelpOpen: () => isOpen }),
+    }),
+    SelectedEdition: foldCheckout,
+    ClickedContinue: foldCheckout,
+    ClickedBack: foldCheckout,
+    ClickedCancel: foldCheckout,
+  },
+}))

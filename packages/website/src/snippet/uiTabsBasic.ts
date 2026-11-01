@@ -30,64 +30,60 @@ export class FrameworkPicker extends Block<FrameworkPicker>()(
   },
 ) {}
 
-export const FrameworkPickerLive = FrameworkPicker.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        tabs: new FrameworkTabs('tabs', { id: 'framework-tabs' }),
-        activeFramework: 'Foldkit',
-      }),
-
-      update: {
-        // Store the selected value so it flows back in as `selectedValue`
-        ...FrameworkTabs.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { activeFramework: () => value }),
-          }),
-        }),
-      },
-
-      view: (model, h) => {
-        const tabsView = ({
-          tablist,
-          tabs,
-          activeIndex,
-        }: TabsRenderInfo<Framework>) =>
-          h.div(
-            [],
-            [
-              h.div(
-                [...tablist, h.Class('flex')],
-                tabs.map(tab =>
-                  h.button(
-                    [
-                      ...tab.tab,
-                      h.Class(
-                        'px-4 py-2 rounded-t-lg border data-[selected]:bg-white data-[selected]:border-b-0',
-                      ),
-                    ],
-                    [h.span([], [tab.value])],
-                  ),
-                ),
-              ),
-              ...tabs
-                .filter(tab => tab.index === activeIndex)
-                .map(tab =>
-                  h.div(
-                    [...tab.panel, h.Class('p-6 border rounded-b-lg')],
-                    [h.p([], [descriptions[tab.value]])],
-                  ),
-                ),
-            ],
-          )
-
-        return model.tabs.view({
-          tabs: frameworks,
-          selectedValue: model.activeFramework,
-          ariaLabel: 'Framework comparison',
-          toView: tabsView,
-        })
-      },
-    }
+export const FrameworkPickerLive = FrameworkPicker.toLayer(() => ({
+  init: () => ({
+    tabs: new FrameworkTabs('tabs', { id: 'framework-tabs' }),
+    activeFramework: 'Foldkit',
   }),
-).pipe(Layer.provide(FrameworkTabs.Live))
+
+  update: {
+    // Store the selected value so it flows back in as `selectedValue`
+    ...FrameworkTabs.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { activeFramework: () => value }),
+      }),
+    }),
+  },
+
+  view: (model, h) => {
+    const tabsView = ({
+      tablist,
+      tabs,
+      activeIndex,
+    }: TabsRenderInfo<Framework>) =>
+      h.div(
+        [],
+        [
+          h.div(
+            [...tablist, h.Class('flex')],
+            tabs.map(tab =>
+              h.button(
+                [
+                  ...tab.tab,
+                  h.Class(
+                    'px-4 py-2 rounded-t-lg border data-[selected]:bg-white data-[selected]:border-b-0',
+                  ),
+                ],
+                [h.span([], [tab.value])],
+              ),
+            ),
+          ),
+          ...tabs
+            .filter(tab => tab.index === activeIndex)
+            .map(tab =>
+              h.div(
+                [...tab.panel, h.Class('p-6 border rounded-b-lg')],
+                [h.p([], [descriptions[tab.value]])],
+              ),
+            ),
+        ],
+      )
+
+    return model.tabs.view({
+      tabs: frameworks,
+      selectedValue: model.activeFramework,
+      ariaLabel: 'Framework comparison',
+      toView: tabsView,
+    })
+  },
+})).pipe(Layer.provide(FrameworkTabs.Live))

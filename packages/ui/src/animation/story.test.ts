@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Schema } from 'effect'
+import { Array, Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { childAttributes } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -643,71 +643,65 @@ describe('Animation', () => {
       Message: PanelMessage,
     }) {}
 
-    const PanelLive = Panel.layer(
-      Effect.gen(function* () {
-        return {
-          init: () => ({
-            animation: new Animation('animation', {
-              id: 'panel-content',
-            }),
-            entries: [],
-            transitionedOutCount: 0,
-            nextEntryKey: 0,
-          }),
-          update: {
-            ClickedShow: model => ({
-              model,
-              messages: [model.animation.send(Message.RequestedShow())],
-            }),
-            ClickedHide: model => ({
-              model,
-              messages: [model.animation.send(Message.RequestedHide())],
-            }),
-            ClickedAddEntry: model => ({
-              model: {
-                ...model,
-                entries: Array.append(
-                  model.entries,
-                  new Animation(`entry-${model.nextEntryKey}`, {
-                    isShowing: true,
-                  }),
-                ),
-                nextEntryKey: model.nextEntryKey + 1,
-              },
-            }),
-            ...Animation.on({
-              StartedLeaveAnimating: model => ({
-                model,
-                messages: [
-                  model.animation.send(
-                    Message.RequestedWaitForLeaveSettlement(),
-                  ),
-                ],
-              }),
-              TransitionedOut: model => ({
-                model: {
-                  ...model,
-                  transitionedOutCount: model.transitionedOutCount + 1,
-                },
-              }),
-            }),
-          },
-          view: (model, h) =>
-            h.div(
-              [],
-              [
-                h.button([h.OnClick(PanelMessage.ClickedShow())], ['Show']),
-                h.button([h.OnClick(PanelMessage.ClickedHide())], ['Hide']),
-                model.animation.view({
-                  toView: () => h.p([], ['Content']),
-                  className: 'panel',
-                  attributes: childAttributes([h.Role('region')]),
-                }),
-              ],
-            ),
-        }
+    const PanelLive = Panel.toLayer(() => ({
+      init: () => ({
+        animation: new Animation('animation', {
+          id: 'panel-content',
+        }),
+        entries: [],
+        transitionedOutCount: 0,
+        nextEntryKey: 0,
       }),
-    )
+      update: {
+        ClickedShow: model => ({
+          model,
+          messages: [model.animation.send(Message.RequestedShow())],
+        }),
+        ClickedHide: model => ({
+          model,
+          messages: [model.animation.send(Message.RequestedHide())],
+        }),
+        ClickedAddEntry: model => ({
+          model: {
+            ...model,
+            entries: Array.append(
+              model.entries,
+              new Animation(`entry-${model.nextEntryKey}`, {
+                isShowing: true,
+              }),
+            ),
+            nextEntryKey: model.nextEntryKey + 1,
+          },
+        }),
+        ...Animation.on({
+          StartedLeaveAnimating: model => ({
+            model,
+            messages: [
+              model.animation.send(Message.RequestedWaitForLeaveSettlement()),
+            ],
+          }),
+          TransitionedOut: model => ({
+            model: {
+              ...model,
+              transitionedOutCount: model.transitionedOutCount + 1,
+            },
+          }),
+        }),
+      },
+      view: (model, h) =>
+        h.div(
+          [],
+          [
+            h.button([h.OnClick(PanelMessage.ClickedShow())], ['Show']),
+            h.button([h.OnClick(PanelMessage.ClickedHide())], ['Hide']),
+            model.animation.view({
+              toView: () => h.p([], ['Content']),
+              className: 'panel',
+              attributes: childAttributes([h.Role('region')]),
+            }),
+          ],
+        ),
+    }))
 
     const PanelWithAnimation = PanelLive.pipe(Layer.provide(AnimationLive))
 

@@ -9,7 +9,7 @@ export class ContextualView extends Block<ContextualView>()('ContextualView', {
   Message,
 }) {}
 
-export const ContextualViewLive = ContextualView.layer(
+export const ContextualViewLive = ContextualView.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({}),
@@ -26,7 +26,7 @@ export class LabelledView extends Block<LabelledView, void, LabelInput>()(
   {},
 ) {}
 
-export const LabelledViewLive = LabelledView.layer(
+export const LabelledViewLive = LabelledView.toLayer(
   Effect.gen(function* () {
     return {
       view: (_model, h, { label }) => h.span([h.Title(label)], []),

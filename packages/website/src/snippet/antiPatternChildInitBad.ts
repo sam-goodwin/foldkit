@@ -10,7 +10,7 @@ export class ThemePreference extends Block<ThemePreference>()(
   { Model: Schema.Struct({ theme: Theme }) },
 ) {}
 
-export const ThemePreferenceLive = ThemePreference.layer(
+export const ThemePreferenceLive = ThemePreference.toLayer(
   Effect.gen(function* () {
     const themeStore = yield* ThemeStore
     const theme = yield* themeStore.load.pipe(

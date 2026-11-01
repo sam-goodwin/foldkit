@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Match, Schema } from 'effect'
+import { Array, Layer, Match, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -21,35 +21,31 @@ type Model = typeof Model.Type
 
 export class TabsPage extends Block<TabsPage>()('TabsPage', { Model }) {}
 
-export const TabsPageLive = TabsPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        horizontalTabsDemo: new DemoTabs('horizontalTabsDemo', {
-          id: 'horizontal-tabs-demo',
-        }),
-        horizontalTabsDemoTab: 'Foldkit',
-        verticalTabsDemo: new DemoTabs('verticalTabsDemo', {
-          id: 'vertical-tabs-demo',
-        }),
-        verticalTabsDemoTab: 'Foldkit',
-      }),
-
-      update: {
-        ...DemoTabs.on({
-          Selected: (model, { value }, { id }) => ({
-            model:
-              id === 'horizontalTabsDemo'
-                ? modifyFields(model, { horizontalTabsDemoTab: () => value })
-                : modifyFields(model, { verticalTabsDemoTab: () => value }),
-          }),
-        }),
-      },
-
-      view,
-    }
+export const TabsPageLive = TabsPage.toLayer(() => ({
+  init: () => ({
+    horizontalTabsDemo: new DemoTabs('horizontalTabsDemo', {
+      id: 'horizontal-tabs-demo',
+    }),
+    horizontalTabsDemoTab: 'Foldkit',
+    verticalTabsDemo: new DemoTabs('verticalTabsDemo', {
+      id: 'vertical-tabs-demo',
+    }),
+    verticalTabsDemoTab: 'Foldkit',
   }),
-).pipe(Layer.provide(DemoTabs.Live))
+
+  update: {
+    ...DemoTabs.on({
+      Selected: (model, { value }, { id }) => ({
+        model:
+          id === 'horizontalTabsDemo'
+            ? modifyFields(model, { horizontalTabsDemoTab: () => value })
+            : modifyFields(model, { verticalTabsDemoTab: () => value }),
+      }),
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(DemoTabs.Live))
 
 const demoTabs: ReadonlyArray<DemoTab> = ['Foldkit', 'React', 'Elm']
 

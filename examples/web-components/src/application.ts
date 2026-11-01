@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block, CustomElement } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -28,31 +28,27 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        content: DEFAULT_CONTENT,
-        fillColor: DEFAULT_FILL_COLOR,
-        backgroundColor: DEFAULT_BACKGROUND_COLOR,
-      }),
-
-      update: {
-        UpdatedContent: (model, { value }) => ({
-          model: modifyFields(model, { content: () => value }),
-        }),
-        ChangedFillColor: (model, { value }) => ({
-          model: modifyFields(model, { fillColor: () => value }),
-        }),
-        ChangedBackgroundColor: (model, { value }) => ({
-          model: modifyFields(model, { backgroundColor: () => value }),
-        }),
-      },
-
-      view,
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    content: DEFAULT_CONTENT,
+    fillColor: DEFAULT_FILL_COLOR,
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
   }),
-)
+
+  update: {
+    UpdatedContent: (model, { value }) => ({
+      model: modifyFields(model, { content: () => value }),
+    }),
+    ChangedFillColor: (model, { value }) => ({
+      model: modifyFields(model, { fillColor: () => value }),
+    }),
+    ChangedBackgroundColor: (model, { value }) => ({
+      model: modifyFields(model, { backgroundColor: () => value }),
+    }),
+  },
+
+  view,
+}))
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

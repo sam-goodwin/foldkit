@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Array, Effect, Layer, Option, Schema, pipe } from 'effect'
+import { Array, Layer, Option, Schema, pipe } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -37,61 +37,57 @@ export class DragAndDropPage extends Block<DragAndDropPage>()(
   { Model },
 ) {}
 
-export const DragAndDropPageLive = DragAndDropPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dragAndDropDemo: new DragAndDrop.DragAndDrop('dragAndDropDemo', {
-          id: 'drag-and-drop-demo',
-        }),
-        dragAndDropDemoColumns: [
-          {
-            id: 'backlog',
-            label: 'Backlog',
-            cards: [
-              { id: 'card-1', label: 'Design API' },
-              { id: 'card-2', label: 'Write tests' },
-              { id: 'card-3', label: 'Build docs' },
-            ],
-          },
-          {
-            id: 'done',
-            label: 'Done',
-            cards: [
-              { id: 'card-4', label: 'Set up repo' },
-              { id: 'card-5', label: 'Add CI' },
-            ],
-          },
+export const DragAndDropPageLive = DragAndDropPage.toLayer(() => ({
+  init: () => ({
+    dragAndDropDemo: new DragAndDrop.DragAndDrop('dragAndDropDemo', {
+      id: 'drag-and-drop-demo',
+    }),
+    dragAndDropDemoColumns: [
+      {
+        id: 'backlog',
+        label: 'Backlog',
+        cards: [
+          { id: 'card-1', label: 'Design API' },
+          { id: 'card-2', label: 'Write tests' },
+          { id: 'card-3', label: 'Build docs' },
         ],
-      }),
-
-      update: {
-        ...DragAndDrop.DragAndDrop.on({
-          Reordered: (
-            model,
-            { itemId, fromContainerId, toContainerId, toIndex },
-          ) => ({
-            model: modifyFields(model, {
-              dragAndDropDemoColumns: dragAndDropDemoColumns =>
-                reorderColumns(
-                  dragAndDropDemoColumns,
-                  itemId,
-                  fromContainerId,
-                  toContainerId,
-                  toIndex,
-                ),
-            }),
-          }),
-          StartedKeyboardDrag: model => ({ model }),
-          ChangedKeyboardTarget: model => ({ model }),
-          Cancelled: model => ({ model }),
-        }),
       },
-
-      view,
-    }
+      {
+        id: 'done',
+        label: 'Done',
+        cards: [
+          { id: 'card-4', label: 'Set up repo' },
+          { id: 'card-5', label: 'Add CI' },
+        ],
+      },
+    ],
   }),
-).pipe(Layer.provide(DragAndDrop.DragAndDropLive))
+
+  update: {
+    ...DragAndDrop.DragAndDrop.on({
+      Reordered: (
+        model,
+        { itemId, fromContainerId, toContainerId, toIndex },
+      ) => ({
+        model: modifyFields(model, {
+          dragAndDropDemoColumns: dragAndDropDemoColumns =>
+            reorderColumns(
+              dragAndDropDemoColumns,
+              itemId,
+              fromContainerId,
+              toContainerId,
+              toIndex,
+            ),
+        }),
+      }),
+      StartedKeyboardDrag: model => ({ model }),
+      ChangedKeyboardTarget: model => ({ model }),
+      Cancelled: model => ({ model }),
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(DragAndDrop.DragAndDropLive))
 
 const reorderColumns = (
   columns: ReadonlyArray<DemoColumn>,

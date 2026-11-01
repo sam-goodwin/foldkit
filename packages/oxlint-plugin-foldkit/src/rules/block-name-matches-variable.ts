@@ -73,7 +73,7 @@ const layerCallOfInitializer = (
     return Option.none()
   }
 
-  if (isBlockClassMethodCall(expression, 'layer', references)) {
+  if (isBlockClassMethodCall(expression, 'toLayer', references)) {
     return Option.some(expression)
   }
 

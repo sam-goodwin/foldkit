@@ -53,7 +53,7 @@ The Layer passed to `story` or `scene` must provide exactly one root Block. Ever
 - Provide the services the Layer constructor yields, such as an `HttpClient`, with `Layer.provide` as well. Command handlers never run in a Story or Scene, so a test can provide a real or a stub service. The Layer constructor only needs one to exist.
 - Pass the root's args after the Layer when the Block takes them, such as `{ url }` for a routed root. Foldkit passes them to the root's `init`.
 
-The weather Scene above provides `Http.layer` because the weather Block's Layer constructor yields `HttpClient`.
+The weather Scene above provides `Http.toLayer` because the weather Block's Layer constructor yields `HttpClient`.
 
 ## Testing a Parent and Its Children
 

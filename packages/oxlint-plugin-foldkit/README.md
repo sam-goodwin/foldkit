@@ -55,7 +55,7 @@ export class Counter extends Block<Counter>()('Counter', {
   Mount: [FocusInput],
 }) {}
 
-export const CounterLive = Counter.layer(
+export const CounterLive = Counter.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ count: 0 }),
@@ -99,10 +99,10 @@ Package aliases, wildcard re-exports, JavaScript declarations, and declaration-o
 ```ts
 export class Search extends Block<Search>()('Search', { Model, Message }) {}
 
-export const SearchLive = Search.layer(...)
+export const SearchLive = Search.toLayer(...)
 ```
 
-A generic factory that binds the declaration to a const keeps its own local name, and its Layer still uses the Block id: `const TabsLive = TabsClass.layer(...)`. Dynamic Block ids are left for the developer to review.
+A generic factory that binds the declaration to a const keeps its own local name, and its Layer still uses the Block id: `const TabsLive = TabsClass.toLayer(...)`. Dynamic Block ids are left for the developer to review.
 
 ## Program options
 

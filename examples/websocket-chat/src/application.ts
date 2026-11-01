@@ -116,7 +116,7 @@ export class Application extends Block<Application>()('Application', {
   Command: [TimestampSentMessage, TimestampReceivedMessage, SendMessage],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const sockets = yield* ChatSockets
 

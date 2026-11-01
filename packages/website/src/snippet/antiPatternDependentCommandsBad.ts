@@ -33,7 +33,7 @@ export class Editor extends Block<Editor>()('Editor', {
   Command: [SaveDraft, NavigateToDocuments],
 }) {}
 
-export const EditorLive = Editor.layer(
+export const EditorLive = Editor.toLayer(
   Effect.gen(function* () {
     const draftStore = yield* DraftStore
 

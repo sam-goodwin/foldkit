@@ -40,22 +40,31 @@ export type Message = typeof Message.Type
 
 export const MeasurePanel = Mount.define('MeasurePanel', {
   messages: [Message.MeasuredPanel, Message.FailedMountSidebar],
-  handler: function* () {
-    return () => Effect.succeed(Message.MeasuredPanel({ width: 320 }))
-  },
 })
+
+export const MeasurePanelLive = MeasurePanel.toLayer(
+  Effect.gen(function* () {
+    return () => Effect.succeed(Message.MeasuredPanel({ width: 320 }))
+  }),
+)
 
 export const FocusButton = Mount.define('FocusButton', {
   messages: [Message.CompletedFocusButton],
-  handler: function* () {
-    return () => Effect.succeed(Message.CompletedFocusButton())
-  },
 })
+
+export const FocusButtonLive = FocusButton.toLayer(
+  Effect.gen(function* () {
+    return () => Effect.succeed(Message.CompletedFocusButton())
+  }),
+)
 
 export const ScrollList = Mount.define('ScrollList', {
   args: { offset: Schema.Number },
   messages: [Message.ScrolledTo],
-  handler: function* () {
+})
+
+export const ScrollListLive = ScrollList.toLayer(
+  Effect.gen(function* () {
     return ({ element, offset }) =>
       Effect.sync(() => {
         if (element instanceof HTMLElement) {
@@ -63,8 +72,8 @@ export const ScrollList = Mount.define('ScrollList', {
         }
         return Message.ScrolledTo({ offset })
       })
-  },
-})
+  }),
+)
 
 export const Mounts = [MeasurePanel, FocusButton, ScrollList]
 type MountRequirements = Mount.RequirementsOf<typeof Mounts>
@@ -357,7 +366,7 @@ export const branchedPanelView = (
   )
 
 export const EffectsLayer = Layer.mergeAll(
-  MeasurePanel.layer,
-  FocusButton.layer,
-  ScrollList.layer,
+  MeasurePanelLive,
+  FocusButtonLive,
+  ScrollListLive,
 )

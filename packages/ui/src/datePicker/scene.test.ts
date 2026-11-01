@@ -1,4 +1,4 @@
-import { Effect, Layer, Match, Option, Schema } from 'effect'
+import { Layer, Match, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import * as Calendar from 'foldkit/calendar'
 import { inertHtml as ih } from 'foldkit/html'
@@ -145,26 +145,22 @@ class DatePickerScene extends Block<DatePickerScene>()('DatePickerScene', {
 }) {}
 
 const makeDatePickerSceneLive = (overrides: Overrides) =>
-  DatePickerScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          datePicker: new DatePicker('datePicker', {
-            id: 'picker',
-            today,
-          }),
-        }),
-        view: model =>
-          model.datePicker.view({
-            anchor: { placement: 'bottom-start' },
-            maybeSelectedDate: Option.none(),
-            triggerContent,
-            toCalendarView: testToCalendarView,
-            ...overrides,
-          }),
-      }
+  DatePickerScene.toLayer(() => ({
+    init: () => ({
+      datePicker: new DatePicker('datePicker', {
+        id: 'picker',
+        today,
+      }),
     }),
-  ).pipe(Layer.provide(DatePickerLive))
+    view: model =>
+      model.datePicker.view({
+        anchor: { placement: 'bottom-start' },
+        maybeSelectedDate: Option.none(),
+        triggerContent,
+        toCalendarView: testToCalendarView,
+        ...overrides,
+      }),
+  })).pipe(Layer.provide(DatePickerLive))
 
 const trigger = Scene.selector('#picker-popover-button')
 const panel = Scene.selector('#picker-popover-panel')

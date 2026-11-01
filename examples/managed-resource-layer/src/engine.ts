@@ -79,7 +79,7 @@ export class Engine extends Block<Engine>()('Engine', {
   OutMessage,
 }) {}
 
-export const EngineLive = Engine.layer(
+export const EngineLive = Engine.toLayer(
   Effect.gen(function* () {
     const engines = yield* ComputeEngines
 

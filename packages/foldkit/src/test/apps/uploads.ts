@@ -55,11 +55,14 @@ export const UploadFile = Command.define('UploadFile', {
     keyFields: ['uploadId'],
     toKey: ({ uploadId }) => String(uploadId),
   },
-  handler: function* () {
+})
+
+export const UploadFileLive = UploadFile.toLayer(
+  Effect.gen(function* () {
     return ({ uploadId }) =>
       Effect.as(Effect.never, Message.SucceededUploadFile({ uploadId }))
-  },
-})
+  }),
+)
 
 export const CancelUploadFile = ({ uploadId }: UploadFileArgs) =>
   UploadFile.Interrupt({ uploadId }, outcome =>
@@ -156,4 +159,4 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
   return { title: 'Uploads', body }
 }
 
-export const EffectsLayer = Layer.mergeAll(UploadFile.layer)
+export const EffectsLayer = Layer.mergeAll(UploadFileLive)

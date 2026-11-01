@@ -309,44 +309,34 @@ describe('ElementBuilder ChildAttribute support', () => {
     Message: ControlMessage,
   }) {}
 
-  const ControlLive = Control.layer(
-    Effect.gen(function* () {
-      return {
-        update: { ClickedControl: model => ({ model }) },
-        view: (_model, h, { toView }) =>
-          toView({
-            control: childAttributes([
-              h.OnClick(Control.Message.ClickedControl()),
-            ]),
-          }),
-      }
-    }),
-  )
+  const ControlLive = Control.toLayer(() => ({
+    update: { ClickedControl: model => ({ model }) },
+    view: (_model, h, { toView }) =>
+      toView({
+        control: childAttributes([h.OnClick(Control.Message.ClickedControl())]),
+      }),
+  }))
 
   class Parent extends Block<Parent>()('Parent', {
     Model: Schema.Struct({ control: Control }),
     Message,
   }) {}
 
-  const ParentLive = Parent.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ control: new Control('control') }),
-        update: {
-          RatingChanged: model => ({ model }),
-          RatingCleared: model => ({ model }),
-          ToggledDisabled: model => ({ model }),
+  const ParentLive = Parent.toLayer(() => ({
+    init: () => ({ control: new Control('control') }),
+    update: {
+      RatingChanged: model => ({ model }),
+      RatingCleared: model => ({ model }),
+      ToggledDisabled: model => ({ model }),
+    },
+    view: (model, h) =>
+      model.control.view({
+        toView: attributes => {
+          const rating = emojiRating.withMessage(h)
+          return rating([...attributes.control, rating.Value(3)])
         },
-        view: (model, h) =>
-          model.control.view({
-            toView: attributes => {
-              const rating = emojiRating.withMessage(h)
-              return rating([...attributes.control, rating.Value(3)])
-            },
-          }),
-      }
-    }),
-  ).pipe(Layer.provide(ControlLive))
+      }),
+  })).pipe(Layer.provide(ControlLive))
 
   it.effect(
     'routes a published ChildAttribute OnClick to the child when spread into a custom element',

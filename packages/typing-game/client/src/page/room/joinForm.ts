@@ -48,7 +48,7 @@ export class JoinForm extends Block<JoinForm, JoinFormArgs>()('JoinForm', {
   Command: [JoinRoom, FocusRoomPageUsernameInput],
 }) {}
 
-export const JoinFormLive = JoinForm.layer(
+export const JoinFormLive = JoinForm.toLayer(
   Effect.gen(function* () {
     const client = yield* RoomsClient
 

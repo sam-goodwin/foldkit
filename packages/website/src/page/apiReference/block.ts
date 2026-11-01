@@ -1,4 +1,4 @@
-import { Effect, Option } from 'effect'
+import { Option } from 'effect'
 import { Block } from 'foldkit'
 
 import { LoadApiData, loadApiData } from './command'
@@ -27,35 +27,31 @@ export class ApiReference extends Block<
   Command: [LoadApiData],
 }) {}
 
-export const ApiReferenceLive = ApiReference.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ maybeApiData }) =>
-        Option.match(maybeApiData, {
-          onNone: () => ({
-            apiData: ApiDataAsyncData.Loading(),
-            disclosures: {},
-          }),
-          onSome: apiData => ({
-            apiData: ApiDataAsyncData.Refreshing({ data: apiData }),
-            disclosures: disclosuresForApiData(apiData),
-          }),
-        }),
+export const ApiReferenceLive = ApiReference.toLayer(() => ({
+  init: ({ maybeApiData }) =>
+    Option.match(maybeApiData, {
+      onNone: () => ({
+        apiData: ApiDataAsyncData.Loading(),
+        disclosures: {},
+      }),
+      onSome: apiData => ({
+        apiData: ApiDataAsyncData.Refreshing({ data: apiData }),
+        disclosures: disclosuresForApiData(apiData),
+      }),
+    }),
 
-      start: () => [LoadApiData()],
+  start: () => [LoadApiData()],
 
-      update: {
-        InformedOfRouteChange: refreshApiDataStep,
-        SucceededLoadApiData: handleSucceededLoadApiData,
-        FailedLoadApiData: handleFailedLoadApiData,
-        ToggledSignature: handleToggledSignature,
-      },
+  update: {
+    InformedOfRouteChange: refreshApiDataStep,
+    SucceededLoadApiData: handleSucceededLoadApiData,
+    FailedLoadApiData: handleFailedLoadApiData,
+    ToggledSignature: handleToggledSignature,
+  },
 
-      commands: {
-        LoadApiData: () => loadApiData,
-      },
+  commands: {
+    LoadApiData: () => loadApiData,
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))

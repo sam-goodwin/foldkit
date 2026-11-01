@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -32,90 +32,83 @@ export class Notifications extends Block<Notifications>()('Notifications', {
   Message,
 }) {}
 
-export const NotificationsLive = Notifications.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        // Swipe is opt-in. Omit swipeToDismiss to leave it disabled, or pass {}
-        // for the default rightward 40px gesture.
-        toast: new Toast('toast', {
-          id: 'app-toast',
-          swipeToDismiss: {},
-        }),
-        maybeLastDismissedBody: Option.none(),
-      }),
+export const NotificationsLive = Notifications.toLayer(() => ({
+  init: () => ({
+    // Swipe is opt-in. Omit swipeToDismiss to leave it disabled, or pass {}
+    // for the default rightward 40px gesture.
+    toast: new Toast('toast', {
+      id: 'app-toast',
+      swipeToDismiss: {},
+    }),
+    maybeLastDismissedBody: Option.none(),
+  }),
 
-      update: {
-        // `Toast.requestShow` builds the Message that adds an entry
-        ClickedSave: model => ({
-          model,
-          messages: [
-            model.toast.send(
-              Toast.requestShow({
-                variant: 'Success',
-                payload: {
-                  bodyText: 'Changes saved',
-                  maybeLink: Option.some({
-                    href: changesRouter(),
-                    text: 'View',
-                  }),
-                },
+  update: {
+    // `Toast.requestShow` builds the Message that adds an entry
+    ClickedSave: model => ({
+      model,
+      messages: [
+        model.toast.send(
+          Toast.requestShow({
+            variant: 'Success',
+            payload: {
+              bodyText: 'Changes saved',
+              maybeLink: Option.some({
+                href: changesRouter(),
+                text: 'View',
               }),
+            },
+          }),
+        ),
+      ],
+    }),
+
+    ...Toast.on({
+      DismissedToast: (model, { payload }) => ({
+        model: modifyFields(model, {
+          maybeLastDismissedBody: () => Option.some(payload.bodyText),
+        }),
+      }),
+    }),
+  },
+
+  // Render the Toast once at the app root. `entryToView` lays out each
+  // entry from its payload. The component handles the wrapper element,
+  // hover-to-pause, swipe-to-dismiss, and enter and leave animations.
+  view: (model, h) =>
+    model.toast.view({
+      position: 'BottomRight',
+      entryClassName: 'toast-entry w-80',
+      entryToView: (entry, handlers) =>
+        h.div(
+          [
+            h.Class(
+              'flex items-start gap-3 rounded-lg border bg-white p-3 shadow',
             ),
           ],
-        }),
-
-        ...Toast.on({
-          DismissedToast: (model, { payload }) => ({
-            model: modifyFields(model, {
-              maybeLastDismissedBody: () => Option.some(payload.bodyText),
-            }),
-          }),
-        }),
-      },
-
-      // Render the Toast once at the app root. `entryToView` lays out each
-      // entry from its payload. The component handles the wrapper element,
-      // hover-to-pause, swipe-to-dismiss, and enter and leave animations.
-      view: (model, h) =>
-        model.toast.view({
-          position: 'BottomRight',
-          entryClassName: 'toast-entry w-80',
-          entryToView: (entry, handlers) =>
+          [
             h.div(
+              [h.Class('flex-1')],
               [
-                h.Class(
-                  'flex items-start gap-3 rounded-lg border bg-white p-3 shadow',
-                ),
-              ],
-              [
-                h.div(
-                  [h.Class('flex-1')],
+                h.p(
+                  [h.Class('font-semibold text-sm')],
                   [
-                    h.p(
-                      [h.Class('font-semibold text-sm')],
-                      [
-                        h.span(
-                          [h.DataAttribute('toast-swipe-ignore', '')],
-                          [entry.payload.bodyText],
-                        ),
-                      ],
+                    h.span(
+                      [h.DataAttribute('toast-swipe-ignore', '')],
+                      [entry.payload.bodyText],
                     ),
-                    ...Option.match(entry.payload.maybeLink, {
-                      onNone: () => [],
-                      onSome: ({ href, text }) => [
-                        h.a(
-                          [h.Class('text-sm underline'), h.Href(href)],
-                          [text],
-                        ),
-                      ],
-                    }),
                   ],
                 ),
-                h.button([...handlers.dismiss], ['Close']),
+                ...Option.match(entry.payload.maybeLink, {
+                  onNone: () => [],
+                  onSome: ({ href, text }) => [
+                    h.a([h.Class('text-sm underline'), h.Href(href)], [text]),
+                  ],
+                }),
               ],
             ),
-        }),
-    }
-  }),
-).pipe(Layer.provide(Toast.Live))
+            h.button([...handlers.dismiss], ['Close']),
+          ],
+        ),
+    }),
+})).pipe(Layer.provide(Toast.Live))

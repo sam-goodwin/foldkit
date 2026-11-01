@@ -1,13 +1,4 @@
-import {
-  Array,
-  Duration,
-  Effect,
-  Layer,
-  Match,
-  Schema,
-  Stream,
-  pipe,
-} from 'effect'
+import { Array, Duration, Layer, Match, Schema, Stream, pipe } from 'effect'
 import { Block } from 'foldkit'
 import type { HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -45,62 +36,58 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        tabs: new AppTabs('tabs', { id: TABS_ID }),
-        activeTab: 'Posts',
-        postsTab: new PostsTab('postsTab'),
-        statsTab: new StatsTab('statsTab'),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    tabs: new AppTabs('tabs', { id: TABS_ID }),
+    activeTab: 'Posts',
+    postsTab: new PostsTab('postsTab'),
+    statsTab: new StatsTab('statsTab'),
+  }),
+
+  update: {
+    TickedStatsRefreshInterval: model => ({
+      model,
+      messages: [model.statsTab.send(StatsTab.Message.RequestedRevalidation())],
+    }),
+    ...AppTabs.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { activeTab: () => value }),
+        messages: [loadTab(model, value)],
       }),
+    }),
+  },
 
-      update: {
-        TickedStatsRefreshInterval: model => ({
-          model,
-          messages: [
-            model.statsTab.send(StatsTab.Message.RequestedRevalidation()),
-          ],
-        }),
-        ...AppTabs.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { activeTab: () => value }),
-            messages: [loadTab(model, value)],
-          }),
-        }),
-      },
+  subscriptions: {
+    statsRefreshTicks: {
+      dependencies: model =>
+        model.activeTab === 'Stats' && hasStatsData(model.statsTab.model),
+      stream: statsRefreshTicks,
+    },
+  },
 
-      subscriptions: {
-        statsRefreshTicks: {
-          dependencies: model =>
-            model.activeTab === 'Stats' && hasStatsData(model.statsTab.model),
-          stream: statsRefreshTicks,
-        },
-      },
-
-      view: (model, h) => ({
-        title: 'API Cache Query',
-        body: h.div(
-          [h.Class('min-h-screen bg-slate-100 flex justify-center p-6')],
+  view: (model, h) => ({
+    title: 'API Cache Query',
+    body: h.div(
+      [h.Class('min-h-screen bg-slate-100 flex justify-center p-6')],
+      [
+        h.div(
+          [h.Class('w-full max-w-2xl flex flex-col gap-6')],
           [
-            h.div(
-              [h.Class('w-full max-w-2xl flex flex-col gap-6')],
-              [
-                headerView(h),
-                model.tabs.view({
-                  tabs: Tab.literals,
-                  selectedValue: model.activeTab,
-                  ariaLabel: 'API cache sections',
-                  toView: renderInfo => tabsView({ model, renderInfo }, h),
-                }),
-              ],
-            ),
+            headerView(h),
+            model.tabs.view({
+              tabs: Tab.literals,
+              selectedValue: model.activeTab,
+              ariaLabel: 'API cache sections',
+              toView: renderInfo => tabsView({ model, renderInfo }, h),
+            }),
           ],
         ),
-      }),
-    }
+      ],
+    ),
   }),
-).pipe(Layer.provide(Layer.mergeAll(AppTabs.Live, PostsTabLive, StatsTabLive)))
+})).pipe(
+  Layer.provide(Layer.mergeAll(AppTabs.Live, PostsTabLive, StatsTabLive)),
+)
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

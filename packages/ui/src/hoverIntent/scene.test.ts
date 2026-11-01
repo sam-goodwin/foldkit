@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { expect, focus, scene, selector } from 'foldkit/scene'
 
@@ -10,26 +10,22 @@ class HoverIntentScene extends Block<HoverIntentScene>()('HoverIntentScene', {
   Model: Schema.Struct({ hoverIntent: HoverIntent }),
 }) {}
 
-const HoverIntentSceneLive = HoverIntentScene.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ hoverIntent: new HoverIntent('hoverIntent', {}) }),
-      view: (model, h) =>
-        model.hoverIntent.view({
-          toView: ({ trigger, panel, isVisible }) =>
-            h.div(
-              [],
-              [
-                h.button([h.Id('trigger'), ...trigger], ['Preview']),
-                ...(isVisible
-                  ? [h.div([h.Id('panel'), ...panel], ['Content'])]
-                  : []),
-              ],
-            ),
-        }),
-    }
-  }),
-).pipe(Layer.provide(HoverIntentLive))
+const HoverIntentSceneLive = HoverIntentScene.toLayer(() => ({
+  init: () => ({ hoverIntent: new HoverIntent('hoverIntent', {}) }),
+  view: (model, h) =>
+    model.hoverIntent.view({
+      toView: ({ trigger, panel, isVisible }) =>
+        h.div(
+          [],
+          [
+            h.button([h.Id('trigger'), ...trigger], ['Preview']),
+            ...(isVisible
+              ? [h.div([h.Id('panel'), ...panel], ['Content'])]
+              : []),
+          ],
+        ),
+    }),
+})).pipe(Layer.provide(HoverIntentLive))
 
 const trigger = selector('#trigger')
 const panel = selector('#panel')

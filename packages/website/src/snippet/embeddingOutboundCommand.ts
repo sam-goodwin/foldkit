@@ -22,45 +22,41 @@ export class Widget extends Block<Widget, Readonly<{ flags: Flags }>>()(
   },
 ) {}
 
-export const WidgetLive = Widget.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({ count: flags.initialCount, step: 1 }),
+export const WidgetLive = Widget.toLayer(() => ({
+  init: ({ flags }) => ({ count: flags.initialCount, step: 1 }),
 
-      subscriptions: {
-        hostStepChanges: {
-          dependencies: Function.constVoid,
-          stream: () => hostStepChanges,
-        },
-      },
+  subscriptions: {
+    hostStepChanges: {
+      dependencies: Function.constVoid,
+      stream: () => hostStepChanges,
+    },
+  },
 
-      update: {
-        ClickedAdvance: model => {
-          const count = model.count + model.step
+  update: {
+    ClickedAdvance: model => {
+      const count = model.count + model.step
 
-          return {
-            model: modifyFields(model, { count: () => count }),
-            commands: [ReportCount({ count })],
-          }
-        },
-        ChangedStep: (model, { step }) => ({
-          model: modifyFields(model, { step: () => step }),
-        }),
-        CompletedReportCount: model => ({ model }),
-      },
+      return {
+        model: modifyFields(model, { count: () => count }),
+        commands: [ReportCount({ count })],
+      }
+    },
+    ChangedStep: (model, { step }) => ({
+      model: modifyFields(model, { step: () => step }),
+    }),
+    CompletedReportCount: model => ({ model }),
+  },
 
-      commands: {
-        ReportCount: ({ count }) =>
-          Port.emit(ports.outbound.countChanged, count).pipe(
-            Effect.as(Message.CompletedReportCount()),
-          ),
-      },
+  commands: {
+    ReportCount: ({ count }) =>
+      Port.emit(ports.outbound.countChanged, count).pipe(
+        Effect.as(Message.CompletedReportCount()),
+      ),
+  },
 
-      view: (model, h) =>
-        h.button(
-          [h.OnClick(Message.ClickedAdvance())],
-          [`${model.count} (advance by ${model.step})`],
-        ),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.button(
+      [h.OnClick(Message.ClickedAdvance())],
+      [`${model.count} (advance by ${model.step})`],
+    ),
+}))

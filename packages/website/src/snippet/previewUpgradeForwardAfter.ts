@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -9,22 +9,18 @@ export class Preferences extends Block<Preferences>()('Preferences', {
   OutMessage: defineMessageUnion({ ChangedTheme: { theme: Theme } }),
 }) {}
 
-export const PreferencesLive = Preferences.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ settings: new Settings('settings') }),
+export const PreferencesLive = Preferences.toLayer(() => ({
+  init: () => ({ settings: new Settings('settings') }),
 
-      update: {
-        // Forwarding is an `.on` handler that returns the parent's OutMessage.
-        ...Settings.on({
-          ChangedTheme: (model, { theme }) => ({
-            model,
-            outMessage: Preferences.OutMessage.ChangedTheme({ theme }),
-          }),
-        }),
-      },
+  update: {
+    // Forwarding is an `.on` handler that returns the parent's OutMessage.
+    ...Settings.on({
+      ChangedTheme: (model, { theme }) => ({
+        model,
+        outMessage: Preferences.OutMessage.ChangedTheme({ theme }),
+      }),
+    }),
+  },
 
-      view: model => model.settings.view(),
-    }
-  }),
-).pipe(Layer.provide(SettingsLive))
+  view: model => model.settings.view(),
+})).pipe(Layer.provide(SettingsLive))

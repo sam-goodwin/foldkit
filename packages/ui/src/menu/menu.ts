@@ -1178,156 +1178,150 @@ export const makeBlock = <Item extends string = string>(): MenuClass<Item> => {
 
   const menuUpdate = makeUpdate(selected)
 
-  const MenuLive = MenuClass.layer(
-    Effect.gen(function* () {
-      return {
-        init: config => ({
-          id: config.id,
-          isOpen: false,
-          isAnimated: config.isAnimated ?? false,
-          isModal: config.isModal ?? false,
-          animation: new Animation.Animation('animation', {
-            id: `${config.id}-items`,
-          }),
-          maybeActiveItemIndex: Option.none(),
-          activationTrigger: 'Keyboard',
-          searchQuery: '',
-          searchVersion: 0,
-          maybeLastPointerPosition: Option.none(),
-          maybeLastButtonPointerType: Option.none(),
-          maybePointerOrigin: Option.none(),
-        }),
-
-        update: {
-          RequestedOpen: menuUpdate,
-          RequestedClose: menuUpdate,
-          RequestedSelectItem: menuUpdate,
-          Opened: menuUpdate,
-          Closed: menuUpdate,
-          BlurredItems: menuUpdate,
-          ActivatedItem: menuUpdate,
-          DeactivatedItem: menuUpdate,
-          SelectedItem: menuUpdate,
-          RequestedItemClick: menuUpdate,
-          Searched: menuUpdate,
-          CompletedDelayClearMenuSearch: menuUpdate,
-          MovedPointerOverItem: menuUpdate,
-          CompletedFocusMenuItems: menuUpdate,
-          CompletedFocusMenuButton: menuUpdate,
-          CompletedLockMenuScroll: menuUpdate,
-          CompletedUnlockMenuScroll: menuUpdate,
-          CompletedInertMenuOthers: menuUpdate,
-          CompletedRestoreMenuInert: menuUpdate,
-          CompletedScrollMenuItemIntoView: menuUpdate,
-          CompletedClickMenuItem: menuUpdate,
-          ClickedButton: menuUpdate,
-          IgnoredMouseClick: menuUpdate,
-          SuppressedSpaceScroll: menuUpdate,
-          CompletedAnchorMenu: menuUpdate,
-          CompletedPortalMenuBackdrop: menuUpdate,
-          CompletedDetectMenuMovementOrAnimationEnd: menuUpdate,
-          PressedPointerOnButton: menuUpdate,
-          ReleasedPointerOnItems: menuUpdate,
-          ...Animation.Animation.on({
-            StartedLeaveAnimating: (model: Model, { generation }) => ({
-              model,
-              commands: [
-                DetectMenuMovementOrAnimationEnd({ id: model.id, generation }),
-              ],
-            }),
-            TransitionedOut: (model: Model) => ({ model }),
-          }),
-        },
-
-        commands: {
-          LockMenuScroll: () =>
-            Dom.lockScroll.pipe(Effect.as(Message.CompletedLockMenuScroll())),
-          UnlockMenuScroll: () =>
-            Dom.unlockScroll.pipe(
-              Effect.as(Message.CompletedUnlockMenuScroll()),
-            ),
-          InertMenuOthers: ({ id }) =>
-            Dom.inertOthers(id, [buttonSelector(id), itemsSelector(id)]).pipe(
-              Effect.as(Message.CompletedInertMenuOthers()),
-            ),
-          RestoreMenuInert: ({ id }) =>
-            Dom.restoreInert(id).pipe(
-              Effect.as(Message.CompletedRestoreMenuInert()),
-            ),
-          FocusMenuItems: ({ id }) =>
-            Dom.focus(itemsSelector(id)).pipe(
-              Effect.ignore,
-              Effect.as(Message.CompletedFocusMenuItems()),
-            ),
-          FocusMenuButton: ({ id }) =>
-            Dom.focus(buttonSelector(id)).pipe(
-              Effect.ignore,
-              Effect.as(Message.CompletedFocusMenuButton()),
-            ),
-          ScrollMenuItemIntoView: ({ id, index }) =>
-            Dom.scrollIntoView(itemSelector(id, index)).pipe(
-              Effect.ignore,
-              Effect.as(Message.CompletedScrollMenuItemIntoView()),
-            ),
-          ClickMenuItem: ({ id, index }) =>
-            Dom.clickElement(itemSelector(id, index)).pipe(
-              Effect.ignore,
-              Effect.as(Message.CompletedClickMenuItem()),
-            ),
-          DelayClearMenuSearch: ({ version }) =>
-            Effect.sleep(SEARCH_DEBOUNCE_MILLISECONDS).pipe(
-              Effect.as(Message.CompletedDelayClearMenuSearch({ version })),
-            ),
-          DetectMenuMovementOrAnimationEnd: ({ id, generation }) =>
-            Effect.raceFirst(
-              Dom.detectElementMovement(buttonSelector(id)).pipe(
-                Effect.as(
-                  Message.CompletedDetectMenuMovementOrAnimationEnd({
-                    generation,
-                  }),
-                ),
-              ),
-              Dom.waitForAnimationSettled(itemsSelector(id)).pipe(
-                Effect.as(
-                  Message.CompletedDetectMenuMovementOrAnimationEnd({
-                    generation,
-                  }),
-                ),
-              ),
-            ),
-        },
-
-        mounts: {
-          AnchorMenu: ({ element, buttonId, anchor }) =>
-            Effect.gen(function* () {
-              yield* Effect.acquireRelease(
-                Effect.sync(() =>
-                  anchorSetup(element, {
-                    buttonId,
-                    anchor,
-                    focusAfterPosition: true,
-                  }),
-                ),
-                cleanup => Effect.sync(cleanup),
-              )
-              return Message.CompletedAnchorMenu()
-            }),
-          PortalMenuBackdrop: ({ element }) =>
-            Effect.gen(function* () {
-              yield* Effect.acquireRelease(
-                Effect.sync(() => portalBackdrop(element)),
-                cleanup => Effect.sync(cleanup),
-              )
-              return Message.CompletedPortalMenuBackdrop()
-            }),
-        },
-
-        view: (model, h, viewInputs) =>
-          /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-          menuView(model, h as unknown as MenuHtmlBuilder, viewInputs),
-      }
+  const MenuLive = MenuClass.toLayer(() => ({
+    init: config => ({
+      id: config.id,
+      isOpen: false,
+      isAnimated: config.isAnimated ?? false,
+      isModal: config.isModal ?? false,
+      animation: new Animation.Animation('animation', {
+        id: `${config.id}-items`,
+      }),
+      maybeActiveItemIndex: Option.none(),
+      activationTrigger: 'Keyboard',
+      searchQuery: '',
+      searchVersion: 0,
+      maybeLastPointerPosition: Option.none(),
+      maybeLastButtonPointerType: Option.none(),
+      maybePointerOrigin: Option.none(),
     }),
-  ).pipe(Layer.provide(Animation.AnimationLive))
+
+    update: {
+      RequestedOpen: menuUpdate,
+      RequestedClose: menuUpdate,
+      RequestedSelectItem: menuUpdate,
+      Opened: menuUpdate,
+      Closed: menuUpdate,
+      BlurredItems: menuUpdate,
+      ActivatedItem: menuUpdate,
+      DeactivatedItem: menuUpdate,
+      SelectedItem: menuUpdate,
+      RequestedItemClick: menuUpdate,
+      Searched: menuUpdate,
+      CompletedDelayClearMenuSearch: menuUpdate,
+      MovedPointerOverItem: menuUpdate,
+      CompletedFocusMenuItems: menuUpdate,
+      CompletedFocusMenuButton: menuUpdate,
+      CompletedLockMenuScroll: menuUpdate,
+      CompletedUnlockMenuScroll: menuUpdate,
+      CompletedInertMenuOthers: menuUpdate,
+      CompletedRestoreMenuInert: menuUpdate,
+      CompletedScrollMenuItemIntoView: menuUpdate,
+      CompletedClickMenuItem: menuUpdate,
+      ClickedButton: menuUpdate,
+      IgnoredMouseClick: menuUpdate,
+      SuppressedSpaceScroll: menuUpdate,
+      CompletedAnchorMenu: menuUpdate,
+      CompletedPortalMenuBackdrop: menuUpdate,
+      CompletedDetectMenuMovementOrAnimationEnd: menuUpdate,
+      PressedPointerOnButton: menuUpdate,
+      ReleasedPointerOnItems: menuUpdate,
+      ...Animation.Animation.on({
+        StartedLeaveAnimating: (model: Model, { generation }) => ({
+          model,
+          commands: [
+            DetectMenuMovementOrAnimationEnd({ id: model.id, generation }),
+          ],
+        }),
+        TransitionedOut: (model: Model) => ({ model }),
+      }),
+    },
+
+    commands: {
+      LockMenuScroll: () =>
+        Dom.lockScroll.pipe(Effect.as(Message.CompletedLockMenuScroll())),
+      UnlockMenuScroll: () =>
+        Dom.unlockScroll.pipe(Effect.as(Message.CompletedUnlockMenuScroll())),
+      InertMenuOthers: ({ id }) =>
+        Dom.inertOthers(id, [buttonSelector(id), itemsSelector(id)]).pipe(
+          Effect.as(Message.CompletedInertMenuOthers()),
+        ),
+      RestoreMenuInert: ({ id }) =>
+        Dom.restoreInert(id).pipe(
+          Effect.as(Message.CompletedRestoreMenuInert()),
+        ),
+      FocusMenuItems: ({ id }) =>
+        Dom.focus(itemsSelector(id)).pipe(
+          Effect.ignore,
+          Effect.as(Message.CompletedFocusMenuItems()),
+        ),
+      FocusMenuButton: ({ id }) =>
+        Dom.focus(buttonSelector(id)).pipe(
+          Effect.ignore,
+          Effect.as(Message.CompletedFocusMenuButton()),
+        ),
+      ScrollMenuItemIntoView: ({ id, index }) =>
+        Dom.scrollIntoView(itemSelector(id, index)).pipe(
+          Effect.ignore,
+          Effect.as(Message.CompletedScrollMenuItemIntoView()),
+        ),
+      ClickMenuItem: ({ id, index }) =>
+        Dom.clickElement(itemSelector(id, index)).pipe(
+          Effect.ignore,
+          Effect.as(Message.CompletedClickMenuItem()),
+        ),
+      DelayClearMenuSearch: ({ version }) =>
+        Effect.sleep(SEARCH_DEBOUNCE_MILLISECONDS).pipe(
+          Effect.as(Message.CompletedDelayClearMenuSearch({ version })),
+        ),
+      DetectMenuMovementOrAnimationEnd: ({ id, generation }) =>
+        Effect.raceFirst(
+          Dom.detectElementMovement(buttonSelector(id)).pipe(
+            Effect.as(
+              Message.CompletedDetectMenuMovementOrAnimationEnd({
+                generation,
+              }),
+            ),
+          ),
+          Dom.waitForAnimationSettled(itemsSelector(id)).pipe(
+            Effect.as(
+              Message.CompletedDetectMenuMovementOrAnimationEnd({
+                generation,
+              }),
+            ),
+          ),
+        ),
+    },
+
+    mounts: {
+      AnchorMenu: ({ element, buttonId, anchor }) =>
+        Effect.gen(function* () {
+          yield* Effect.acquireRelease(
+            Effect.sync(() =>
+              anchorSetup(element, {
+                buttonId,
+                anchor,
+                focusAfterPosition: true,
+              }),
+            ),
+            cleanup => Effect.sync(cleanup),
+          )
+          return Message.CompletedAnchorMenu()
+        }),
+      PortalMenuBackdrop: ({ element }) =>
+        Effect.gen(function* () {
+          yield* Effect.acquireRelease(
+            Effect.sync(() => portalBackdrop(element)),
+            cleanup => Effect.sync(cleanup),
+          )
+          return Message.CompletedPortalMenuBackdrop()
+        }),
+    },
+
+    view: (model, h, viewInputs) =>
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      menuView(model, h as unknown as MenuHtmlBuilder, viewInputs),
+  })).pipe(Layer.provide(Animation.AnimationLive))
 
   return Object.assign(MenuClass, { Live: MenuLive })
 }

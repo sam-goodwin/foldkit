@@ -214,86 +214,80 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
 
 // LIVE
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => init(url).model,
-      start: (_model, { url }) => init(url).commands ?? [],
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => init(url).model,
+  start: (_model, { url }) => init(url).commands ?? [],
 
-      update: {
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
+  update: {
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
 
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url }) => ({
-              model,
-              commands: [NavigateInternal({ url: urlToString(url) })],
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url }) => ({
+          model,
+          commands: [NavigateInternal({ url: urlToString(url) })],
+        }),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
+      }),
+
+    ChangedUrl: (model, { url }) => {
+      const nextRoute = urlToApplicationRoute(url)
+      const transition = Transition.make(model.route, nextRoute)
+      return handleTransitionStep(transition)(
+        modifyFields(model, { route: () => nextRoute }),
+      )
+    },
+
+    CompletedLoadCatalog: model => ({
+      model: modifyFields(model, { catalogStatus: () => 'Ready' }),
+    }),
+
+    CompletedLoadPainting: (model, { paintingId }) =>
+      model.paintingStatus._tag === 'Loading' &&
+      model.paintingStatus.paintingId === paintingId
+        ? {
+            model: modifyFields(model, {
+              paintingStatus: () => PaintingStatus.Ready({ paintingId }),
             }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
+          }
+        : { model },
 
-        ChangedUrl: (model, { url }) => {
-          const nextRoute = urlToApplicationRoute(url)
-          const transition = Transition.make(model.route, nextRoute)
-          return handleTransitionStep(transition)(
-            modifyFields(model, { route: () => nextRoute }),
-          )
-        },
+    UpdatedStudioDraft: (model, { value }) => ({
+      model: modifyFields(model, { studioDraft: () => value }),
+    }),
 
-        CompletedLoadCatalog: model => ({
-          model: modifyFields(model, { catalogStatus: () => 'Ready' }),
-        }),
+    CompletedSaveDraft: (model, { draft }) => ({
+      model: modifyFields(model, {
+        maybeSavedDraft: () => Option.some(draft),
+      }),
+    }),
+  },
 
-        CompletedLoadPainting: (model, { paintingId }) =>
-          model.paintingStatus._tag === 'Loading' &&
-          model.paintingStatus.paintingId === paintingId
-            ? {
-                model: modifyFields(model, {
-                  paintingStatus: () => PaintingStatus.Ready({ paintingId }),
-                }),
-              }
-            : { model },
+  commands: {
+    NavigateInternal: ({ url: internalUrl }) =>
+      pushUrl(internalUrl).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+    LoadCatalog: () =>
+      Effect.sleep(CATALOG_LATENCY).pipe(
+        Effect.as(Message.CompletedLoadCatalog()),
+      ),
+    LoadPainting: ({ paintingId }) =>
+      Effect.sleep(PAINTING_LATENCY).pipe(
+        Effect.as(Message.CompletedLoadPainting({ paintingId })),
+      ),
+    SaveDraft: ({ draft }) =>
+      Effect.sleep(SAVE_LATENCY).pipe(
+        Effect.as(Message.CompletedSaveDraft({ draft })),
+      ),
+  },
 
-        UpdatedStudioDraft: (model, { value }) => ({
-          model: modifyFields(model, { studioDraft: () => value }),
-        }),
-
-        CompletedSaveDraft: (model, { draft }) => ({
-          model: modifyFields(model, {
-            maybeSavedDraft: () => Option.some(draft),
-          }),
-        }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url: internalUrl }) =>
-          pushUrl(internalUrl).pipe(
-            Effect.as(Message.CompletedNavigateInternal()),
-          ),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-        LoadCatalog: () =>
-          Effect.sleep(CATALOG_LATENCY).pipe(
-            Effect.as(Message.CompletedLoadCatalog()),
-          ),
-        LoadPainting: ({ paintingId }) =>
-          Effect.sleep(PAINTING_LATENCY).pipe(
-            Effect.as(Message.CompletedLoadPainting({ paintingId })),
-          ),
-        SaveDraft: ({ draft }) =>
-          Effect.sleep(SAVE_LATENCY).pipe(
-            Effect.as(Message.CompletedSaveDraft({ draft })),
-          ),
-      },
-
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 // TRANSITION STEPS
 

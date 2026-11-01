@@ -15,7 +15,7 @@ export class Banner extends Block<Banner>()('Banner', {
   Mount: [MeasureWidth],
 }) {}
 
-export const BannerLive = Banner.layer(
+export const BannerLive = Banner.toLayer(
   Effect.gen(function* () {
     return {
       update: {
@@ -35,9 +35,9 @@ export const BannerLive = Banner.layer(
 )
 
 const lookalike = {
-  layer: (build: () => unknown) => build,
+  toLayer: (build: () => unknown) => build,
 }
 
-export const unrelated = lookalike.layer(() => ({
+export const unrelated = lookalike.toLayer(() => ({
   mounts: { MeasureWidth: () => Effect.void },
 }))

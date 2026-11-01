@@ -79,19 +79,13 @@ class Checkbox extends Block<Checkbox, void, CheckboxViewInput>()('Checkbox', {
   Message: ChildMessage,
 }) {}
 
-const CheckboxLive = Checkbox.layer(
-  Effect.gen(function* () {
-    return {
-      update: { ClickedChild: model => ({ model }) },
-      view: (_model, h, { toView }) =>
-        toView({
-          checkbox: childAttributes([
-            h.OnClick(Checkbox.Message.ClickedChild()),
-          ]),
-        }),
-    }
-  }),
-)
+const CheckboxLive = Checkbox.toLayer(() => ({
+  update: { ClickedChild: model => ({ model }) },
+  view: (_model, h, { toView }) =>
+    toView({
+      checkbox: childAttributes([h.OnClick(Checkbox.Message.ClickedChild())]),
+    }),
+}))
 
 const childClicked = deliver(
   Checkbox,
@@ -151,44 +145,36 @@ describe('childAttributes', () => {
           { Message: ChildMessage },
         ) {}
 
-        const ObserverLive = Observer.layer(
-          Effect.gen(function* () {
-            return {
-              update: { ClickedChild: model => ({ model }) },
-              view: (_model, h, { toView }) =>
-                toView({
-                  event: childAttributes([
-                    h.OnClick(Observer.Message.ClickedChild()),
-                  ]),
-                  mount: childAttributes([
-                    h.OnMount({
-                      name: 'ObserveChild',
-                      f: (_element, _viewStateChanges) =>
-                        Stream.make(Observer.Message.ClickedChild()),
-                    }),
-                  ]),
+        const ObserverLive = Observer.toLayer(() => ({
+          update: { ClickedChild: model => ({ model }) },
+          view: (_model, h, { toView }) =>
+            toView({
+              event: childAttributes([
+                h.OnClick(Observer.Message.ClickedChild()),
+              ]),
+              mount: childAttributes([
+                h.OnMount({
+                  name: 'ObserveChild',
+                  f: (_element, _viewStateChanges) =>
+                    Stream.make(Observer.Message.ClickedChild()),
                 }),
-            }
-          }),
-        )
+              ]),
+            }),
+        }))
 
         class Parent extends Block<Parent>()('Parent', {
           Model: Schema.Struct({ observer: Observer }),
         }) {}
 
-        const ParentLive = Parent.layer(
-          Effect.gen(function* () {
-            return {
-              init: () => ({ observer: new Observer('observer') }),
-              update: {},
-              view: (model, h) =>
-                model.observer.view({
-                  toView: attributes =>
-                    h.div([...attributes.event, ...attributes.mount]),
-                }),
-            }
-          }),
-        ).pipe(Layer.provide(ObserverLive))
+        const ParentLive = Parent.toLayer(() => ({
+          init: () => ({ observer: new Observer('observer') }),
+          update: {},
+          view: (model, h) =>
+            model.observer.view({
+              toView: attributes =>
+                h.div([...attributes.event, ...attributes.mount]),
+            }),
+        })).pipe(Layer.provide(ObserverLive))
 
         const html = yield* renderRootBlock(Parent, ParentLive)
         if (html === null) {
@@ -215,18 +201,14 @@ describe('childAttributes', () => {
           Model: Schema.Struct({ checkbox: Checkbox }),
         }) {}
 
-        const ParentLive = Parent.layer(
-          Effect.gen(function* () {
-            return {
-              init: () => ({ checkbox: new Checkbox('checkbox') }),
-              update: {},
-              view: (model, h) =>
-                model.checkbox.view({
-                  toView: attributes => h.div([...attributes.checkbox]),
-                }),
-            }
-          }),
-        ).pipe(Layer.provide(CheckboxLive))
+        const ParentLive = Parent.toLayer(() => ({
+          init: () => ({ checkbox: new Checkbox('checkbox') }),
+          update: {},
+          view: (model, h) =>
+            model.checkbox.view({
+              toView: attributes => h.div([...attributes.checkbox]),
+            }),
+        })).pipe(Layer.provide(CheckboxLive))
 
         const html = yield* renderRootBlock(Parent, ParentLive)
         clickHandlerOf(html)()
@@ -256,49 +238,41 @@ describe('childAttributes', () => {
           { Message: ChildMessage },
         ) {}
 
-        const ProducerLive = Producer.layer(
-          Effect.gen(function* () {
-            return {
-              update: { ClickedChild: model => ({ model }) },
-              view: (_model, h, { toView }) => {
-                return toView(
-                  {
-                    checkbox: label => {
-                      producerInvocations.push(label)
-                      return childAttributes([
-                        h.OnClick(Producer.Message.ClickedChild()),
-                      ])
-                    },
-                  },
-                  selection,
-                )
+        const ProducerLive = Producer.toLayer(() => ({
+          update: { ClickedChild: model => ({ model }) },
+          view: (_model, h, { toView }) => {
+            return toView(
+              {
+                checkbox: label => {
+                  producerInvocations.push(label)
+                  return childAttributes([
+                    h.OnClick(Producer.Message.ClickedChild()),
+                  ])
+                },
               },
-            }
-          }),
-        )
+              selection,
+            )
+          },
+        }))
 
         class Parent extends Block<Parent>()('Parent', {
           Model: Schema.Struct({ producer: Producer }),
         }) {}
 
-        const ParentLive = Parent.layer(
-          Effect.gen(function* () {
-            return {
-              init: () => ({ producer: new Producer('producer') }),
-              update: {},
-              view: (model, h) =>
-                model.producer.view({
-                  toView: (attributes, selected) => {
-                    producerInvocations.push(
-                      selected,
-                      Option.getOrThrow(selected).label,
-                    )
-                    return h.button([...attributes.checkbox('checkbox')])
-                  },
-                }),
-            }
-          }),
-        ).pipe(Layer.provide(ProducerLive))
+        const ParentLive = Parent.toLayer(() => ({
+          init: () => ({ producer: new Producer('producer') }),
+          update: {},
+          view: (model, h) =>
+            model.producer.view({
+              toView: (attributes, selected) => {
+                producerInvocations.push(
+                  selected,
+                  Option.getOrThrow(selected).label,
+                )
+                return h.button([...attributes.checkbox('checkbox')])
+              },
+            }),
+        })).pipe(Layer.provide(ProducerLive))
 
         const html = yield* renderRootBlock(Parent, ParentLive)
         clickHandlerOf(html)()
@@ -319,26 +293,22 @@ describe('childAttributes', () => {
           Message: ParentMessage,
         }) {}
 
-        const ParentLive = Parent.layer(
-          Effect.gen(function* () {
-            return {
-              init: () => ({ checkbox: new Checkbox('checkbox') }),
-              update: {
-                ClickedParent: model => ({ model }),
-                PressedParentKey: model => ({ model }),
-              },
-              view: (model, h) =>
-                model.checkbox.view({
-                  toView: attributes =>
-                    h.button([
-                      ...attributes.checkbox,
-                      h.OnKeyPress(() => Parent.Message.PressedParentKey()),
-                      h.OnClick(Parent.Message.ClickedParent()),
-                    ]),
-                }),
-            }
-          }),
-        ).pipe(Layer.provide(CheckboxLive))
+        const ParentLive = Parent.toLayer(() => ({
+          init: () => ({ checkbox: new Checkbox('checkbox') }),
+          update: {
+            ClickedParent: model => ({ model }),
+            PressedParentKey: model => ({ model }),
+          },
+          view: (model, h) =>
+            model.checkbox.view({
+              toView: attributes =>
+                h.button([
+                  ...attributes.checkbox,
+                  h.OnKeyPress(() => Parent.Message.PressedParentKey()),
+                  h.OnClick(Parent.Message.ClickedParent()),
+                ]),
+            }),
+        })).pipe(Layer.provide(CheckboxLive))
 
         const html = yield* renderRootBlock(Parent, ParentLive)
         clickHandlerOf(html)()
@@ -379,64 +349,48 @@ describe('childAttributes', () => {
         Message: ChildMessage,
       }) {}
 
-      const FirstLive = First.layer(
-        Effect.gen(function* () {
-          return {
-            update: { ClickedChild: model => ({ model }) },
-            view: (_model, h, { capture }) => {
-              capture(
-                childAttributes([h.OnClick(First.Message.ClickedChild())]),
-              )
-              return snabbdomH('span')
-            },
-          }
-        }),
-      )
+      const FirstLive = First.toLayer(() => ({
+        update: { ClickedChild: model => ({ model }) },
+        view: (_model, h, { capture }) => {
+          capture(childAttributes([h.OnClick(First.Message.ClickedChild())]))
+          return snabbdomH('span')
+        },
+      }))
 
-      const SecondLive = Second.layer(
-        Effect.gen(function* () {
-          return {
-            update: { ClickedChild: model => ({ model }) },
-            view: (_model, h, { capture }) => {
-              capture(
-                childAttributes([h.OnClick(Second.Message.ClickedChild())]),
-              )
-              return snabbdomH('span')
-            },
-          }
-        }),
-      )
+      const SecondLive = Second.toLayer(() => ({
+        update: { ClickedChild: model => ({ model }) },
+        view: (_model, h, { capture }) => {
+          capture(childAttributes([h.OnClick(Second.Message.ClickedChild())]))
+          return snabbdomH('span')
+        },
+      }))
 
       class Parent extends Block<Parent>()('Parent', {
         Model: Schema.Struct({ first: First, second: Second }),
       }) {}
 
-      const ParentLive = Parent.layer(
-        Effect.gen(function* () {
-          return {
-            init: () => ({
-              first: new First('first'),
-              second: new Second('second'),
-            }),
-            update: {},
-            view: (model, h) => {
-              let firstAttributes: ReadonlyArray<ChildAttribute> = []
-              let secondAttributes: ReadonlyArray<ChildAttribute> = []
-              model.first.view({
-                capture: attributes => {
-                  firstAttributes = attributes
-                },
-              })
-              model.second.view({
-                capture: attributes => {
-                  secondAttributes = attributes
-                },
-              })
-              return h.div([...firstAttributes, ...secondAttributes])
-            },
-          }
+      const ParentLive = Parent.toLayer(() => ({
+        init: () => ({
+          first: new First('first'),
+          second: new Second('second'),
         }),
-      ).pipe(Layer.provide(Layer.mergeAll(FirstLive, SecondLive)))
+        update: {},
+        view: (model, h) => {
+          let firstAttributes: ReadonlyArray<ChildAttribute> = []
+          let secondAttributes: ReadonlyArray<ChildAttribute> = []
+          model.first.view({
+            capture: attributes => {
+              firstAttributes = attributes
+            },
+          })
+          model.second.view({
+            capture: attributes => {
+              secondAttributes = attributes
+            },
+          })
+          return h.div([...firstAttributes, ...secondAttributes])
+        },
+      })).pipe(Layer.provide(Layer.mergeAll(FirstLive, SecondLive)))
 
       const html = yield* renderRootBlock(Parent, ParentLive)
       clickHandlerOf(html)()

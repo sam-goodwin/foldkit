@@ -50,60 +50,44 @@ class Report extends Block<Report>()('Report', {
 }) {}
 
 const makeReportLive = (gate: Deferred.Deferred<void>) =>
-  Report.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ loads: 0 }),
-        start: () => [Load()],
-        update: {
-          CompletedLoad: model => ({ model: { loads: model.loads + 1 } }),
-        },
-        commands: {
-          Load: () =>
-            Deferred.await(gate).pipe(
-              Effect.as(Report.Message.CompletedLoad()),
-            ),
-        },
-        view: (model, h) => h.p([h.Id('loads')], [`${model.loads}`]),
-      }
-    }),
-  )
+  Report.toLayer(() => ({
+    init: () => ({ loads: 0 }),
+    start: () => [Load()],
+    update: {
+      CompletedLoad: model => ({ model: { loads: model.loads + 1 } }),
+    },
+    commands: {
+      Load: () =>
+        Deferred.await(gate).pipe(Effect.as(Report.Message.CompletedLoad())),
+    },
+    view: (model, h) => h.p([h.Id('loads')], [`${model.loads}`]),
+  }))
 
 class Dashboard extends Block<Dashboard>()('Dashboard', {
   Model: Schema.Struct({ maybeReport: Schema.Option(Report) }),
   Message: defineMessageUnion({ ClickedOpen: {}, ClickedClose: {} }),
 }) {}
 
-const DashboardLive = Dashboard.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ maybeReport: Option.none() }),
-      update: {
-        ClickedOpen: () => ({
-          model: { maybeReport: Option.some(new Report('report')) },
-        }),
-        ClickedClose: () => ({ model: { maybeReport: Option.none() } }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.button([
-              h.Id('open'),
-              h.OnClick(Dashboard.Message.ClickedOpen()),
-            ]),
-            h.button([
-              h.Id('close'),
-              h.OnClick(Dashboard.Message.ClickedClose()),
-            ]),
-            ...Option.toArray(
-              Option.map(model.maybeReport, instance => instance.view()),
-            ),
-          ],
+const DashboardLive = Dashboard.toLayer(() => ({
+  init: () => ({ maybeReport: Option.none() }),
+  update: {
+    ClickedOpen: () => ({
+      model: { maybeReport: Option.some(new Report('report')) },
+    }),
+    ClickedClose: () => ({ model: { maybeReport: Option.none() } }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.button([h.Id('open'), h.OnClick(Dashboard.Message.ClickedOpen())]),
+        h.button([h.Id('close'), h.OnClick(Dashboard.Message.ClickedClose())]),
+        ...Option.toArray(
+          Option.map(model.maybeReport, instance => instance.view()),
         ),
-    }
-  }),
-)
+      ],
+    ),
+}))
 
 describe('Block instance lifecycle', () => {
   it('drops the result of a Command whose instance left the Model', async () => {
@@ -209,22 +193,18 @@ class Toggle extends Block<Toggle>()('Toggle', {
   OutMessage: defineMessageUnion({ Opened: {}, Closed: {} }),
 }) {}
 
-const ToggleLive = Toggle.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isOpen: false }),
-      update: {
-        ClickedToggle: model => ({
-          model: { isOpen: !model.isOpen },
-          outMessage: model.isOpen
-            ? Toggle.OutMessage.Closed()
-            : Toggle.OutMessage.Opened(),
-        }),
-      },
-      view: (_, h) => h.div([]),
-    }
-  }),
-)
+const ToggleLive = Toggle.toLayer(() => ({
+  init: () => ({ isOpen: false }),
+  update: {
+    ClickedToggle: model => ({
+      model: { isOpen: !model.isOpen },
+      outMessage: model.isOpen
+        ? Toggle.OutMessage.Closed()
+        : Toggle.OutMessage.Opened(),
+    }),
+  },
+  view: (_, h) => h.div([]),
+}))
 
 class Panel extends Block<Panel>()('Panel', {
   Model: Schema.Struct({
@@ -240,37 +220,29 @@ const initPanel = () => ({
   closes: 0,
 })
 
-const PanelLive = Panel.layer(
-  Effect.gen(function* () {
-    return {
-      init: initPanel,
-      update: {
-        ...Toggle.on({
-          Opened: model => ({ model: { ...model, opens: model.opens + 1 } }),
-        }),
-        ...Toggle.on({
-          Closed: model => ({ model: { ...model, closes: model.closes + 1 } }),
-        }),
-      },
-      view: model => model.toggle.view(),
-    }
-  }),
-)
+const PanelLive = Panel.toLayer(() => ({
+  init: initPanel,
+  update: {
+    ...Toggle.on({
+      Opened: model => ({ model: { ...model, opens: model.opens + 1 } }),
+    }),
+    ...Toggle.on({
+      Closed: model => ({ model: { ...model, closes: model.closes + 1 } }),
+    }),
+  },
+  view: model => model.toggle.view(),
+}))
 
-const ExhaustivePanelLive = Panel.layer(
-  Effect.gen(function* () {
-    return {
-      init: initPanel,
-      update: {
-        ...Toggle.onAll({
-          Opened: model => ({ model: { ...model, opens: model.opens + 1 } }),
-          Closed: model => ({ model: { ...model, closes: model.closes + 1 } }),
-        }),
-      },
-      view: model => model.toggle.view(),
-    }
-  }),
-)
+const ExhaustivePanelLive = Panel.toLayer(() => ({
+  init: initPanel,
+  update: {
+    ...Toggle.onAll({
+      Opened: model => ({ model: { ...model, opens: model.opens + 1 } }),
+      Closed: model => ({ model: { ...model, closes: model.closes + 1 } }),
+    }),
+  },
+  view: model => model.toggle.view(),
+}))
 
 describe('Block OutMessage handlers', () => {
   it('handles every OutMessage with `onAll`', () =>
@@ -308,7 +280,7 @@ class Resource extends Block<Resource>()('Resource', {
   Model: Schema.Struct({}),
 }) {}
 
-const ResourceLive = Resource.layer(
+const ResourceLive = Resource.toLayer(
   Effect.gen(function* () {
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => released.push('Resource')),
@@ -344,37 +316,31 @@ class Tracker extends Block<Tracker, { readonly label: string }>()('Tracker', {
 }) {}
 
 const makeTrackerLive = (events: Array<string>) =>
-  Tracker.layer(
-    Effect.gen(function* () {
-      return {
-        init: ({ label }) => ({ label, count: 0 }),
-        start: model => [
-          LoadTracker({ label: model.label, count: model.count }),
-        ],
-        update: {
-          ClickedIncrement: model => ({
-            model: { ...model, count: model.count + 1 },
-          }),
-          CompletedLoad: model => ({ model }),
-        },
-        commands: {
-          LoadTracker: () => Effect.succeed(Tracker.Message.CompletedLoad()),
-        },
-        subscriptions: {
-          presence: {
-            dependencies: model => model.label,
-            stream: (label: string) =>
-              Stream.unwrap(
-                Effect.acquireRelease(
-                  Effect.sync(() => events.push(`acquired ${label}`)),
-                  () => Effect.sync(() => events.push(`released ${label}`)),
-                ).pipe(Effect.as(Stream.never)),
-              ),
-          },
-        },
-      }
-    }),
-  )
+  Tracker.toLayer(() => ({
+    init: ({ label }) => ({ label, count: 0 }),
+    start: model => [LoadTracker({ label: model.label, count: model.count })],
+    update: {
+      ClickedIncrement: model => ({
+        model: { ...model, count: model.count + 1 },
+      }),
+      CompletedLoad: model => ({ model }),
+    },
+    commands: {
+      LoadTracker: () => Effect.succeed(Tracker.Message.CompletedLoad()),
+    },
+    subscriptions: {
+      presence: {
+        dependencies: model => model.label,
+        stream: (label: string) =>
+          Stream.unwrap(
+            Effect.acquireRelease(
+              Effect.sync(() => events.push(`acquired ${label}`)),
+              () => Effect.sync(() => events.push(`released ${label}`)),
+            ).pipe(Effect.as(Stream.never)),
+          ),
+      },
+    },
+  }))
 
 class Shelf extends Block<Shelf>()('Shelf', {
   Model: Schema.Struct({
@@ -391,7 +357,7 @@ class Shelf extends Block<Shelf>()('Shelf', {
   }),
 }) {}
 
-const ShelfLive = Shelf.layer(
+const ShelfLive = Shelf.toLayer(
   Effect.gen(function* () {
     let maybeClosed: Option.Option<Tracker> = Option.none()
 

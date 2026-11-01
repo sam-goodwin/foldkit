@@ -22,21 +22,17 @@ class ProjectSettingsScene extends Block<ProjectSettingsScene>()(
 
 const project = Option.getOrThrow(Array.head(initialWorkspace.projects))
 
-const ProjectSettingsSceneLive = ProjectSettingsScene.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        projectSettings: new ProjectSettings('projectSettings', { project }),
-      }),
-      update: {
-        ...ProjectSettings.on({
-          Saved: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-      view: (model, h) => h.div([], [model.projectSettings.view()]),
-    }
+const ProjectSettingsSceneLive = ProjectSettingsScene.toLayer(() => ({
+  init: () => ({
+    projectSettings: new ProjectSettings('projectSettings', { project }),
   }),
-).pipe(Layer.provide(ProjectSettingsLive))
+  update: {
+    ...ProjectSettings.on({
+      Saved: (model, outMessage) => ({ model, outMessage }),
+    }),
+  },
+  view: (model, h) => h.div([], [model.projectSettings.view()]),
+})).pipe(Layer.provide(ProjectSettingsLive))
 
 it.effect('discard restores the last saved project fields', () =>
   scene(

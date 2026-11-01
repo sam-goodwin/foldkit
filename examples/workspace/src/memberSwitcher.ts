@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Schema } from 'effect'
+import { Array, Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -20,55 +20,51 @@ export class MemberSwitcher extends Block<MemberSwitcher, void, ViewInput>()(
   { Model },
 ) {}
 
-export const MemberSwitcherLive = MemberSwitcher.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        activeMemberId: 'maya',
-        activeMemberListbox: new WorkspaceListbox('activeMemberListbox', {
-          id: 'workspace-active-member',
-        }),
+export const MemberSwitcherLive = MemberSwitcher.toLayer(() => ({
+  init: () => ({
+    activeMemberId: 'maya',
+    activeMemberListbox: new WorkspaceListbox('activeMemberListbox', {
+      id: 'workspace-active-member',
+    }),
+  }),
+
+  update: {
+    ...WorkspaceListbox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { activeMemberId: () => value }),
       }),
+    }),
+  },
 
-      update: {
-        ...WorkspaceListbox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { activeMemberId: () => value }),
-          }),
-        }),
-      },
-
-      view: (model, h, { members }) =>
-        h.div(
+  view: (model, h, { members }) =>
+    h.div(
+      [
+        h.Class(
+          'flex items-center gap-2.5 text-[13px] font-medium text-slate-600',
+        ),
+      ],
+      [
+        h.label(
           [
-            h.Class(
-              'flex items-center gap-2.5 text-[13px] font-medium text-slate-600',
-            ),
+            h.For(buttonId(model.activeMemberListbox.model.id)),
+            h.Class('sr-only sm:not-sr-only sm:shrink-0'),
           ],
+          ['Active member'],
+        ),
+        h.div(
+          [h.Class('w-40')],
           [
-            h.label(
-              [
-                h.For(buttonId(model.activeMemberListbox.model.id)),
-                h.Class('sr-only sm:not-sr-only sm:shrink-0'),
-              ],
-              ['Active member'],
-            ),
-            h.div(
-              [h.Class('w-40')],
-              [
-                model.activeMemberListbox.view(
-                  listboxViewInputs({
-                    value: model.activeMemberId,
-                    options: Array.map(members, member => ({
-                      value: member.id,
-                      label: member.name,
-                    })),
-                  }),
-                ),
-              ],
+            model.activeMemberListbox.view(
+              listboxViewInputs({
+                value: model.activeMemberId,
+                options: Array.map(members, member => ({
+                  value: member.id,
+                  label: member.name,
+                })),
+              }),
             ),
           ],
         ),
-    }
-  }),
-).pipe(Layer.provide(WorkspaceListbox.Live))
+      ],
+    ),
+})).pipe(Layer.provide(WorkspaceListbox.Live))

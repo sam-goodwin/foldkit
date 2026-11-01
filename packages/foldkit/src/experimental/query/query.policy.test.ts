@@ -43,10 +43,13 @@ describe('Query freshness and cancellation', () => {
       data: Schema.String,
       error: Schema.String,
       staleTime: '10 millis',
-      handler: function* () {
-        return () => Effect.succeed('loaded')
-      },
     })
+
+    const FiniteQueryLive = FiniteQuery.toLayer(
+      Effect.gen(function* () {
+        return () => Effect.succeed('loaded')
+      }),
+    )
     const Message = defineMessageUnion({
       RequestedLoad: { nowMillis: Schema.Number },
     })
@@ -56,23 +59,19 @@ describe('Query freshness and cancellation', () => {
       Message,
     }) {}
 
-    const ParentLive = Parent.layer(
-      Effect.gen(function* () {
-        return {
-          init: () => ({ query: new FiniteQuery('query', {}) }),
-          update: {
-            RequestedLoad: (model, { nowMillis }) => ({
-              model,
-              messages: [
-                model.query.send(
-                  FiniteQuery.Message.RequestedLoadIfStale({ nowMillis }),
-                ),
-              ],
-            }),
-          },
-        }
-      }),
-    ).pipe(Layer.provide(FiniteQuery.Live))
+    const ParentLive = Parent.toLayer(() => ({
+      init: () => ({ query: new FiniteQuery('query', {}) }),
+      update: {
+        RequestedLoad: (model, { nowMillis }) => ({
+          model,
+          messages: [
+            model.query.send(
+              FiniteQuery.Message.RequestedLoadIfStale({ nowMillis }),
+            ),
+          ],
+        }),
+      },
+    })).pipe(Layer.provide(FiniteQueryLive))
 
     return story(
       ParentLive,

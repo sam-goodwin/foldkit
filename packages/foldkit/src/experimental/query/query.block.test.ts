@@ -42,10 +42,13 @@ const Notes = Query.define({
   name: 'BlockNotes',
   data: Schema.Array(Note),
   error: Schema.String,
-  handler: function* () {
-    return () => Effect.succeed(hello)
-  },
 })
+
+const NotesLive = Notes.toLayer(
+  Effect.gen(function* () {
+    return () => Effect.succeed(hello)
+  }),
+)
 
 const NoteById = Query.define({
   name: 'BlockNote',
@@ -53,10 +56,13 @@ const NoteById = Query.define({
   error: Schema.String,
   args: { noteId: Schema.String },
   notifyOnCompletion: true,
-  handler: function* () {
-    return ({ noteId }) => Effect.succeed({ id: noteId, body: 'hello' })
-  },
 })
+
+const NoteByIdLive = NoteById.toLayer(
+  Effect.gen(function* () {
+    return ({ noteId }) => Effect.succeed({ id: noteId, body: 'hello' })
+  }),
+)
 
 const ParentMessage = defineMessageUnion({
   ClickedLoad: {},
@@ -72,43 +78,37 @@ class Parent extends Block<Parent>()('QueryParent', {
   Message: ParentMessage,
 }) {}
 
-const ParentLive = Parent.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        notes: new Notes('notes', {}),
-        noteById: new NoteById('noteById', {}),
-        maybeLastLoadedId: Option.none(),
-      }),
-      update: {
-        ClickedLoad: model => ({
-          model,
-          messages: [
-            model.notes.send(Notes.Message.RequestedRevalidationOrLoad()),
-          ],
-        }),
-        ClickedOpen: (model, { noteId }) => ({
-          model,
-          messages: [
-            model.noteById.send(
-              NoteById.Message.RequestedLoadIfMissing({ args: { noteId } }),
-            ),
-          ],
-        }),
-        ...NoteById.on({
-          CompletedFetch: (model, { args, result }) => ({
-            model: {
-              ...model,
-              maybeLastLoadedId: Result.isSuccess(result)
-                ? Option.some(args.noteId)
-                : model.maybeLastLoadedId,
-            },
-          }),
-        }),
-      },
-    }
+const ParentLive = Parent.toLayer(() => ({
+  init: () => ({
+    notes: new Notes('notes', {}),
+    noteById: new NoteById('noteById', {}),
+    maybeLastLoadedId: Option.none(),
   }),
-).pipe(Layer.provide(Layer.mergeAll(Notes.Live, NoteById.Live)))
+  update: {
+    ClickedLoad: model => ({
+      model,
+      messages: [model.notes.send(Notes.Message.RequestedRevalidationOrLoad())],
+    }),
+    ClickedOpen: (model, { noteId }) => ({
+      model,
+      messages: [
+        model.noteById.send(
+          NoteById.Message.RequestedLoadIfMissing({ args: { noteId } }),
+        ),
+      ],
+    }),
+    ...NoteById.on({
+      CompletedFetch: (model, { args, result }) => ({
+        model: {
+          ...model,
+          maybeLastLoadedId: Result.isSuccess(result)
+            ? Option.some(args.noteId)
+            : model.maybeLastLoadedId,
+        },
+      }),
+    }),
+  },
+})).pipe(Layer.provide(Layer.mergeAll(NotesLive, NoteByIdLive)))
 
 describe('Query Block in a parent', () => {
   it.effect('routes a parent request and its completion to the Query', () =>
@@ -195,7 +195,7 @@ describe('Query Block in a parent', () => {
 
   it.effect('starts Loading when constructed with isLoadingOnStart', () =>
     story(
-      Notes.Live,
+      NotesLive,
       { isLoadingOnStart: true },
       Story.model(model => {
         expect(Notes.read(model)).toEqual(AsyncData.Loading())
@@ -215,7 +215,7 @@ describe('Query Block in a parent', () => {
 
   it.effect('returns a CancelFetch Command for a pending request', () =>
     story(
-      Notes.Live,
+      NotesLive,
       {},
       Story.message(Notes.Message.RequestedLoadIfMissing()),
       Story.message(Notes.Message.RequestedCancel()),
@@ -260,14 +260,17 @@ describe('Query Block in a running program', () => {
           name: 'GatedNotes',
           data: Schema.Array(Note),
           error: Schema.String,
-          handler: function* () {
+        })
+
+        const GatedLive = Gated.toLayer(
+          Effect.gen(function* () {
             return () =>
               Deferred.await(release).pipe(
                 Effect.andThen(Ref.update(completedCount, count => count + 1)),
                 Effect.as(hello),
               )
-          },
-        })
+          }),
+        )
         const ProgramMessage = defineMessageUnion({ ClickedCancel: {} })
 
         class Root extends Block<Root>()('GatedRoot', {
@@ -275,43 +278,30 @@ describe('Query Block in a running program', () => {
           Message: ProgramMessage,
         }) {}
 
-        const RootLive = Root.layer(
-          Effect.gen(function* () {
-            return {
-              init: () => ({
-                first: new Gated('first', { isLoadingOnStart: true }),
-                second: new Gated('second', { isLoadingOnStart: true }),
-              }),
-              update: {
-                ClickedCancel: model => ({
-                  model,
-                  messages: [model.first.send(Gated.Message.RequestedCancel())],
-                }),
-              },
-              view: (model, h) =>
-                h.div(
-                  [],
-                  [
-                    h.span(
-                      [h.Id('first')],
-                      [Gated.read(model.first.model)._tag],
-                    ),
-                    h.span(
-                      [h.Id('second')],
-                      [Gated.read(model.second.model)._tag],
-                    ),
-                    h.button(
-                      [
-                        h.Id('cancel'),
-                        h.OnClick(ProgramMessage.ClickedCancel()),
-                      ],
-                      ['Cancel'],
-                    ),
-                  ],
-                ),
-            }
+        const RootLive = Root.toLayer(() => ({
+          init: () => ({
+            first: new Gated('first', { isLoadingOnStart: true }),
+            second: new Gated('second', { isLoadingOnStart: true }),
           }),
-        ).pipe(Layer.provide(Gated.Live))
+          update: {
+            ClickedCancel: model => ({
+              model,
+              messages: [model.first.send(Gated.Message.RequestedCancel())],
+            }),
+          },
+          view: (model, h) =>
+            h.div(
+              [],
+              [
+                h.span([h.Id('first')], [Gated.read(model.first.model)._tag]),
+                h.span([h.Id('second')], [Gated.read(model.second.model)._tag]),
+                h.button(
+                  [h.Id('cancel'), h.OnClick(ProgramMessage.ClickedCancel())],
+                  ['Cancel'],
+                ),
+              ],
+            ),
+        })).pipe(Layer.provide(GatedLive))
 
         const container = document.createElement('div')
         container.id = 'query-app'
@@ -343,22 +333,28 @@ describe('Query Layers', () => {
     name: 'CanonicalNotes',
     data: Schema.Array(Note),
     error: Schema.String,
-    handler: function* () {
+  })
+
+  const canonicalNotesLive = canonicalNotes.toLayer(
+    Effect.gen(function* () {
       const service = yield* QueryTestService
 
       return () => Effect.succeed([{ id: service.token, body: 'hello' }])
-    },
-  })
+    }),
+  )
 
   const canonicalNote = Query.define({
     name: 'CanonicalNote',
     data: Note,
     error: Schema.String,
     args: { noteId: Schema.String },
-    handler: function* () {
-      return ({ noteId }) => Effect.succeed({ id: noteId, body: 'hello' })
-    },
   })
+
+  const canonicalNoteLive = canonicalNote.toLayer(
+    Effect.gen(function* () {
+      return ({ noteId }) => Effect.succeed({ id: noteId, body: 'hello' })
+    }),
+  )
 
   const exactInference = Query.define({
     name: 'ExactInference',
@@ -369,7 +365,10 @@ describe('Query Layers', () => {
       maybeCount: Schema.Option(Schema.Number),
       label: Schema.optional(Schema.String),
     },
-    handler: function* () {
+  })
+
+  const exactInferenceLive = exactInference.toLayer(
+    Effect.gen(function* () {
       const builderService = yield* QueryTestService
       yield* Effect.scope
 
@@ -396,8 +395,8 @@ describe('Query Layers', () => {
           return Option.some(total)
         })
       }
-    },
-  })
+    }),
+  )
 
   it('infers fetch arguments and Layer requirements from the declared Schemas', () => {
     expectTypeOf(canonicalNote.run)
@@ -411,16 +410,16 @@ describe('Query Layers', () => {
       >
     >()
     expectTypeOf<
-      Layer.Services<typeof canonicalNotes.Live>
+      Layer.Services<typeof canonicalNotesLive>
     >().toEqualTypeOf<QueryTestService>()
-    expectTypeOf<Layer.Services<typeof canonicalNote.Live>>().toBeNever()
+    expectTypeOf<Layer.Services<typeof canonicalNoteLive>>().toBeNever()
     expectTypeOf<
-      Layer.Error<typeof exactInference.Live>
+      Layer.Error<typeof exactInferenceLive>
     >().toEqualTypeOf<QueryBuildFailure>()
-    expectTypeOf<Layer.Services<typeof exactInference.Live>>().toEqualTypeOf<
+    expectTypeOf<Layer.Services<typeof exactInferenceLive>>().toEqualTypeOf<
       QueryTestService | QueryHandlerTestService
     >()
-    expectTypeOf<Layer.Success<typeof canonicalNotes.Live>>().toEqualTypeOf<
+    expectTypeOf<Layer.Success<typeof canonicalNotesLive>>().toEqualTypeOf<
       | Query.Query<
           'CanonicalNotes',
           ReadonlyArray<Note>,
@@ -437,59 +436,50 @@ describe('Query Layers', () => {
     }>()
 
     if (false) {
-      const config = {
+      const invalidData = Query.define({
         name: 'InvalidCanonicalNote',
         data: Note,
         error: Schema.String,
-      }
-      const invalidHandler = function* () {
-        return () => Effect.succeed('invalid')
-      }
-      // @ts-expect-error Fetch results must match the declared data Schema.
-      Query.define({ ...config, handler: invalidHandler })
+      })
+      invalidData.toLayer(
+        // @ts-expect-error Fetch results must match the declared data Schema.
+        Effect.gen(function* () {
+          return () => Effect.succeed('invalid')
+        }),
+      )
 
-      const keyedConfig = {
-        ...config,
+      const narrowArgs = Query.define({
+        name: 'NarrowArgsNote',
+        data: Note,
+        error: Schema.String,
         args: { noteId: Schema.String },
-      }
-      const narrowHandler = function* () {
-        return ({ noteId }: Readonly<{ noteId: 'only' }>) =>
-          Effect.succeed({ id: noteId, body: 'hello' })
-      }
-      // @ts-expect-error A fetch must accept every value allowed by the args Schema.
-      Query.define({ ...keyedConfig, handler: narrowHandler })
+      })
+      narrowArgs.toLayer(
+        // @ts-expect-error A fetch must accept every value allowed by the args Schema.
+        Effect.gen(function* () {
+          return ({ noteId }: Readonly<{ noteId: 'only' }>) =>
+            Effect.succeed({ id: noteId, body: 'hello' })
+        }),
+      )
 
-      const invalidErrorHandler = function* () {
-        return () => Effect.fail('invalid')
-      }
-      Query.define({
+      const invalidError = Query.define({
         name: 'InvalidError',
         data: Schema.Option(Schema.NumberFromString),
         error: Schema.Option(Schema.NumberFromString),
-        // @ts-expect-error Fetch failures must match the decoded error Schema.
-        handler: invalidErrorHandler,
       })
+      invalidError.toLayer(
+        // @ts-expect-error Fetch failures must match the decoded error Schema.
+        Effect.gen(function* () {
+          return () => Effect.fail('invalid')
+        }),
+      )
 
       const layered = Query.define({
         name: 'LayeredNotes',
         data: Schema.Array(Note),
         error: Schema.String,
       })
-      // @ts-expect-error A Query without a handler has no attached Layer.
-      void layered.Live
-      layered.toLayer<never, never, never>(
-        // @ts-expect-error toLayer accepts an Effect that constructs the fetch function.
-        () => Effect.succeed(hello),
-      )
-
-      const effectHandlerConfig = {
-        name: 'EffectHandlerNotes',
-        data: Schema.Array(Note),
-        error: Schema.String,
-        handler: Effect.succeed(() => Effect.succeed(hello)),
-      }
-      // @ts-expect-error handler accepts a generator function rather than a constructed Effect.
-      Query.define(effectHandlerConfig)
+      layered.toLayer(() => Effect.succeed(hello))
     }
   })
 
@@ -502,10 +492,6 @@ describe('Query Layers', () => {
         data: Schema.String,
         error: Schema.Never,
         args,
-        handler: function* () {
-          return (values: Schema.Struct.Type<Fields>) =>
-            Effect.succeed(JSON.stringify(values))
-        },
       })
     const generic = makeStringQuery({ id: Schema.String })
     expectTypeOf(generic.run)
@@ -518,13 +504,16 @@ describe('Query Layers', () => {
       name: 'FailedCanonicalNotes',
       data: Schema.Array(Note),
       error: Schema.String,
-      handler: function* () {
-        return yield* Effect.fail('unavailable')
-      },
     })
 
-    expectTypeOf<Layer.Error<typeof failed.Live>>().toEqualTypeOf<string>()
-    expectTypeOf<Layer.Services<typeof failed.Live>>().toBeNever()
+    const failedLive = failed.toLayer(
+      Effect.gen(function* () {
+        return yield* Effect.fail('unavailable')
+      }),
+    )
+
+    expectTypeOf<Layer.Error<typeof failedLive>>().toEqualTypeOf<string>()
+    expectTypeOf<Layer.Services<typeof failedLive>>().toBeNever()
   })
 
   it.effect('constructs one fetch function and invokes it for each fetch', () =>
@@ -535,20 +524,23 @@ describe('Query Layers', () => {
         name: 'CountedNotes',
         data: Schema.Array(Note),
         error: Schema.String,
-        handler: function* () {
+      })
+
+      const countedLive = counted.toLayer(
+        Effect.gen(function* () {
           yield* Ref.update(constructionCount, count => count + 1)
 
           return () =>
             Ref.update(invocationCount, count => count + 1).pipe(
               Effect.as(hello),
             )
-        },
-      })
+        }),
+      )
 
       expect(yield* Ref.get(constructionCount)).toBe(0)
 
       const data = yield* Effect.all([counted.run, counted.run]).pipe(
-        Effect.provide(counted.Live),
+        Effect.provide(countedLive),
       )
 
       expect(data).toEqual([
@@ -566,7 +558,7 @@ describe('Query Layers', () => {
       Effect.gen(function* () {
         const data = yield* canonicalNotes.run.pipe(
           Effect.provide(
-            canonicalNotes.Live.pipe(
+            canonicalNotesLive.pipe(
               Layer.provide(Layer.succeed(QueryTestService, { token: 'test' })),
             ),
           ),
@@ -597,18 +589,21 @@ describe('Query Layers', () => {
             revision: Schema.NumberFromString,
           }),
         },
-        handler: function* () {
+      })
+
+      const byFilterLive = byFilter.toLayer(
+        Effect.gen(function* () {
           return ({ filter }) =>
             Effect.succeed(`${filter.id}:${filter.revision}`)
-        },
-      })
+        }),
+      )
       const args = { filter: { id: 'a', revision: 1 } }
       const run = byFilter.run(args)
 
       args.filter.id = 'b'
       args.filter.revision = 2
 
-      const data = yield* Effect.provide(run, byFilter.Live)
+      const data = yield* Effect.provide(run, byFilterLive)
 
       expect(data).toEqual(AsyncData.Success({ data: 'a:1' }))
     }),

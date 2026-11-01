@@ -34,71 +34,62 @@ export class ExampleDetail extends Block<
   Mount: [ObserveExampleUrlMessages],
 }) {}
 
-export const ExampleDetailLive = ExampleDetail.layer(
-  Effect.gen(function* () {
-    return {
-      init: initModel,
-      start: (_model, args) => initialCommands(args),
+export const ExampleDetailLive = ExampleDetail.toLayer(() => ({
+  init: initModel,
+  start: (_model, args) => initialCommands(args),
 
-      update: {
-        InformedOfRouteChange: (model, { slug }) =>
-          changeExampleRoute(model, slug),
-        ChangedExampleUrl: (model, { url }) => ({
-          model: modifyFields(model, {
-            maybeExampleUrl: () => Option.some(url),
-          }),
+  update: {
+    InformedOfRouteChange: (model, { slug }) => changeExampleRoute(model, slug),
+    ChangedExampleUrl: (model, { url }) => ({
+      model: modifyFields(model, {
+        maybeExampleUrl: () => Option.some(url),
+      }),
+    }),
+    ToggledLivePreview: (model, { isOpen }) => ({
+      model: modifyFields(model, { isLivePreviewOpen: () => isOpen }),
+    }),
+    SucceededLoadExampleSources: (model, { sources }) => ({
+      model: modifyFields(model, {
+        maybeActiveSourceFilePath: () => maybeFirstSourceFilePath(sources),
+        currentSources: () =>
+          CurrentSourcesAsyncData.Success({ data: sources }),
+      }),
+    }),
+    FailedLoadExampleSources: (model, { error }) => ({
+      model: modifyFields(model, {
+        currentSources: () => CurrentSourcesAsyncData.Failure({ error }),
+      }),
+    }),
+    ...SourceFileTabs.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, {
+          maybeActiveSourceFilePath: () => Option.some(value),
         }),
-        ToggledLivePreview: (model, { isOpen }) => ({
-          model: modifyFields(model, { isLivePreviewOpen: () => isOpen }),
-        }),
-        SucceededLoadExampleSources: (model, { sources }) => ({
-          model: modifyFields(model, {
-            maybeActiveSourceFilePath: () => maybeFirstSourceFilePath(sources),
-            currentSources: () =>
-              CurrentSourcesAsyncData.Success({ data: sources }),
-          }),
-        }),
-        FailedLoadExampleSources: (model, { error }) => ({
-          model: modifyFields(model, {
-            currentSources: () => CurrentSourcesAsyncData.Failure({ error }),
-          }),
-        }),
-        ...SourceFileTabs.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeActiveSourceFilePath: () => Option.some(value),
-            }),
-          }),
-        }),
-      },
+      }),
+    }),
+  },
 
-      commands: {
-        LoadExampleSources: ({ slug }) =>
-          Effect.tryPromise({
-            try: () => loadSourcesForSlug(slug),
-            catch: error =>
-              error instanceof Error
-                ? error.message
-                : `Unknown example: ${slug}`,
-          }).pipe(
-            Effect.map(sources =>
-              Message.SucceededLoadExampleSources({ sources }),
-            ),
-            Effect.catch(error =>
-              Effect.succeed(Message.FailedLoadExampleSources({ error })),
-            ),
-          ),
-      },
+  commands: {
+    LoadExampleSources: ({ slug }) =>
+      Effect.tryPromise({
+        try: () => loadSourcesForSlug(slug),
+        catch: error =>
+          error instanceof Error ? error.message : `Unknown example: ${slug}`,
+      }).pipe(
+        Effect.map(sources => Message.SucceededLoadExampleSources({ sources })),
+        Effect.catch(error =>
+          Effect.succeed(Message.FailedLoadExampleSources({ error })),
+        ),
+      ),
+  },
 
-      mounts: {
-        ObserveExampleUrlMessages: ({ element }) =>
-          observeExampleUrlMessages(element),
-      },
+  mounts: {
+    ObserveExampleUrlMessages: ({ element }) =>
+      observeExampleUrlMessages(element),
+  },
 
-      view,
-    }
-  }),
-).pipe(Layer.provide(SourceFileTabs.Live))
+  view,
+})).pipe(Layer.provide(SourceFileTabs.Live))
 
 const sourceFileTabsFor = (slug: string) =>
   new SourceFileTabs(slug, { id: SOURCE_FILE_TABS_ID })

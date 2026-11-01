@@ -408,183 +408,177 @@ export class Dialog extends Block<Dialog, InitConfig, ViewInputs>()('Dialog', {
 
 /** Implements {@link Dialog}. Includes the Animation implementation, so a
  *  parent provides only this Layer. */
-export const DialogLive = Dialog.layer(
-  Effect.gen(function* () {
-    return {
-      init: config => ({
-        id: config.id,
-        isOpen: false,
-        isAnimated: config.isAnimated ?? false,
-        animation: new Animation.Animation('animation', {
-          id: `${config.id}-panel`,
-        }),
-        maybeFocusSelector: Option.fromNullishOr(config.focusSelector),
-      }),
-
-      update: {
-        RequestedOpen: openDialog,
-
-        RequestedClose: closeDialog,
-
-        Unmounted: model => {
-          if (isOpenOrAnimating(model)) {
-            return {
-              ...resetToClosed(model),
-              commands: [ReleaseDialogResources({ id: model.id })],
-            }
-          } else {
-            return { model }
-          }
-        },
-
-        SucceededShowDialog: model => {
-          if (model.isOpen || isLeaving(model)) {
-            return { model }
-          } else {
-            return { model, commands: [CloseDialog({ id: model.id })] }
-          }
-        },
-
-        FailedShowDialog: model => {
-          if (isOpenOrAnimating(model)) {
-            return resetToClosed(model)
-          } else {
-            return { model }
-          }
-        },
-
-        SucceededAcquireResources: model => {
-          if (model.isOpen || isLeaving(model)) {
-            return {
-              model,
-              messages: [
-                model.animation.send(
-                  Animation.Animation.Message.RequestedResume(),
-                ),
-              ],
-            }
-          } else {
-            return { model, commands: [CloseDialog({ id: model.id })] }
-          }
-        },
-
-        FailedAcquireResources: model => {
-          if (isOpenOrAnimating(model)) {
-            return resetToClosed(model)
-          } else {
-            return { model }
-          }
-        },
-
-        CompletedCloseDialog: model => ({
-          model,
-          outMessage: OutMessage.CompletedClose(),
-        }),
-
-        CompletedReleaseDialogResources: model => ({ model }),
-
-        ...Animation.Animation.on({
-          StartedLeaveAnimating: model => ({
-            model,
-            messages: [
-              model.animation.send(
-                Animation.Animation.Message.RequestedWaitForLeaveSettlement(),
-              ),
-            ],
-          }),
-          TransitionedOut: model => ({
-            model,
-            commands: [CloseDialog({ id: model.id })],
-          }),
-        }),
-      },
-
-      commands: commandHandlers,
-
-      mounts: mountHandlers,
-
-      view: (model, h, viewInputs) => {
-        const { id, isOpen } = model
-        const { transitionState } = model.animation.model
-        const { toView, hasDescription = false } = viewInputs
-
-        const isVisible = isOpen || isLeaving(model)
-
-        const animationAttributes = Animation.transitionAttributes(
-          h,
-          transitionState,
-        )
-
-        const describedByAttributes = hasDescription
-          ? [h.AriaDescribedBy(descriptionId(model))]
-          : []
-
-        const dialogAttributes = [
-          h.Id(id),
-          h.AriaLabelledBy(titleId(model)),
-          ...describedByAttributes,
-          ...(isVisible ? [h.AriaModal(true)] : []),
-          // NOTE: Chromium reports canceling a file picker as a native `cancel`
-          // event observed by the containing Dialog. Dom.showDialog uses a
-          // CustomEvent for its unhandled-Escape signal, so the two are separable.
-          h.OnCancelPreventDefault(Message.RequestedClose()),
-          h.Open(isVisible),
-          h.Style({
-            width: '100%',
-            height: '100%',
-            maxWidth: '100%',
-            maxHeight: '100%',
-            padding: '0',
-            border: 'none',
-            background: 'transparent',
-            ...(isVisible
-              ? { position: 'fixed', inset: '0', zIndex: '2147483600' }
-              : {}),
-          }),
-          ...(isVisible
-            ? [
-                h.DataAttribute('open', ''),
-                h.OnMount(
-                  AcquireResources({
-                    id,
-                    focusSelector: focusSelectorOf(model),
-                  }),
-                ),
-                h.OnUnmount(Message.Unmounted()),
-              ]
-            : []),
-        ]
-
-        const backdropAttributes = [
-          h.Style({ minHeight: '100vh' }),
-          ...animationAttributes,
-          ...(isLeaving(model) ? [] : [h.OnClick(Message.RequestedClose())]),
-        ]
-
-        const panelAttributes = [h.Id(`${id}-panel`), ...animationAttributes]
-
-        const titleAttributes = [h.Id(titleId(model))]
-        const descriptionAttributes = [h.Id(descriptionId(model))]
-        const initialFocusAttributes = [
-          h.DataAttribute(initialFocusMarkerAttribute, ''),
-        ]
-
-        const closeButtonAttributes = [
-          h.Type('button'),
-          ...(isLeaving(model) ? [] : [h.OnClick(Message.RequestedClose())]),
-        ]
-
-        return toView({
-          dialog: childAttributes(dialogAttributes),
-          backdrop: childAttributes(backdropAttributes),
-          panel: childAttributes(panelAttributes),
-          title: childAttributes(titleAttributes),
-          description: childAttributes(descriptionAttributes),
-          initialFocus: childAttributes(initialFocusAttributes),
-          closeButton: childAttributes(closeButtonAttributes),
-          isVisible,
-        })
-      },
-    }
+export const DialogLive = Dialog.toLayer(() => ({
+  init: config => ({
+    id: config.id,
+    isOpen: false,
+    isAnimated: config.isAnimated ?? false,
+    animation: new Animation.Animation('animation', {
+      id: `${config.id}-panel`,
+    }),
+    maybeFocusSelector: Option.fromNullishOr(config.focusSelector),
   }),
-).pipe(Layer.provide(Animation.AnimationLive))
+
+  update: {
+    RequestedOpen: openDialog,
+
+    RequestedClose: closeDialog,
+
+    Unmounted: model => {
+      if (isOpenOrAnimating(model)) {
+        return {
+          ...resetToClosed(model),
+          commands: [ReleaseDialogResources({ id: model.id })],
+        }
+      } else {
+        return { model }
+      }
+    },
+
+    SucceededShowDialog: model => {
+      if (model.isOpen || isLeaving(model)) {
+        return { model }
+      } else {
+        return { model, commands: [CloseDialog({ id: model.id })] }
+      }
+    },
+
+    FailedShowDialog: model => {
+      if (isOpenOrAnimating(model)) {
+        return resetToClosed(model)
+      } else {
+        return { model }
+      }
+    },
+
+    SucceededAcquireResources: model => {
+      if (model.isOpen || isLeaving(model)) {
+        return {
+          model,
+          messages: [
+            model.animation.send(Animation.Animation.Message.RequestedResume()),
+          ],
+        }
+      } else {
+        return { model, commands: [CloseDialog({ id: model.id })] }
+      }
+    },
+
+    FailedAcquireResources: model => {
+      if (isOpenOrAnimating(model)) {
+        return resetToClosed(model)
+      } else {
+        return { model }
+      }
+    },
+
+    CompletedCloseDialog: model => ({
+      model,
+      outMessage: OutMessage.CompletedClose(),
+    }),
+
+    CompletedReleaseDialogResources: model => ({ model }),
+
+    ...Animation.Animation.on({
+      StartedLeaveAnimating: model => ({
+        model,
+        messages: [
+          model.animation.send(
+            Animation.Animation.Message.RequestedWaitForLeaveSettlement(),
+          ),
+        ],
+      }),
+      TransitionedOut: model => ({
+        model,
+        commands: [CloseDialog({ id: model.id })],
+      }),
+    }),
+  },
+
+  commands: commandHandlers,
+
+  mounts: mountHandlers,
+
+  view: (model, h, viewInputs) => {
+    const { id, isOpen } = model
+    const { transitionState } = model.animation.model
+    const { toView, hasDescription = false } = viewInputs
+
+    const isVisible = isOpen || isLeaving(model)
+
+    const animationAttributes = Animation.transitionAttributes(
+      h,
+      transitionState,
+    )
+
+    const describedByAttributes = hasDescription
+      ? [h.AriaDescribedBy(descriptionId(model))]
+      : []
+
+    const dialogAttributes = [
+      h.Id(id),
+      h.AriaLabelledBy(titleId(model)),
+      ...describedByAttributes,
+      ...(isVisible ? [h.AriaModal(true)] : []),
+      // NOTE: Chromium reports canceling a file picker as a native `cancel`
+      // event observed by the containing Dialog. Dom.showDialog uses a
+      // CustomEvent for its unhandled-Escape signal, so the two are separable.
+      h.OnCancelPreventDefault(Message.RequestedClose()),
+      h.Open(isVisible),
+      h.Style({
+        width: '100%',
+        height: '100%',
+        maxWidth: '100%',
+        maxHeight: '100%',
+        padding: '0',
+        border: 'none',
+        background: 'transparent',
+        ...(isVisible
+          ? { position: 'fixed', inset: '0', zIndex: '2147483600' }
+          : {}),
+      }),
+      ...(isVisible
+        ? [
+            h.DataAttribute('open', ''),
+            h.OnMount(
+              AcquireResources({
+                id,
+                focusSelector: focusSelectorOf(model),
+              }),
+            ),
+            h.OnUnmount(Message.Unmounted()),
+          ]
+        : []),
+    ]
+
+    const backdropAttributes = [
+      h.Style({ minHeight: '100vh' }),
+      ...animationAttributes,
+      ...(isLeaving(model) ? [] : [h.OnClick(Message.RequestedClose())]),
+    ]
+
+    const panelAttributes = [h.Id(`${id}-panel`), ...animationAttributes]
+
+    const titleAttributes = [h.Id(titleId(model))]
+    const descriptionAttributes = [h.Id(descriptionId(model))]
+    const initialFocusAttributes = [
+      h.DataAttribute(initialFocusMarkerAttribute, ''),
+    ]
+
+    const closeButtonAttributes = [
+      h.Type('button'),
+      ...(isLeaving(model) ? [] : [h.OnClick(Message.RequestedClose())]),
+    ]
+
+    return toView({
+      dialog: childAttributes(dialogAttributes),
+      backdrop: childAttributes(backdropAttributes),
+      panel: childAttributes(panelAttributes),
+      title: childAttributes(titleAttributes),
+      description: childAttributes(descriptionAttributes),
+      initialFocus: childAttributes(initialFocusAttributes),
+      closeButton: childAttributes(closeButtonAttributes),
+      isVisible,
+    })
+  },
+})).pipe(Layer.provide(Animation.AnimationLive))

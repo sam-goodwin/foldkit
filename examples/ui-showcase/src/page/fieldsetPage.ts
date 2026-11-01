@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -25,35 +25,31 @@ export class FieldsetPage extends Block<FieldsetPage>()('FieldsetPage', {
   Message,
 }) {}
 
-export const FieldsetPageLive = FieldsetPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        fieldsetInputValue: '',
-        fieldsetTextareaValue: '',
-        isFieldsetCheckboxDemoChecked: false,
-      }),
-
-      update: {
-        UpdatedFieldsetInputValue: (model, { value }) => ({
-          model: modifyFields(model, { fieldsetInputValue: () => value }),
-        }),
-
-        UpdatedFieldsetTextareaValue: (model, { value }) => ({
-          model: modifyFields(model, { fieldsetTextareaValue: () => value }),
-        }),
-
-        ToggledFieldsetCheckboxDemo: (model, { isChecked }) => ({
-          model: modifyFields(model, {
-            isFieldsetCheckboxDemoChecked: () => isChecked,
-          }),
-        }),
-      },
-
-      view,
-    }
+export const FieldsetPageLive = FieldsetPage.toLayer(() => ({
+  init: () => ({
+    fieldsetInputValue: '',
+    fieldsetTextareaValue: '',
+    isFieldsetCheckboxDemoChecked: false,
   }),
-)
+
+  update: {
+    UpdatedFieldsetInputValue: (model, { value }) => ({
+      model: modifyFields(model, { fieldsetInputValue: () => value }),
+    }),
+
+    UpdatedFieldsetTextareaValue: (model, { value }) => ({
+      model: modifyFields(model, { fieldsetTextareaValue: () => value }),
+    }),
+
+    ToggledFieldsetCheckboxDemo: (model, { isChecked }) => ({
+      model: modifyFields(model, {
+        isFieldsetCheckboxDemoChecked: () => isChecked,
+      }),
+    }),
+  },
+
+  view,
+}))
 
 const FIELDSET_CHECKBOX_DEMO_ID = 'fieldset-checkbox-demo'
 const FIELDSET_DISABLED_CHECKBOX_ID = 'fieldset-disabled-checkbox'

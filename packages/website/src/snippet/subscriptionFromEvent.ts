@@ -1,4 +1,4 @@
-import { Effect, Schema, Stream } from 'effect'
+import { Schema, Stream } from 'effect'
 import { Block, Dom } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -17,22 +17,18 @@ export class Shortcuts extends Block<Shortcuts>()('Shortcuts', {
   Message,
 }) {}
 
-export const ShortcutsLive = Shortcuts.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isListening: true }),
+export const ShortcutsLive = Shortcuts.toLayer(() => ({
+  init: () => ({ isListening: true }),
 
-      update: {
-        PressedKey: model => ({ model }),
-      },
+  update: {
+    PressedKey: model => ({ model }),
+  },
 
-      subscriptions: {
-        shortcutKeyPresses: {
-          dependencies: model => model.isListening,
-          stream: (isListening: boolean) =>
-            isListening ? keyPresses : Stream.empty,
-        },
-      },
-    }
-  }),
-)
+  subscriptions: {
+    shortcutKeyPresses: {
+      dependencies: model => model.isListening,
+      stream: (isListening: boolean) =>
+        isListening ? keyPresses : Stream.empty,
+    },
+  },
+}))

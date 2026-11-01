@@ -30,48 +30,44 @@ export class Application extends Block<
   Command: [NavigateInternal, LoadExternal],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({ path: url.pathname }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => ({ path: url.pathname }),
 
-      update: {
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url }) => ({
-              model,
-              commands: [NavigateInternal({ url: Url.toString(url) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
-        ChangedUrl: (model, { url }) => ({
-          model: modifyFields(model, { path: () => url.pathname }),
+  update: {
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url }) => ({
+          model,
+          commands: [NavigateInternal({ url: Url.toString(url) })],
         }),
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url }) =>
-          pushUrl(url).pipe(Effect.as(Message.CompletedNavigateInternal())),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-      },
-
-      view: (model, h) => ({
-        title: model.path,
-        body: h.nav(
-          [],
-          [
-            h.a([h.Href('/')], ['Home']),
-            h.a([h.Href('/about')], ['About']),
-            h.p([], [`You are at ${model.path}`]),
-          ],
-        ),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
       }),
-    }
+    ChangedUrl: (model, { url }) => ({
+      model: modifyFields(model, { path: () => url.pathname }),
+    }),
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+  },
+
+  commands: {
+    NavigateInternal: ({ url }) =>
+      pushUrl(url).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
+
+  view: (model, h) => ({
+    title: model.path,
+    body: h.nav(
+      [],
+      [
+        h.a([h.Href('/')], ['Home']),
+        h.a([h.Href('/about')], ['About']),
+        h.p([], [`You are at ${model.path}`]),
+      ],
+    ),
   }),
-)
+}))

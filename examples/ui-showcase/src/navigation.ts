@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Array, Effect, Layer, Match, Option, Schema, pipe } from 'effect'
+import { Array, Layer, Match, Option, Schema, pipe } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -61,43 +61,39 @@ export class Navigation extends Block<Navigation, void, NavigationViewInput>()(
   { Model, Message },
 ) {}
 
-export const NavigationLive = Navigation.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        mobileMenuDialog: new Dialog.Dialog('mobileMenuDialog', {
-          id: 'mobile-menu',
-        }),
-      }),
-
-      update: {
-        ClickedOpenMobileMenu: model => ({
-          model,
-          messages: [
-            model.mobileMenuDialog.send(Dialog.Dialog.Message.RequestedOpen()),
-          ],
-        }),
-
-        RequestedCloseMobileMenu: model => ({
-          model,
-          messages: [
-            model.mobileMenuDialog.send(Dialog.Dialog.Message.RequestedClose()),
-          ],
-        }),
-      },
-
-      view: (model, h, input) =>
-        Match.value(input).pipe(
-          Match.tagsExhaustive({
-            MobileHeader: () => mobileHeaderView(model, h),
-            MobileMenu: ({ currentRoute }) =>
-              mobileMenuView(model, currentRoute, h),
-            Sidebar: ({ currentRoute }) => sidebarView(currentRoute, h),
-          }),
-        ),
-    }
+export const NavigationLive = Navigation.toLayer(() => ({
+  init: () => ({
+    mobileMenuDialog: new Dialog.Dialog('mobileMenuDialog', {
+      id: 'mobile-menu',
+    }),
   }),
-).pipe(Layer.provide(Dialog.DialogLive))
+
+  update: {
+    ClickedOpenMobileMenu: model => ({
+      model,
+      messages: [
+        model.mobileMenuDialog.send(Dialog.Dialog.Message.RequestedOpen()),
+      ],
+    }),
+
+    RequestedCloseMobileMenu: model => ({
+      model,
+      messages: [
+        model.mobileMenuDialog.send(Dialog.Dialog.Message.RequestedClose()),
+      ],
+    }),
+  },
+
+  view: (model, h, input) =>
+    Match.value(input).pipe(
+      Match.tagsExhaustive({
+        MobileHeader: () => mobileHeaderView(model, h),
+        MobileMenu: ({ currentRoute }) =>
+          mobileMenuView(model, currentRoute, h),
+        Sidebar: ({ currentRoute }) => sidebarView(currentRoute, h),
+      }),
+    ),
+})).pipe(Layer.provide(Dialog.DialogLive))
 
 type NavItem = Readonly<{
   label: string

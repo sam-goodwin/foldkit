@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { afterEach, expect, vi } from 'vitest'
 
@@ -13,43 +13,34 @@ class PopoverFocusLeaveTest extends Block<PopoverFocusLeaveTest>()(
   },
 ) {}
 
-const PopoverFocusLeaveTestLive = PopoverFocusLeaveTest.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ popover: new Popover('popover', { id: 'sort' }) }),
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.popover.view({
-              anchor: { placement: 'bottom-start' },
-              toView: ({ button, panel, backdrop, isVisible }) =>
-                h.div(
-                  [],
-                  [
-                    h.button([...button], ['Sort']),
-                    ...(isVisible
-                      ? [
-                          h.div([...backdrop]),
-                          h.div(
-                            [...panel],
-                            [
-                              h.button(
-                                [h.Id('item'), h.Type('button')],
-                                ['Name'],
-                              ),
-                            ],
-                          ),
-                        ]
-                      : []),
-                  ],
-                ),
-            }),
-          ],
-        ),
-    }
-  }),
-).pipe(Layer.provide(PopoverLive))
+const PopoverFocusLeaveTestLive = PopoverFocusLeaveTest.toLayer(() => ({
+  init: () => ({ popover: new Popover('popover', { id: 'sort' }) }),
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.popover.view({
+          anchor: { placement: 'bottom-start' },
+          toView: ({ button, panel, backdrop, isVisible }) =>
+            h.div(
+              [],
+              [
+                h.button([...button], ['Sort']),
+                ...(isVisible
+                  ? [
+                      h.div([...backdrop]),
+                      h.div(
+                        [...panel],
+                        [h.button([h.Id('item'), h.Type('button')], ['Name'])],
+                      ),
+                    ]
+                  : []),
+              ],
+            ),
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(PopoverLive))
 
 const makeProgram = (container: HTMLElement) =>
   Program.makeElement(PopoverFocusLeaveTest, {

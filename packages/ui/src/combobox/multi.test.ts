@@ -60,20 +60,16 @@ class ComboboxScene extends Block<ComboboxScene>()('ComboboxScene', {
 }) {}
 
 const makeComboboxSceneLive = (viewInputs: ViewInputs<string>) =>
-  ComboboxScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ combobox: new TestCombobox('combobox', testConfig) }),
-        update: {
-          ...TestCombobox.on({
-            Selected: (model, outMessage) => ({ model, outMessage }),
-            ClearedSelection: (model, outMessage) => ({ model, outMessage }),
-          }),
-        },
-        view: model => model.combobox.view(viewInputs),
-      }
-    }),
-  ).pipe(Layer.provide(TestCombobox.Live))
+  ComboboxScene.toLayer(() => ({
+    init: () => ({ combobox: new TestCombobox('combobox', testConfig) }),
+    update: {
+      ...TestCombobox.on({
+        Selected: (model, outMessage) => ({ model, outMessage }),
+        ClearedSelection: (model, outMessage) => ({ model, outMessage }),
+      }),
+    },
+    view: model => model.combobox.view(viewInputs),
+  })).pipe(Layer.provide(TestCombobox.Live))
 
 const acknowledgeAnchor = Scene.Mount.resolve(Anchor, Message.CompletedAnchor())
 const acknowledgeBackdrop = Scene.Mount.resolve(

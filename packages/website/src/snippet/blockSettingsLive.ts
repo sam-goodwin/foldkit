@@ -3,7 +3,7 @@ import { modifyFields } from 'foldkit/struct'
 
 import { SaveTheme, Settings, SettingsStore } from './blockSettingsContract'
 
-export const SettingsLive = Settings.layer(
+export const SettingsLive = Settings.toLayer(
   Effect.gen(function* () {
     const settingsStore = yield* SettingsStore
 

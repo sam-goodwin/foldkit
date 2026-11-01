@@ -20,19 +20,15 @@ class Editor extends Block<Editor>()('Editor', {
   OutMessage: defineMessageUnion({ RequestedSave: {} }),
 }) {}
 
-const EditorLive = Editor.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({}),
-      update: {
-        ClickedSave: model => ({
-          model,
-          outMessage: Editor.OutMessage.RequestedSave(),
-        }),
-      },
-    }
-  }),
-)
+const EditorLive = Editor.toLayer(() => ({
+  init: () => ({}),
+  update: {
+    ClickedSave: model => ({
+      model,
+      outMessage: Editor.OutMessage.RequestedSave(),
+    }),
+  },
+}))
 
 const ForeignMessage = defineMessageUnion({ CompletedSave: {} })
 
@@ -53,27 +49,23 @@ class Document extends Block<Document>()('Document', {
   Command: [SaveDocument],
 }) {}
 
-const DocumentLive = Document.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ editor: new Editor('editor') }),
-      update: {
-        ...Editor.onAll({
-          RequestedSave: model => ({
-            model,
-            commands: [SaveDocument()],
-            outMessage: Document.OutMessage.Saved(),
-          }),
-        }),
-        CompletedSaveDocument: model => ({ model }),
-      },
-      commands: {
-        SaveDocument: () =>
-          Effect.succeed(Document.Message.CompletedSaveDocument()),
-      },
-    }
-  }),
-).pipe(Layer.provide(EditorLive))
+const DocumentLive = Document.toLayer(() => ({
+  init: () => ({ editor: new Editor('editor') }),
+  update: {
+    ...Editor.onAll({
+      RequestedSave: model => ({
+        model,
+        commands: [SaveDocument()],
+        outMessage: Document.OutMessage.Saved(),
+      }),
+    }),
+    CompletedSaveDocument: model => ({ model }),
+  },
+  commands: {
+    SaveDocument: () =>
+      Effect.succeed(Document.Message.CompletedSaveDocument()),
+  },
+})).pipe(Layer.provide(EditorLive))
 
 class Shell extends Block<Shell>()('Shell', {
   Model: Schema.Struct({ editor: Editor }),
@@ -94,42 +86,34 @@ describe('Block OutMessage handler results', () => {
   )
 
   it('rejects a Command the parent does not declare', () => {
-    const ShellLive = Shell.layer(
-      Effect.gen(function* () {
-        return {
-          init: () => ({ editor: new Editor('editor') }),
-          update: {
-            ...Editor.on({
-              // @ts-expect-error ForeignSave reports a Message Shell does not declare
-              RequestedSave: model => ({
-                model,
-                commands: [ForeignSave()],
-              }),
-            }),
-          },
-        }
-      }),
-    )
+    const ShellLive = Shell.toLayer(() => ({
+      init: () => ({ editor: new Editor('editor') }),
+      update: {
+        ...Editor.on({
+          // @ts-expect-error ForeignSave reports a Message Shell does not declare
+          RequestedSave: model => ({
+            model,
+            commands: [ForeignSave()],
+          }),
+        }),
+      },
+    }))
     expect(Layer.isLayer(ShellLive)).toBe(true)
   })
 
   it('rejects an OutMessage the parent does not declare', () => {
-    const ShellLive = Shell.layer(
-      Effect.gen(function* () {
-        return {
-          init: () => ({ editor: new Editor('editor') }),
-          update: {
-            ...Editor.onAll({
-              RequestedSave: model => ({
-                model,
-                // @ts-expect-error Shell declares no OutMessage
-                outMessage: { _tag: 'UndeclaredParentEvent' },
-              }),
-            }),
-          },
-        }
-      }),
-    )
+    const ShellLive = Shell.toLayer(() => ({
+      init: () => ({ editor: new Editor('editor') }),
+      update: {
+        ...Editor.onAll({
+          RequestedSave: model => ({
+            model,
+            // @ts-expect-error Shell declares no OutMessage
+            outMessage: { _tag: 'UndeclaredParentEvent' },
+          }),
+        }),
+      },
+    }))
     expect(Layer.isLayer(ShellLive)).toBe(true)
   })
 })

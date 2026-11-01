@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -20,29 +20,25 @@ export class Editor extends Block<Editor>()('Editor', {
   Message,
 }) {}
 
-export const EditorLive = Editor.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dialog: new Dialog.Dialog('dialog', { id: 'project-editor' }),
-        project: { name: '' },
-        route: '/projects/new',
-      }),
-
-      update: {
-        // Saving only asks the Dialog to close
-        SavedProject: (model, { project }) => ({
-          model: modifyFields(model, { project: () => project }),
-          messages: [model.dialog.send(Dialog.Dialog.Message.RequestedClose())],
-        }),
-
-        // Every close path, including Escape and the close button, ends here
-        ...Dialog.Dialog.on({
-          Closed: model => ({
-            model: modifyFields(model, { route: () => '/projects' }),
-          }),
-        }),
-      },
-    }
+export const EditorLive = Editor.toLayer(() => ({
+  init: () => ({
+    dialog: new Dialog.Dialog('dialog', { id: 'project-editor' }),
+    project: { name: '' },
+    route: '/projects/new',
   }),
-).pipe(Layer.provide(Dialog.DialogLive))
+
+  update: {
+    // Saving only asks the Dialog to close
+    SavedProject: (model, { project }) => ({
+      model: modifyFields(model, { project: () => project }),
+      messages: [model.dialog.send(Dialog.Dialog.Message.RequestedClose())],
+    }),
+
+    // Every close path, including Escape and the close button, ends here
+    ...Dialog.Dialog.on({
+      Closed: model => ({
+        model: modifyFields(model, { route: () => '/projects' }),
+      }),
+    }),
+  },
+})).pipe(Layer.provide(Dialog.DialogLive))

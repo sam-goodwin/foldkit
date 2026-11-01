@@ -148,54 +148,48 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({
-        route: urlToApplicationRoute(url),
-        filterText: '',
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => ({
+    route: urlToApplicationRoute(url),
+    filterText: '',
+  }),
+
+  update: {
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url: internalUrl }) => ({
+          model,
+          commands: [NavigateInternal({ url: urlToString(internalUrl) })],
+        }),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
       }),
 
-      update: {
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
+    ChangedUrl: (model, { url: nextUrl }) => ({
+      model: modifyFields(model, {
+        route: () => urlToApplicationRoute(nextUrl),
+      }),
+    }),
 
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url: internalUrl }) => ({
-              model,
-              commands: [NavigateInternal({ url: urlToString(internalUrl) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
+    UpdatedFilterText: (model, { filterText }) => ({
+      model: modifyFields(model, { filterText: () => filterText }),
+    }),
+  },
 
-        ChangedUrl: (model, { url: nextUrl }) => ({
-          model: modifyFields(model, {
-            route: () => urlToApplicationRoute(nextUrl),
-          }),
-        }),
+  commands: {
+    NavigateInternal: ({ url: internalUrl }) =>
+      pushUrl(internalUrl).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
 
-        UpdatedFilterText: (model, { filterText }) => ({
-          model: modifyFields(model, { filterText: () => filterText }),
-        }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url: internalUrl }) =>
-          pushUrl(internalUrl).pipe(
-            Effect.as(Message.CompletedNavigateInternal()),
-          ),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-      },
-
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

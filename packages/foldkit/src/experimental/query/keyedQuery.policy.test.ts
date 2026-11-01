@@ -120,13 +120,16 @@ describe('KeyedQuery freshness', () => {
       const Windows = Query.define({
         ...windowsConfig,
         maxSettledEntries: 2,
-        handler: function* () {
-          return ({ label }) => Effect.succeed([`${label}.com`])
-        },
       })
 
+      const WindowsLive = Windows.toLayer(
+        Effect.gen(function* () {
+          return ({ label }) => Effect.succeed([`${label}.com`])
+        }),
+      )
+
       return story(
-        Windows.Live,
+        WindowsLive,
         {},
         Story.message(
           Windows.Message.RequestedLoadIfStale({ args: first, nowMillis: 0 }),
@@ -638,10 +641,13 @@ describe('KeyedQuery accepted completion notifications', () => {
         },
         notifyOnCompletion: true,
         maxSettledEntries: 1,
-        handler: function* () {
-          return ({ label }) => Effect.succeed([`${label}.com`])
-        },
       })
+
+      const ReportingLive = Reporting.toLayer(
+        Effect.gen(function* () {
+          return ({ label }) => Effect.succeed([`${label}.com`])
+        }),
+      )
       const ParentMessage = defineMessageUnion({
         RequestedWindow: {
           args: Schema.Struct({
@@ -660,41 +666,37 @@ describe('KeyedQuery accepted completion notifications', () => {
         Message: ParentMessage,
       }) {}
 
-      const ParentLive = Parent.layer(
-        Effect.gen(function* () {
-          return {
-            init: () => ({
-              windows: new Reporting('windows', {}),
-              acceptedCount: 0,
-            }),
-            update: {
-              RequestedWindow: (model, { args }) => ({
-                model,
-                messages: [
-                  model.windows.send(
-                    Reporting.Message.RequestedLoadIfMissing({ args }),
-                  ),
-                ],
-              }),
-              ...Reporting.on({
-                CompletedFetch: (model, { args, result }) => ({
-                  model: { ...model, acceptedCount: model.acceptedCount + 1 },
-                  messages:
-                    Result.isSuccess(result) && args.offset === 0
-                      ? [
-                          model.windows.send(
-                            Reporting.Message.RequestedLoadIfMissing({
-                              args: { ...args, offset: args.limit },
-                            }),
-                          ),
-                        ]
-                      : [],
-                }),
-              }),
-            },
-          }
+      const ParentLive = Parent.toLayer(() => ({
+        init: () => ({
+          windows: new Reporting('windows', {}),
+          acceptedCount: 0,
         }),
-      ).pipe(Layer.provide(Reporting.Live))
+        update: {
+          RequestedWindow: (model, { args }) => ({
+            model,
+            messages: [
+              model.windows.send(
+                Reporting.Message.RequestedLoadIfMissing({ args }),
+              ),
+            ],
+          }),
+          ...Reporting.on({
+            CompletedFetch: (model, { args, result }) => ({
+              model: { ...model, acceptedCount: model.acceptedCount + 1 },
+              messages:
+                Result.isSuccess(result) && args.offset === 0
+                  ? [
+                      model.windows.send(
+                        Reporting.Message.RequestedLoadIfMissing({
+                          args: { ...args, offset: args.limit },
+                        }),
+                      ),
+                    ]
+                  : [],
+            }),
+          }),
+        },
+      })).pipe(Layer.provide(ReportingLive))
 
       return story(
         ParentLive,
@@ -756,13 +758,16 @@ describe('KeyedQuery accepted completion notifications', () => {
           offset: Schema.Number,
           limit: Schema.Number,
         },
-        handler: function* () {
-          return ({ label }) => Effect.succeed([`${label}.com`])
-        },
       })
 
+      const ReportingLive = Reporting.toLayer(
+        Effect.gen(function* () {
+          return ({ label }) => Effect.succeed([`${label}.com`])
+        }),
+      )
+
       return story(
-        Reporting.Live,
+        ReportingLive,
         { loadOnStart: [first, second] },
         Story.model(model => {
           expect(Reporting.read(model, first)).toEqual(AsyncData.Loading())

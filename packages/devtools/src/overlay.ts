@@ -588,7 +588,7 @@ const hasCopyState = (
     state => state._tag === tag && state.requestId === requestId,
   )
 
-const ApplicationLive = Application.layer(
+const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const store = yield* StoreService
     const shadow = yield* ShadowRootService

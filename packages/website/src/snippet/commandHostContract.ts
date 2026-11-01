@@ -28,7 +28,7 @@ export class Editor extends Block<Editor>()('Editor', {
   Command: [SaveDocument],
 }) {}
 
-export const EditorLive = Editor.layer(
+export const EditorLive = Editor.toLayer(
   Effect.gen(function* () {
     const documentStore = yield* DocumentStore
 

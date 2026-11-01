@@ -3,7 +3,7 @@ import { Block } from 'foldkit'
 
 export class App extends Block<App>()('Application', {}) {}
 
-export const AppLive = App.layer(
+export const AppLive = App.toLayer(
   Effect.gen(function* () {
     return {}
   }),

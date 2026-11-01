@@ -1,4 +1,4 @@
-import { Effect, Layer, Match, Option, Schema } from 'effect'
+import { Layer, Match, Option, Schema } from 'effect'
 import { Block, Calendar as FoldkitCalendar } from 'foldkit'
 import type { CalendarDate } from 'foldkit/calendar'
 import type { ChildAttribute, Html, HtmlBuilder } from 'foldkit/html'
@@ -28,34 +28,30 @@ export class CalendarPage extends Block<
   Readonly<{ today: CalendarDate }>
 >()('CalendarPage', { Model }) {}
 
-export const CalendarPageLive = CalendarPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ today }) => ({
-        calendarBasicDemo: new Calendar.Calendar('calendarBasicDemo', {
-          id: 'calendar-basic-demo',
-          today,
-          minDate: FoldkitCalendar.subtractYears(today, 1),
-          maxDate: FoldkitCalendar.addYears(today, 1),
-        }),
-        maybeCalendarBasicDemoSelectedDate: Option.none(),
-      }),
-
-      update: {
-        ...Calendar.Calendar.on({
-          SelectedDate: (model, { date }) => ({
-            model: modifyFields(model, {
-              maybeCalendarBasicDemoSelectedDate: () => Option.some(date),
-            }),
-          }),
-          ChangedViewMonth: model => ({ model }),
-        }),
-      },
-
-      view,
-    }
+export const CalendarPageLive = CalendarPage.toLayer(() => ({
+  init: ({ today }) => ({
+    calendarBasicDemo: new Calendar.Calendar('calendarBasicDemo', {
+      id: 'calendar-basic-demo',
+      today,
+      minDate: FoldkitCalendar.subtractYears(today, 1),
+      maxDate: FoldkitCalendar.addYears(today, 1),
+    }),
+    maybeCalendarBasicDemoSelectedDate: Option.none(),
   }),
-).pipe(Layer.provide(Calendar.CalendarLive))
+
+  update: {
+    ...Calendar.Calendar.on({
+      SelectedDate: (model, { date }) => ({
+        model: modifyFields(model, {
+          maybeCalendarBasicDemoSelectedDate: () => Option.some(date),
+        }),
+      }),
+      ChangedViewMonth: model => ({ model }),
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(Calendar.CalendarLive))
 
 const containerClassName =
   'inline-flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm select-none min-w-[304px] min-h-[324px]'

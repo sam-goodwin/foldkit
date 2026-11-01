@@ -1,4 +1,4 @@
-import { Effect, Number, Schema, Stream } from 'effect'
+import { Number, Schema, Stream } from 'effect'
 import { Block, Canvas, Dom } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -22,63 +22,59 @@ const frameTicks = (isPlaying: boolean) =>
       )
     : Stream.empty
 
-export const CanvasAppLive = CanvasApp.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isPlaying: true, angle: 0 }),
+export const CanvasAppLive = CanvasApp.toLayer(() => ({
+  init: () => ({ isPlaying: true, angle: 0 }),
 
-      update: {
-        TickedFrame: (model, { deltaTime }) => ({
-          model: modifyFields(model, {
-            angle: Number.sum(deltaTime * ROTATION_RADIANS_PER_MILLISECOND),
-          }),
-        }),
-        ClickedCanvas: model => ({
-          model: modifyFields(model, { isPlaying: isPlaying => !isPlaying }),
-        }),
-      },
+  update: {
+    TickedFrame: (model, { deltaTime }) => ({
+      model: modifyFields(model, {
+        angle: Number.sum(deltaTime * ROTATION_RADIANS_PER_MILLISECOND),
+      }),
+    }),
+    ClickedCanvas: model => ({
+      model: modifyFields(model, { isPlaying: isPlaying => !isPlaying }),
+    }),
+  },
 
-      subscriptions: {
-        animationFrameTicks: {
-          dependencies: model => model.isPlaying,
-          stream: frameTicks,
-        },
-      },
+  subscriptions: {
+    animationFrameTicks: {
+      dependencies: model => model.isPlaying,
+      stream: frameTicks,
+    },
+  },
 
-      view: (model, h) =>
-        Canvas.view(
-          {
+  view: (model, h) =>
+    Canvas.view(
+      {
+        width: 600,
+        height: 400,
+        shapes: [
+          Canvas.Rect({
+            x: 0,
+            y: 0,
             width: 600,
             height: 400,
+            fill: '#0a0a0f',
+          }),
+          Canvas.Group({
+            translate: { x: 300, y: 200 },
+            rotate: model.angle,
             shapes: [
-              Canvas.Rect({
-                x: 0,
-                y: 0,
-                width: 600,
-                height: 400,
-                fill: '#0a0a0f',
-              }),
-              Canvas.Group({
-                translate: { x: 300, y: 200 },
-                rotate: model.angle,
-                shapes: [
-                  Canvas.Circle({ x: 0, y: 0, radius: 50, fill: '#ff2d55' }),
-                  Canvas.Path({
-                    instructions: [
-                      Canvas.MoveTo({ x: -30, y: -30 }),
-                      Canvas.LineTo({ x: 30, y: -30 }),
-                      Canvas.LineTo({ x: 0, y: 30 }),
-                      Canvas.Close(),
-                    ],
-                    fill: '#ffcc00',
-                  }),
+              Canvas.Circle({ x: 0, y: 0, radius: 50, fill: '#ff2d55' }),
+              Canvas.Path({
+                instructions: [
+                  Canvas.MoveTo({ x: -30, y: -30 }),
+                  Canvas.LineTo({ x: 30, y: -30 }),
+                  Canvas.LineTo({ x: 0, y: 30 }),
+                  Canvas.Close(),
                 ],
+                fill: '#ffcc00',
               }),
             ],
-            onPointerDown: ({ x, y }) => Message.ClickedCanvas({ x, y }),
-          },
-          h,
-        ),
-    }
-  }),
-)
+          }),
+        ],
+        onPointerDown: ({ x, y }) => Message.ClickedCanvas({ x, y }),
+      },
+      h,
+    ),
+}))

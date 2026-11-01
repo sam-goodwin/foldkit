@@ -83,51 +83,47 @@ export class Application extends Block<Application>()('Application', {
   Command: [PlaceOrder],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        checkout: checkoutMachine.initial,
-        transitionLog: [],
-        nextTransitionLogId: 0,
-        cartStep: new CartStep('cartStep'),
-      }),
-
-      update: {
-        ClickedContinue: handleMachineMessage,
-        ClickedBack: handleMachineMessage,
-        ClickedCancel: handleMachineMessage,
-        ClickedPlaceOrder: handleMachineMessage,
-        ClickedStartOver: handleMachineMessage,
-        ToggledPaymentMethod: handleMachineMessage,
-        SelectedEdition: handleMachineMessage,
-        ToggledTermsAccepted: handleMachineMessage,
-        UpdatedPromoCode: handleMachineMessage,
-        SubmittedPromoCode: handleMachineMessage,
-        CompletedPlaceOrder: handleMachineMessage,
-        ...CartStep.on({
-          RequestedCancel: stepMachine(Message.ClickedCancel()),
-          RequestedContinue: stepMachine(Message.ClickedContinue()),
-          SelectedEdition: (model, { isShippingRequired }) =>
-            stepMachine(Message.SelectedEdition({ isShippingRequired }))(model),
-        }),
-      },
-
-      commands: {
-        PlaceOrder: ({ isShippingRequired }) =>
-          Effect.sleep(PLACE_ORDER_DELAY).pipe(
-            Effect.as(
-              Message.CompletedPlaceOrder({
-                orderId: isShippingRequired ? 'SHIP-1001' : 'DIGI-1001',
-              }),
-            ),
-          ),
-      },
-
-      view,
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    checkout: checkoutMachine.initial,
+    transitionLog: [],
+    nextTransitionLogId: 0,
+    cartStep: new CartStep('cartStep'),
   }),
-).pipe(Layer.provide(CartStepLive))
+
+  update: {
+    ClickedContinue: handleMachineMessage,
+    ClickedBack: handleMachineMessage,
+    ClickedCancel: handleMachineMessage,
+    ClickedPlaceOrder: handleMachineMessage,
+    ClickedStartOver: handleMachineMessage,
+    ToggledPaymentMethod: handleMachineMessage,
+    SelectedEdition: handleMachineMessage,
+    ToggledTermsAccepted: handleMachineMessage,
+    UpdatedPromoCode: handleMachineMessage,
+    SubmittedPromoCode: handleMachineMessage,
+    CompletedPlaceOrder: handleMachineMessage,
+    ...CartStep.on({
+      RequestedCancel: stepMachine(Message.ClickedCancel()),
+      RequestedContinue: stepMachine(Message.ClickedContinue()),
+      SelectedEdition: (model, { isShippingRequired }) =>
+        stepMachine(Message.SelectedEdition({ isShippingRequired }))(model),
+    }),
+  },
+
+  commands: {
+    PlaceOrder: ({ isShippingRequired }) =>
+      Effect.sleep(PLACE_ORDER_DELAY).pipe(
+        Effect.as(
+          Message.CompletedPlaceOrder({
+            orderId: isShippingRequired ? 'SHIP-1001' : 'DIGI-1001',
+          }),
+        ),
+      ),
+  },
+
+  view,
+})).pipe(Layer.provide(CartStepLive))
 
 // MACHINE
 

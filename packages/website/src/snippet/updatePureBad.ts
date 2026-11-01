@@ -1,5 +1,5 @@
 // ❌ Don't do this in update
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -9,17 +9,13 @@ export class Search extends Block<Search>()('Search', {
   Message: defineMessageUnion({ OpenedDialog: {} }),
 }) {}
 
-export const SearchLive = Search.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ dialogState: 'Closed' }),
+export const SearchLive = Search.toLayer(() => ({
+  init: () => ({ dialogState: 'Closed' }),
 
-      update: {
-        OpenedDialog: model => {
-          document.querySelector<HTMLInputElement>('#search-input')?.focus()
-          return { model: modifyFields(model, { dialogState: () => 'Open' }) }
-        },
-      },
-    }
-  }),
-)
+  update: {
+    OpenedDialog: model => {
+      document.querySelector<HTMLInputElement>('#search-input')?.focus()
+      return { model: modifyFields(model, { dialogState: () => 'Open' }) }
+    },
+  },
+}))

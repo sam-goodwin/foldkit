@@ -51,7 +51,7 @@ export class Education extends Block<Education, EducationArgs>()('Education', {
   Command: [GenerateEducationEntryId],
 }) {}
 
-export const EducationLive = Education.layer(
+export const EducationLive = Education.toLayer(
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
 

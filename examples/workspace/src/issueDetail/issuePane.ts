@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Array, Effect, Layer, Option, Record, Schema, pipe } from 'effect'
+import { Array, Layer, Option, Record, Schema, pipe } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -39,98 +39,94 @@ export class IssuePane extends Block<IssuePane, void, ViewInput>()(
   { Model, Message, OutMessage },
 ) {}
 
-export const IssuePaneLive = IssuePane.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ issueDetails: {} }),
+export const IssuePaneLive = IssuePane.toLayer(() => ({
+  init: () => ({ issueDetails: {} }),
 
-      update: {
-        RequestedOpen: (model, { issue }) =>
-          Record.has(model.issueDetails, issue.id)
-            ? { model }
-            : {
-                model: modifyFields(model, {
-                  issueDetails: Record.set(
-                    issue.id,
-                    new IssueDetail(issue.id, { issue }),
-                  ),
-                }),
-              },
-        InformedOfIssueChange: (model, { issue }) => ({
-          model,
-          messages: informIssueChanged(model, issue),
-        }),
-        InformedOfIssues: (model, { issues }) => ({
-          model,
-          messages: Array.flatMap(issues, issue =>
-            informIssueChanged(model, issue),
-          ),
-        }),
-        ...IssueDetail.on({
-          Saved: (model, { savedIssue }) => ({
-            model,
-            outMessage: OutMessage.Saved({ savedIssue }),
-          }),
-          AddedComment: (model, { issueId, comment }) => ({
-            model,
-            outMessage: OutMessage.AddedComment({ issueId, comment }),
-          }),
-          ReceivedIssue: (model, { issue }) => ({
-            model,
-            outMessage: OutMessage.ReceivedIssue({ issue }),
-          }),
-          Closed: model => ({ model, outMessage: OutMessage.Closed() }),
-        }),
-      },
-
-      subscriptions: {
-        draftExitGuard: {
-          dependencies: model =>
-            Array.isReadonlyArrayNonEmpty(unsavedIssueDrafts(model)),
-          stream: (isProtecting: boolean) =>
-            protectUnsavedChanges({ isProtecting }),
-        },
-      },
-
-      view: (model, h, { issueId, isFullPage, workspace, authorId }) =>
-        Option.match(
-          Option.all([
-            Record.get(model.issueDetails, issueId),
-            Array.findFirst(workspace.issues, issue => issue.id === issueId),
-          ]),
-          {
-            onNone: () =>
-              missingPage(
-                'Issue not found',
-                'Choose another issue from the list.',
-                h,
+  update: {
+    RequestedOpen: (model, { issue }) =>
+      Record.has(model.issueDetails, issue.id)
+        ? { model }
+        : {
+            model: modifyFields(model, {
+              issueDetails: Record.set(
+                issue.id,
+                new IssueDetail(issue.id, { issue }),
               ),
-            onSome: ([detail, issue]) =>
-              h.aside(
-                [
-                  h.Class(
-                    clsx(
-                      'min-h-0 w-full flex-1 overflow-y-auto overscroll-contain bg-slate-50/70',
-                      isFullPage
-                        ? 'mx-auto max-w-3xl'
-                        : 'xl:w-[430px] xl:flex-none xl:border-l xl:border-slate-200',
-                    ),
-                  ),
-                ],
-                [
-                  detail.view({
-                    issue,
-                    projects: workspace.projects,
-                    members: workspace.members,
-                    authorId,
-                  }),
-                ],
-              ),
+            }),
           },
-        ),
-    }
-  }),
-).pipe(Layer.provide(IssueDetailLive))
+    InformedOfIssueChange: (model, { issue }) => ({
+      model,
+      messages: informIssueChanged(model, issue),
+    }),
+    InformedOfIssues: (model, { issues }) => ({
+      model,
+      messages: Array.flatMap(issues, issue =>
+        informIssueChanged(model, issue),
+      ),
+    }),
+    ...IssueDetail.on({
+      Saved: (model, { savedIssue }) => ({
+        model,
+        outMessage: OutMessage.Saved({ savedIssue }),
+      }),
+      AddedComment: (model, { issueId, comment }) => ({
+        model,
+        outMessage: OutMessage.AddedComment({ issueId, comment }),
+      }),
+      ReceivedIssue: (model, { issue }) => ({
+        model,
+        outMessage: OutMessage.ReceivedIssue({ issue }),
+      }),
+      Closed: model => ({ model, outMessage: OutMessage.Closed() }),
+    }),
+  },
+
+  subscriptions: {
+    draftExitGuard: {
+      dependencies: model =>
+        Array.isReadonlyArrayNonEmpty(unsavedIssueDrafts(model)),
+      stream: (isProtecting: boolean) =>
+        protectUnsavedChanges({ isProtecting }),
+    },
+  },
+
+  view: (model, h, { issueId, isFullPage, workspace, authorId }) =>
+    Option.match(
+      Option.all([
+        Record.get(model.issueDetails, issueId),
+        Array.findFirst(workspace.issues, issue => issue.id === issueId),
+      ]),
+      {
+        onNone: () =>
+          missingPage(
+            'Issue not found',
+            'Choose another issue from the list.',
+            h,
+          ),
+        onSome: ([detail, issue]) =>
+          h.aside(
+            [
+              h.Class(
+                clsx(
+                  'min-h-0 w-full flex-1 overflow-y-auto overscroll-contain bg-slate-50/70',
+                  isFullPage
+                    ? 'mx-auto max-w-3xl'
+                    : 'xl:w-[430px] xl:flex-none xl:border-l xl:border-slate-200',
+                ),
+              ),
+            ],
+            [
+              detail.view({
+                issue,
+                projects: workspace.projects,
+                members: workspace.members,
+                authorId,
+              }),
+            ],
+          ),
+      },
+    ),
+})).pipe(Layer.provide(IssueDetailLive))
 
 export const unsavedIssueDrafts = (model: Model) =>
   pipe(

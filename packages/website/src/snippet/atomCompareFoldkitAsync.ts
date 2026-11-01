@@ -40,7 +40,7 @@ export class Application extends Block<Application>()('Application', {
   Command: [FetchUser],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const api = yield* Api
 

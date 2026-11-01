@@ -46,22 +46,25 @@ describe('interruptible Command.define', () => {
         const Attached = Command.define('SelectedFieldsAttached', {
           args: Args.fields,
           messages: [Message.SucceededTask],
-          handler: function* () {
-            return ({ taskId }) =>
-              Effect.as(Effect.never, Message.SucceededTask({ taskId }))
-          },
           interrupt: {
             keyFields: ['label', 'taskId'],
             toKey: keyArgs => JSON.stringify(keyArgs),
           },
         })
+
+        const AttachedLive = Attached.toLayer(
+          Effect.gen(function* () {
+            return ({ taskId }) =>
+              Effect.as(Effect.never, Message.SucceededTask({ taskId }))
+          }),
+        )
         const EffectsLayer = Layer.mergeAll(
           Host.toLayer(
             Effect.succeed(({ taskId }) =>
               Effect.as(Effect.never, Message.SucceededTask({ taskId })),
             ),
           ),
-          Attached.layer,
+          AttachedLive,
         )
         const args = { taskId: 7, revision: 3, label: 'seven' }
         const keyArgs = { taskId: 7, label: 'seven' }
@@ -259,16 +262,19 @@ describe('interruptible Command.define', () => {
           args: { taskId: Schema.Number },
           messages: [Message.SucceededTask],
           interrupt: true,
-          handler: function* () {
+        })
+
+        const SaveDraftLive = SaveDraft.toLayer(
+          Effect.gen(function* () {
             return ({ taskId }) =>
               Effect.as(Effect.never, Message.SucceededTask({ taskId }))
-          },
-        })
+          }),
+        )
 
         const fiber = yield* Effect.forkChild(
           SaveDraft({ taskId: 7 }).effect.pipe(
             provideRegistry(registry),
-            Effect.provide(SaveDraft.layer),
+            Effect.provide(SaveDraftLive),
           ),
         )
         yield* Effect.yieldNow
@@ -279,10 +285,7 @@ describe('interruptible Command.define', () => {
 
         const outcome = yield* SaveDraft.Interrupt(
           outcome => outcome,
-        ).effect.pipe(
-          provideRegistry(registry),
-          Effect.provide(SaveDraft.layer),
-        )
+        ).effect.pipe(provideRegistry(registry), Effect.provide(SaveDraftLive))
 
         expect(outcome._tag).toBe('Interrupted')
         expect(Array.isReadonlyArrayEmpty(registry.lookup('SaveDraft'))).toBe(
@@ -304,24 +307,24 @@ describe('interruptible Command.define', () => {
           args: { taskId: Schema.Number },
           messages: [Message.SucceededTask],
           interrupt: true,
-          handler: function* () {
+        })
+
+        const SaveDraftLive = SaveDraft.toLayer(
+          Effect.gen(function* () {
             return ({ taskId }) =>
               Effect.succeed(Message.SucceededTask({ taskId }))
-          },
-        })
+          }),
+        )
 
         const message = yield* SaveDraft({ taskId: 7 }).effect.pipe(
           provideRegistry(registry),
-          Effect.provide(SaveDraft.layer),
+          Effect.provide(SaveDraftLive),
         )
         expect(message).toEqual(Message.SucceededTask({ taskId: 7 }))
 
         const outcome = yield* SaveDraft.Interrupt(
           outcome => outcome,
-        ).effect.pipe(
-          provideRegistry(registry),
-          Effect.provide(SaveDraft.layer),
-        )
+        ).effect.pipe(provideRegistry(registry), Effect.provide(SaveDraftLive))
 
         expect(outcome._tag).toBe('NotFound')
       }),
@@ -337,15 +340,18 @@ describe('interruptible Command.define', () => {
           args: { taskId: Schema.Number },
           messages: [Message.SucceededTask],
           interrupt: true,
-          handler: function* () {
-            return () => Effect.die('boom')
-          },
         })
+
+        const SaveDraftLive = SaveDraft.toLayer(
+          Effect.gen(function* () {
+            return () => Effect.die('boom')
+          }),
+        )
 
         const exit = yield* Effect.exit(
           SaveDraft({ taskId: 7 }).effect.pipe(
             provideRegistry(registry),
-            Effect.provide(SaveDraft.layer),
+            Effect.provide(SaveDraftLive),
           ),
         )
 
@@ -364,10 +370,13 @@ describe('interruptible Command.define', () => {
       const RunForever = Command.define('RunForever', {
         messages: [Message.CompletedWork],
         interrupt: true,
-        handler: function* () {
-          return () => Effect.as(Effect.never, Message.CompletedWork())
-        },
       })
+
+      const RunForeverLive = RunForever.toLayer(
+        Effect.gen(function* () {
+          return () => Effect.as(Effect.never, Message.CompletedWork())
+        }),
+      )
 
       const fiber = yield* Effect.forkChild(
         RunForever().effect.pipe(
@@ -377,7 +386,7 @@ describe('interruptible Command.define', () => {
             }),
           ),
           provideRegistry(registry),
-          Effect.provide(RunForever.layer),
+          Effect.provide(RunForeverLive),
         ),
       )
       yield* Effect.yieldNow
@@ -388,7 +397,7 @@ describe('interruptible Command.define', () => {
 
       const outcome = yield* RunForever.Interrupt(
         outcome => outcome,
-      ).effect.pipe(provideRegistry(registry), Effect.provide(RunForever.layer))
+      ).effect.pipe(provideRegistry(registry), Effect.provide(RunForeverLive))
 
       expect(outcome._tag).toBe('Interrupted')
       expect(didProduceResult).toBe(false)
@@ -408,14 +417,17 @@ describe('interruptible Command.define', () => {
       const RunForever = Command.define('RunForever', {
         messages: [Message.CompletedWork],
         interrupt: true,
-        handler: function* () {
-          return () => Effect.as(Effect.never, Message.CompletedWork())
-        },
       })
+
+      const RunForeverLive = RunForever.toLayer(
+        Effect.gen(function* () {
+          return () => Effect.as(Effect.never, Message.CompletedWork())
+        }),
+      )
 
       const outcome = yield* RunForever.Interrupt(
         outcome => outcome,
-      ).effect.pipe(provideRegistry(registry), Effect.provide(RunForever.layer))
+      ).effect.pipe(provideRegistry(registry), Effect.provide(RunForeverLive))
 
       expect(outcome._tag).toBe('NotFound')
     }),
@@ -432,22 +444,25 @@ describe('interruptible Command.define', () => {
           keyFields: ['taskId'],
           toKey: ({ taskId }) => String(taskId),
         },
-        handler: function* () {
+      })
+
+      const RunTaskLive = RunTask.toLayer(
+        Effect.gen(function* () {
           return ({ taskId }) =>
             Effect.succeed(Message.SucceededTask({ taskId }))
-        },
-      })
+        }),
+      )
 
       const message = yield* RunTask({ taskId: 1 }).effect.pipe(
         provideRegistry(registry),
-        Effect.provide(RunTask.layer),
+        Effect.provide(RunTaskLive),
       )
       expect(message).toEqual(Message.SucceededTask({ taskId: 1 }))
 
       const outcome = yield* RunTask.Interrupt(
         { taskId: 1 },
         outcome => outcome,
-      ).effect.pipe(provideRegistry(registry), Effect.provide(RunTask.layer))
+      ).effect.pipe(provideRegistry(registry), Effect.provide(RunTaskLive))
 
       expect(outcome._tag).toBe('NotFound')
     }),
@@ -465,7 +480,10 @@ describe('interruptible Command.define', () => {
           keyFields: ['taskId'],
           toKey: ({ taskId }) => String(taskId),
         },
-        handler: function* () {
+      })
+
+      const RunTaskLive = RunTask.toLayer(
+        Effect.gen(function* () {
           return ({ taskId }) =>
             Effect.onInterrupt(
               Effect.as(Effect.never, Message.SucceededTask({ taskId })),
@@ -474,19 +492,19 @@ describe('interruptible Command.define', () => {
                   interruptedTaskIds.push(taskId)
                 }),
             )
-        },
-      })
+        }),
+      )
 
       const firstFiber = yield* Effect.forkChild(
         RunTask({ taskId: 1 }).effect.pipe(
           provideRegistry(registry),
-          Effect.provide(RunTask.layer),
+          Effect.provide(RunTaskLive),
         ),
       )
       const secondFiber = yield* Effect.forkChild(
         RunTask({ taskId: 2 }).effect.pipe(
           provideRegistry(registry),
-          Effect.provide(RunTask.layer),
+          Effect.provide(RunTaskLive),
         ),
       )
       yield* Effect.yieldNow
@@ -494,7 +512,7 @@ describe('interruptible Command.define', () => {
       const outcome = yield* RunTask.Interrupt(
         { taskId: 2 },
         outcome => outcome,
-      ).effect.pipe(provideRegistry(registry), Effect.provide(RunTask.layer))
+      ).effect.pipe(provideRegistry(registry), Effect.provide(RunTaskLive))
 
       expect(outcome._tag).toBe('Interrupted')
       expect(interruptedTaskIds).toEqual([2])
@@ -521,7 +539,10 @@ describe('interruptible Command.define', () => {
         const Watch = Command.define('Watch', {
           messages: [Message.CompletedWork],
           interrupt: true,
-          handler: function* () {
+        })
+
+        const WatchLive = Watch.toLayer(
+          Effect.gen(function* () {
             return () =>
               Effect.suspend(() => {
                 runCount = runCount + 1
@@ -535,19 +556,19 @@ describe('interruptible Command.define', () => {
                     }),
                 )
               })
-          },
-        })
+          }),
+        )
 
         const firstFiber = yield* Effect.forkChild(
           Watch().effect.pipe(
             provideRegistry(registry),
-            Effect.provide(Watch.layer),
+            Effect.provide(WatchLive),
           ),
         )
         const secondFiber = yield* Effect.forkChild(
           Watch().effect.pipe(
             provideRegistry(registry),
-            Effect.provide(Watch.layer),
+            Effect.provide(WatchLive),
           ),
         )
         yield* Effect.yieldNow
@@ -557,7 +578,7 @@ describe('interruptible Command.define', () => {
 
         const outcome = yield* Watch.Interrupt(outcome => outcome).effect.pipe(
           provideRegistry(registry),
-          Effect.provide(Watch.layer),
+          Effect.provide(WatchLive),
         )
 
         expect(outcome._tag).toBe('Interrupted')
@@ -581,15 +602,18 @@ describe('interruptible Command.define', () => {
       const FailingTask = Command.define('FailingTask', {
         messages: [Message.CompletedWork],
         interrupt: true,
-        handler: function* () {
-          return () => Effect.die('boom')
-        },
       })
+
+      const FailingTaskLive = FailingTask.toLayer(
+        Effect.gen(function* () {
+          return () => Effect.die('boom')
+        }),
+      )
 
       const exit = yield* Effect.exit(
         FailingTask().effect.pipe(
           provideRegistry(registry),
-          Effect.provide(FailingTask.layer),
+          Effect.provide(FailingTaskLive),
         ),
       )
 

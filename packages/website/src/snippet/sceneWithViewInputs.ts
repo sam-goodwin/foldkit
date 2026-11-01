@@ -1,4 +1,4 @@
-import { Effect, Layer, Number, Schema } from 'effect'
+import { Layer, Number, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { expect, role, scene } from 'foldkit/scene'
@@ -17,26 +17,19 @@ class Stepper extends Block<Stepper, void, StepperViewInput>()('Stepper', {
   Message: defineMessageUnion({ ClickedIncrement: {} }),
 }) {}
 
-const StepperLive = Stepper.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
-      update: {
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: Number.increment }),
-        }),
-      },
-      view: (model, h, { label, isDisabled }) =>
-        h.button(
-          [
-            h.Disabled(isDisabled),
-            h.OnClick(Stepper.Message.ClickedIncrement()),
-          ],
-          [`${label}: ${model.count}`],
-        ),
-    }
-  }),
-)
+const StepperLive = Stepper.toLayer(() => ({
+  init: () => ({ count: 0 }),
+  update: {
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+  },
+  view: (model, h, { label, isDisabled }) =>
+    h.button(
+      [h.Disabled(isDisabled), h.OnClick(Stepper.Message.ClickedIncrement())],
+      [`${label}: ${model.count}`],
+    ),
+}))
 
 // A test-only parent. Its args become the child's view input, so each test
 // chooses the input it renders with.
@@ -50,17 +43,13 @@ class StepperScene extends Block<StepperScene, StepperViewInput>()(
   },
 ) {}
 
-const StepperSceneLive = StepperScene.layer(
-  Effect.gen(function* () {
-    return {
-      init: stepperViewInput => ({
-        stepper: new Stepper('stepper'),
-        stepperViewInput,
-      }),
-      view: model => model.stepper.view(model.stepperViewInput),
-    }
+const StepperSceneLive = StepperScene.toLayer(() => ({
+  init: stepperViewInput => ({
+    stepper: new Stepper('stepper'),
+    stepperViewInput,
   }),
-).pipe(Layer.provide(StepperLive))
+  view: model => model.stepper.view(model.stepperViewInput),
+})).pipe(Layer.provide(StepperLive))
 
 it.effect('renders the label the parent supplies', () =>
   scene(

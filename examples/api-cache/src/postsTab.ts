@@ -64,7 +64,7 @@ export class PostsTab extends Block<PostsTab>()('PostsTab', {
   Command: [FetchPosts, FetchPostDetail],
 }) {}
 
-export const PostsTabLive = PostsTab.layer(
+export const PostsTabLive = PostsTab.toLayer(
   Effect.gen(function* () {
     const clock = yield* Clock.Clock
 

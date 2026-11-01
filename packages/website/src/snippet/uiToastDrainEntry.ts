@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { Command, message, story } from 'foldkit/story'
@@ -17,25 +17,21 @@ class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        toast: new Notifications('toast', { id: 'notifications' }),
-      }),
-      update: {
-        ClickedSave: model => ({
-          model,
-          messages: [
-            model.toast.send(
-              Notifications.requestShow({ payload: { body: 'Saved' } }),
-            ),
-          ],
-        }),
-      },
-    }
+const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    toast: new Notifications('toast', { id: 'notifications' }),
   }),
-).pipe(Layer.provide(Notifications.Live))
+  update: {
+    ClickedSave: model => ({
+      model,
+      messages: [
+        model.toast.send(
+          Notifications.requestShow({ payload: { body: 'Saved' } }),
+        ),
+      ],
+    }),
+  },
+})).pipe(Layer.provide(Notifications.Live))
 
 it.effect('shows and drains a toast', () =>
   story(

@@ -182,7 +182,7 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 

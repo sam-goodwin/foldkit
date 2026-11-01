@@ -1,4 +1,4 @@
-import { Effect, Function, Schema } from 'effect'
+import { Function, Schema } from 'effect'
 import { Block, Dom } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -15,30 +15,26 @@ export class MotionPreferences extends Block<MotionPreferences>()(
   },
 ) {}
 
-export const MotionPreferencesLive = MotionPreferences.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isReducedMotion: false }),
+export const MotionPreferencesLive = MotionPreferences.toLayer(() => ({
+  init: () => ({ isReducedMotion: false }),
 
-      subscriptions: {
-        reducedMotionChanges: {
-          dependencies: Function.constVoid,
-          stream: () =>
-            Dom.streamFromMediaQuery({
-              query: '(prefers-reduced-motion: reduce)',
-              mapMatches: isMatching =>
-                Message.ChangedReducedMotion({ isReducedMotion: isMatching }),
-            }),
-        },
-      },
-
-      update: {
-        ChangedReducedMotion: (model, { isReducedMotion }) => ({
-          model: modifyFields(model, {
-            isReducedMotion: () => isReducedMotion,
-          }),
+  subscriptions: {
+    reducedMotionChanges: {
+      dependencies: Function.constVoid,
+      stream: () =>
+        Dom.streamFromMediaQuery({
+          query: '(prefers-reduced-motion: reduce)',
+          mapMatches: isMatching =>
+            Message.ChangedReducedMotion({ isReducedMotion: isMatching }),
         }),
-      },
-    }
-  }),
-)
+    },
+  },
+
+  update: {
+    ChangedReducedMotion: (model, { isReducedMotion }) => ({
+      model: modifyFields(model, {
+        isReducedMotion: () => isReducedMotion,
+      }),
+    }),
+  },
+}))

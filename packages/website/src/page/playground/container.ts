@@ -81,7 +81,7 @@ export class PlaygroundContainer extends Block<
   Command: [ScheduleFileWrite],
 }) {}
 
-export const PlaygroundContainerLive = PlaygroundContainer.layer(
+export const PlaygroundContainerLive = PlaygroundContainer.toLayer(
   Effect.gen(function* () {
     const webContainers = yield* Ref.make(
       HashMap.empty<string, PlaygroundWebContainer>(),

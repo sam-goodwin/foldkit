@@ -52,40 +52,31 @@ class Application extends Block<Application>()('Application', {
   ],
 }) {}
 
-const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      update: {
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedReplaceUrl: model => ({ model }),
-        CompletedGoBack: model => ({ model }),
-        CompletedGoForward: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
-        CompletedOpenUrl: model => ({ model }),
-      },
+const ApplicationLive = Application.toLayer(() => ({
+  update: {
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedReplaceUrl: model => ({ model }),
+    CompletedGoBack: model => ({ model }),
+    CompletedGoForward: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+    CompletedOpenUrl: model => ({ model }),
+  },
 
-      commands: {
-        NavigateInternal: ({ url }) =>
-          Navigation.pushUrl(url).pipe(
-            Effect.as(Message.CompletedNavigateInternal()),
-          ),
-        ReplaceUrl: ({ url }) =>
-          Navigation.replaceUrl(url).pipe(
-            Effect.as(Message.CompletedReplaceUrl()),
-          ),
-        GoBack: () =>
-          Navigation.back().pipe(Effect.as(Message.CompletedGoBack())),
-        GoForward: () =>
-          Navigation.forward().pipe(Effect.as(Message.CompletedGoForward())),
-        LoadExternal: ({ href }) =>
-          Navigation.load(href).pipe(
-            Effect.as(Message.CompletedLoadExternal()),
-          ),
-        OpenUrl: ({ url }) =>
-          Navigation.openUrl(url).pipe(Effect.as(Message.CompletedOpenUrl())),
-      },
+  commands: {
+    NavigateInternal: ({ url }) =>
+      Navigation.pushUrl(url).pipe(
+        Effect.as(Message.CompletedNavigateInternal()),
+      ),
+    ReplaceUrl: ({ url }) =>
+      Navigation.replaceUrl(url).pipe(Effect.as(Message.CompletedReplaceUrl())),
+    GoBack: () => Navigation.back().pipe(Effect.as(Message.CompletedGoBack())),
+    GoForward: () =>
+      Navigation.forward().pipe(Effect.as(Message.CompletedGoForward())),
+    LoadExternal: ({ href }) =>
+      Navigation.load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+    OpenUrl: ({ url }) =>
+      Navigation.openUrl(url).pipe(Effect.as(Message.CompletedOpenUrl())),
+  },
 
-      view: (_model, h) => ({ title: 'Navigation', body: h.main([]) }),
-    }
-  }),
-)
+  view: (_model, h) => ({ title: 'Navigation', body: h.main([]) }),
+}))

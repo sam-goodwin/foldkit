@@ -258,116 +258,111 @@ export class Tooltip extends Block<Tooltip, InitConfig, ViewInputs>()(
 
 /** The Tooltip implementation. Provide it to every parent that creates a
  *  Tooltip instance. */
-export const TooltipLive = Tooltip.layer(
-  Effect.gen(function* () {
-    return {
-      init: makeInitialModel,
+export const TooltipLive = Tooltip.toLayer(() => ({
+  init: makeInitialModel,
 
-      update: {
-        InformedOfShowDelayChange: updateVisibility,
-        EnteredTrigger: updateVisibility,
-        LeftTrigger: updateVisibility,
-        FocusedTrigger: updateVisibility,
-        BlurredTrigger: updateVisibility,
-        PressedEscape: updateVisibility,
-        PressedPointerOnTrigger: updateVisibility,
-        CompletedWaitBeforeShowing: updateVisibility,
-        CompletedAnchorTooltip: updateVisibility,
-      },
+  update: {
+    InformedOfShowDelayChange: updateVisibility,
+    EnteredTrigger: updateVisibility,
+    LeftTrigger: updateVisibility,
+    FocusedTrigger: updateVisibility,
+    BlurredTrigger: updateVisibility,
+    PressedEscape: updateVisibility,
+    PressedPointerOnTrigger: updateVisibility,
+    CompletedWaitBeforeShowing: updateVisibility,
+    CompletedAnchorTooltip: updateVisibility,
+  },
 
-      commands: {
-        WaitBeforeShowing: ({ delay, version }) =>
-          Effect.sleep(delay).pipe(
-            Effect.as(Message.CompletedWaitBeforeShowing({ version })),
+  commands: {
+    WaitBeforeShowing: ({ delay, version }) =>
+      Effect.sleep(delay).pipe(
+        Effect.as(Message.CompletedWaitBeforeShowing({ version })),
+      ),
+  },
+
+  mounts: {
+    AnchorTooltip: ({ element, buttonId, anchor }) =>
+      Effect.gen(function* () {
+        yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            anchorSetup(element, {
+              buttonId,
+              anchor,
+              interceptTab: false,
+            }),
           ),
-      },
+          cleanup => Effect.sync(cleanup),
+        )
+        return Message.CompletedAnchorTooltip()
+      }),
+  },
 
-      mounts: {
-        AnchorTooltip: ({ element, buttonId, anchor }) =>
-          Effect.gen(function* () {
-            yield* Effect.acquireRelease(
-              Effect.sync(() =>
-                anchorSetup(element, {
-                  buttonId,
-                  anchor,
-                  interceptTab: false,
-                }),
-              ),
-              cleanup => Effect.sync(cleanup),
-            )
-            return Message.CompletedAnchorTooltip()
-          }),
-      },
+  view: (model, h, viewInputs) => {
+    const { id, isOpen } = model
+    const { anchor, toView, isDisabled, ariaLabel, ariaLabelledBy } = viewInputs
 
-      view: (model, h, viewInputs) => {
-        const { id, isOpen } = model
-        const { anchor, toView, isDisabled, ariaLabel, ariaLabelledBy } =
-          viewInputs
-
-        const resolveTriggerLabel = () => {
-          if (Predicate.isNotUndefined(ariaLabel)) {
-            return [h.AriaLabel(ariaLabel)]
-          } else if (Predicate.isNotUndefined(ariaLabelledBy)) {
-            return [h.AriaLabelledBy(ariaLabelledBy)]
-          } else {
-            return []
-          }
-        }
-
-        const triggerLabelAttributes = resolveTriggerLabel()
-
-        const handleTriggerKeyDown = (
-          key: string,
-        ): Option.Option<typeof Message.PressedEscape.Type> =>
-          Match.value(key).pipe(
-            Match.when('Escape', () =>
-              OptionExt.when(isOpen, Message.PressedEscape()),
-            ),
-            Match.orElse(() => Option.none()),
-          )
-
-        const handleTriggerPointerDown = (
-          pointerType: string,
-        ): Option.Option<typeof Message.PressedPointerOnTrigger.Type> =>
-          Option.some(Message.PressedPointerOnTrigger({ pointerType }))
-
-        const triggerAttributes = [
-          h.Id(triggerId(id)),
-          h.Type('button'),
-          h.AriaDescribedBy(panelId(id)),
-          ...triggerLabelAttributes,
-          ...(isOpen ? [h.DataAttribute('open', '')] : []),
-          ...(isDisabled
-            ? [h.AriaDisabled(true), h.DataAttribute('disabled', '')]
-            : [
-                h.OnMouseEnter(Message.EnteredTrigger()),
-                h.OnMouseLeave(Message.LeftTrigger()),
-                h.OnFocus(Message.FocusedTrigger()),
-                h.OnBlur(Message.BlurredTrigger()),
-                h.OnKeyDownPreventDefault(handleTriggerKeyDown),
-                h.OnPointerDown(handleTriggerPointerDown),
-              ]),
-        ]
-
-        const panelAttributes = [
-          h.Id(panelId(id)),
-          h.Role('tooltip'),
-          h.Style({
-            position: 'absolute',
-            margin: '0',
-            visibility: 'hidden',
-            pointerEvents: 'none',
-          }),
-          h.OnMount(AnchorTooltip({ buttonId: triggerId(id), anchor })),
-          ...(isOpen ? [h.DataAttribute('open', '')] : []),
-        ]
-
-        return toView({
-          trigger: childAttributes(triggerAttributes),
-          panel: childAttributes(panelAttributes),
-          isVisible: isOpen,
-        })
-      },
+    const resolveTriggerLabel = () => {
+      if (Predicate.isNotUndefined(ariaLabel)) {
+        return [h.AriaLabel(ariaLabel)]
+      } else if (Predicate.isNotUndefined(ariaLabelledBy)) {
+        return [h.AriaLabelledBy(ariaLabelledBy)]
+      } else {
+        return []
+      }
     }
-  }),
-)
+
+    const triggerLabelAttributes = resolveTriggerLabel()
+
+    const handleTriggerKeyDown = (
+      key: string,
+    ): Option.Option<typeof Message.PressedEscape.Type> =>
+      Match.value(key).pipe(
+        Match.when('Escape', () =>
+          OptionExt.when(isOpen, Message.PressedEscape()),
+        ),
+        Match.orElse(() => Option.none()),
+      )
+
+    const handleTriggerPointerDown = (
+      pointerType: string,
+    ): Option.Option<typeof Message.PressedPointerOnTrigger.Type> =>
+      Option.some(Message.PressedPointerOnTrigger({ pointerType }))
+
+    const triggerAttributes = [
+      h.Id(triggerId(id)),
+      h.Type('button'),
+      h.AriaDescribedBy(panelId(id)),
+      ...triggerLabelAttributes,
+      ...(isOpen ? [h.DataAttribute('open', '')] : []),
+      ...(isDisabled
+        ? [h.AriaDisabled(true), h.DataAttribute('disabled', '')]
+        : [
+            h.OnMouseEnter(Message.EnteredTrigger()),
+            h.OnMouseLeave(Message.LeftTrigger()),
+            h.OnFocus(Message.FocusedTrigger()),
+            h.OnBlur(Message.BlurredTrigger()),
+            h.OnKeyDownPreventDefault(handleTriggerKeyDown),
+            h.OnPointerDown(handleTriggerPointerDown),
+          ]),
+    ]
+
+    const panelAttributes = [
+      h.Id(panelId(id)),
+      h.Role('tooltip'),
+      h.Style({
+        position: 'absolute',
+        margin: '0',
+        visibility: 'hidden',
+        pointerEvents: 'none',
+      }),
+      h.OnMount(AnchorTooltip({ buttonId: triggerId(id), anchor })),
+      ...(isOpen ? [h.DataAttribute('open', '')] : []),
+    ]
+
+    return toView({
+      trigger: childAttributes(triggerAttributes),
+      panel: childAttributes(panelAttributes),
+      isVisible: isOpen,
+    })
+  },
+}))

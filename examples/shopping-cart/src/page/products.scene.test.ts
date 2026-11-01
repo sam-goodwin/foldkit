@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { expect, role, scene, text } from 'foldkit/scene'
 
@@ -11,16 +11,12 @@ class ProductsHost extends Block<ProductsHost>()('ProductsHost', {
   Model: Schema.Struct({ productsPage: Products }),
 }) {}
 
-const ProductsHostLive = ProductsHost.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        productsPage: new Products('productsPage', { products }),
-      }),
-      view: model => model.productsPage.view({ cart: [] }),
-    }
+const ProductsHostLive = ProductsHost.toLayer(() => ({
+  init: () => ({
+    productsPage: new Products('productsPage', { products }),
   }),
-)
+  view: model => model.productsPage.view({ cart: [] }),
+}))
 
 describe('products', () => {
   it.effect('lists every product with an Add to Cart button', () =>

@@ -1,21 +1,17 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block, Program } from 'foldkit'
 
 class Application extends Block<Application>()('Application', {
   Model: Schema.Struct({ count: Schema.Number }),
 }) {}
 
-const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
-      view: (model, h) => ({
-        title: 'Counter',
-        body: h.p([], [`${model.count}`]),
-      }),
-    }
+const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0 }),
+  view: (model, h) => ({
+    title: 'Counter',
+    body: h.p([], [`${model.count}`]),
   }),
-)
+}))
 
 // ❌ Bad
 // Turning off slow silences the warning instead of fixing the slow phase.

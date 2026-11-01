@@ -28,62 +28,52 @@ class Toggle extends Block<Toggle, void, ToggleViewInput>()('Toggle', {
   Message: defineMessageUnion({ ClickedToggle: {} }),
 }) {}
 
-const ToggleLive = Toggle.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isOn: false }),
-      update: {
-        ClickedToggle: model => ({ model: { isOn: !model.isOn } }),
+const ToggleLive = Toggle.toLayer(() => ({
+  init: () => ({ isOn: false }),
+  update: {
+    ClickedToggle: model => ({ model: { isOn: !model.isOn } }),
+  },
+  view: (model, h, { toView }) =>
+    toView(
+      {
+        button: childAttributes([h.OnClick(Toggle.Message.ClickedToggle())]),
       },
-      view: (model, h, { toView }) =>
-        toView(
-          {
-            button: childAttributes([
-              h.OnClick(Toggle.Message.ClickedToggle()),
-            ]),
-          },
-          model.isOn,
-        ),
-    }
-  }),
-)
+      model.isOn,
+    ),
+}))
 
 class Settings extends Block<Settings>()('Settings', {
   Model: Schema.Struct({ toggle: Toggle, resetCount: Schema.Number }),
   Message: defineMessageUnion({ ClickedReset: {} }),
 }) {}
 
-const SettingsLive = Settings.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ toggle: new Toggle('toggle'), resetCount: 0 }),
-      update: {
-        ClickedReset: model => ({
-          model: { ...model, resetCount: model.resetCount + 1 },
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.toggle.view({
-              toView: (attributes, isOn) =>
-                h.div(
-                  [],
-                  [
-                    h.button([...attributes.button], [isOn ? 'On' : 'Off']),
-                    h.button(
-                      [h.OnClick(Settings.Message.ClickedReset())],
-                      [`Reset ${model.resetCount}`],
-                    ),
-                  ],
+const SettingsLive = Settings.toLayer(() => ({
+  init: () => ({ toggle: new Toggle('toggle'), resetCount: 0 }),
+  update: {
+    ClickedReset: model => ({
+      model: { ...model, resetCount: model.resetCount + 1 },
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.toggle.view({
+          toView: (attributes, isOn) =>
+            h.div(
+              [],
+              [
+                h.button([...attributes.button], [isOn ? 'On' : 'Off']),
+                h.button(
+                  [h.OnClick(Settings.Message.ClickedReset())],
+                  [`Reset ${model.resetCount}`],
                 ),
-            }),
-          ],
-        ),
-    }
-  }),
-)
+              ],
+            ),
+        }),
+      ],
+    ),
+}))
 
 // MOUNT, COMMAND ARGS, ROUTING
 
@@ -101,24 +91,20 @@ class Panel extends Block<Panel>()('Panel', {
   Mount: [Measure],
 }) {}
 
-const PanelLive = Panel.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ maybeTag: '', label: 'panel' }),
-      update: {
-        MeasuredWidth: (model, { tag }) => ({
-          model: { ...model, maybeTag: tag },
-        }),
-      },
-      mounts: {
-        Measure: ({ element }) =>
-          Effect.succeed(Panel.Message.MeasuredWidth({ tag: element.tagName })),
-      },
-      view: (model, h) =>
-        h.section([h.Id('panel'), h.OnMount(Measure())], [model.maybeTag]),
-    }
-  }),
-)
+const PanelLive = Panel.toLayer(() => ({
+  init: () => ({ maybeTag: '', label: 'panel' }),
+  update: {
+    MeasuredWidth: (model, { tag }) => ({
+      model: { ...model, maybeTag: tag },
+    }),
+  },
+  mounts: {
+    Measure: ({ element }) =>
+      Effect.succeed(Panel.Message.MeasuredWidth({ tag: element.tagName })),
+  },
+  view: (model, h) =>
+    h.section([h.Id('panel'), h.OnMount(Measure())], [model.maybeTag]),
+}))
 
 const ShellMessage = defineMessageUnion({
   ClickedLink: { request: Schema.Unknown },
@@ -142,45 +128,41 @@ class Shell extends Block<Shell, Readonly<{ url: Url }>>()('Shell', {
   Command: [ReadLabel],
 }) {}
 
-const ShellLive = Shell.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({
-        path: url.pathname,
-        panel: new Panel('panel'),
-        label: '',
-      }),
-      update: {
-        ClickedLink: model => ({ model }),
-        ChangedUrl: model => ({ model }),
-        ClickedRead: model => ({
-          model,
-          commands: [ReadLabel({ label: model.panel.model.label })],
-        }),
-        CompletedRead: (model, { label }) => ({ model: { ...model, label } }),
-      },
-      commands: {
-        ReadLabel: ({ label }) =>
-          Effect.succeed(Shell.Message.CompletedRead({ label })),
-      },
-      view: (model, h) => ({
-        title: model.path,
-        body: h.div(
-          [],
-          [
-            h.span([h.Id('path')], [model.path]),
-            h.span([h.Id('label')], [model.label]),
-            h.button(
-              [h.Id('read'), h.OnClick(Shell.Message.ClickedRead())],
-              ['Read'],
-            ),
-            model.panel.view(),
-          ],
-        ),
-      }),
-    }
+const ShellLive = Shell.toLayer(() => ({
+  init: ({ url }) => ({
+    path: url.pathname,
+    panel: new Panel('panel'),
+    label: '',
   }),
-)
+  update: {
+    ClickedLink: model => ({ model }),
+    ChangedUrl: model => ({ model }),
+    ClickedRead: model => ({
+      model,
+      commands: [ReadLabel({ label: model.panel.model.label })],
+    }),
+    CompletedRead: (model, { label }) => ({ model: { ...model, label } }),
+  },
+  commands: {
+    ReadLabel: ({ label }) =>
+      Effect.succeed(Shell.Message.CompletedRead({ label })),
+  },
+  view: (model, h) => ({
+    title: model.path,
+    body: h.div(
+      [],
+      [
+        h.span([h.Id('path')], [model.path]),
+        h.span([h.Id('label')], [model.label]),
+        h.button(
+          [h.Id('read'), h.OnClick(Shell.Message.ClickedRead())],
+          ['Read'],
+        ),
+        model.panel.view(),
+      ],
+    ),
+  }),
+}))
 
 const waitFor = (predicate: () => boolean) =>
   Effect.gen(function* () {

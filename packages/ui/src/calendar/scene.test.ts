@@ -1,4 +1,4 @@
-import { Effect, Layer, Match, Option, Schema } from 'effect'
+import { Layer, Match, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import * as Calendar from 'foldkit/calendar'
 import { inertHtml as ih } from 'foldkit/html'
@@ -111,21 +111,17 @@ class CalendarScene extends Block<CalendarScene>()('CalendarScene', {
 }) {}
 
 const makeCalendarSceneLive = (args: CalendarSceneArgs) =>
-  CalendarScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          calendar: new CalendarBlock('calendar', args.calendar),
-        }),
-        view: model =>
-          model.calendar.view({
-            maybeSelectedDate: Option.none(),
-            toView: testToView,
-            ...args.viewInputs,
-          }),
-      }
+  CalendarScene.toLayer(() => ({
+    init: () => ({
+      calendar: new CalendarBlock('calendar', args.calendar),
     }),
-  ).pipe(Layer.provide(CalendarLive))
+    view: model =>
+      model.calendar.view({
+        maybeSelectedDate: Option.none(),
+        toView: testToView,
+        ...args.viewInputs,
+      }),
+  })).pipe(Layer.provide(CalendarLive))
 
 const germanLocale: Calendar.LocaleConfig = {
   ...Calendar.defaultEnglishLocale,

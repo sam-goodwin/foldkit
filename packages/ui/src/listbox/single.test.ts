@@ -62,19 +62,15 @@ const makeListboxScene = <Item, Value extends string>(
   }) {}
 
   return (viewInputs: ViewInputs<Item, Value>) =>
-    ListboxScene.layer(
-      Effect.gen(function* () {
-        return {
-          init: () => ({ listbox: new SceneListbox('listbox', testConfig) }),
-          update: {
-            ...SceneListbox.on({
-              Selected: (model, outMessage) => ({ model, outMessage }),
-            }),
-          },
-          view: model => model.listbox.view(viewInputs),
-        }
-      }),
-    ).pipe(Layer.provide(SceneListbox.Live))
+    ListboxScene.toLayer(() => ({
+      init: () => ({ listbox: new SceneListbox('listbox', testConfig) }),
+      update: {
+        ...SceneListbox.on({
+          Selected: (model, outMessage) => ({ model, outMessage }),
+        }),
+      },
+      view: model => model.listbox.view(viewInputs),
+    })).pipe(Layer.provide(SceneListbox.Live))
 }
 
 const makeListboxSceneLive = makeListboxScene(TestListbox)

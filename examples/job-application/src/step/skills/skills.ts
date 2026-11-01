@@ -40,7 +40,7 @@ export class Skills extends Block<Skills, SkillsArgs>()('Skills', {
   Command: [GenerateSkillsEntryId],
 }) {}
 
-export const SkillsLive = Skills.layer(
+export const SkillsLive = Skills.toLayer(
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
 

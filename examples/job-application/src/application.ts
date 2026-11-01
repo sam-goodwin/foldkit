@@ -1,7 +1,6 @@
 import clsx from 'clsx'
 import {
   Array,
-  Effect,
   Equal,
   HashSet,
   Layer,
@@ -91,79 +90,71 @@ export class Application extends Block<
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({
-        currentStep: 'PersonalInfo',
-        personalInfo: new PersonalInfo('personalInfo', { today: flags.today }),
-        workHistory: new WorkHistory('workHistory', {
-          today: flags.today,
-          initialEntryId: flags.initialWorkHistoryEntryId,
-        }),
-        education: new Education('education', {
-          today: flags.today,
-          initialEntryId: flags.initialEducationEntryId,
-        }),
-        skills: new Skills('skills', {
-          initialEntryId: flags.initialSkillsEntryId,
-        }),
-        coverLetter: new CoverLetter('coverLetter'),
-        attachments: new Attachments('attachments'),
-        review: new Review('review'),
-        preview: new Preview('preview'),
-        stepMenu: new StepMenu('stepMenu', { id: 'step-menu' }),
-        stepTabs: new StepTabs('stepTabs', { id: 'step-tabs' }),
-      }),
-
-      update: {
-        ClickedNext: model => ({
-          model: modifyFields(model, { currentStep: toNextStep }),
-        }),
-
-        ClickedPrevious: model => ({
-          model: modifyFields(model, { currentStep: toPreviousStep }),
-        }),
-
-        ...Review.on({
-          AttemptedSubmit: model => ({
-            model,
-            messages: [
-              model.personalInfo.send(
-                PersonalInfo.Message.RequestedRevealErrors(),
-              ),
-              model.workHistory.send(
-                WorkHistory.Message.RequestedRevealErrors(),
-              ),
-              model.education.send(Education.Message.RequestedRevealErrors()),
-              model.skills.send(Skills.Message.RequestedRevealErrors()),
-              model.review.send(
-                Review.Message.RequestedSubmit({
-                  isApplicationComplete: isApplicationComplete(model),
-                }),
-              ),
-            ],
-          }),
-        }),
-
-        ...StepMenu.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { currentStep: () => value }),
-          }),
-          Closed: model => ({ model }),
-        }),
-
-        ...StepTabs.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { currentStep: () => value }),
-          }),
-        }),
-      },
-
-      view,
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) => ({
+    currentStep: 'PersonalInfo',
+    personalInfo: new PersonalInfo('personalInfo', { today: flags.today }),
+    workHistory: new WorkHistory('workHistory', {
+      today: flags.today,
+      initialEntryId: flags.initialWorkHistoryEntryId,
+    }),
+    education: new Education('education', {
+      today: flags.today,
+      initialEntryId: flags.initialEducationEntryId,
+    }),
+    skills: new Skills('skills', {
+      initialEntryId: flags.initialSkillsEntryId,
+    }),
+    coverLetter: new CoverLetter('coverLetter'),
+    attachments: new Attachments('attachments'),
+    review: new Review('review'),
+    preview: new Preview('preview'),
+    stepMenu: new StepMenu('stepMenu', { id: 'step-menu' }),
+    stepTabs: new StepTabs('stepTabs', { id: 'step-tabs' }),
   }),
-).pipe(
+
+  update: {
+    ClickedNext: model => ({
+      model: modifyFields(model, { currentStep: toNextStep }),
+    }),
+
+    ClickedPrevious: model => ({
+      model: modifyFields(model, { currentStep: toPreviousStep }),
+    }),
+
+    ...Review.on({
+      AttemptedSubmit: model => ({
+        model,
+        messages: [
+          model.personalInfo.send(PersonalInfo.Message.RequestedRevealErrors()),
+          model.workHistory.send(WorkHistory.Message.RequestedRevealErrors()),
+          model.education.send(Education.Message.RequestedRevealErrors()),
+          model.skills.send(Skills.Message.RequestedRevealErrors()),
+          model.review.send(
+            Review.Message.RequestedSubmit({
+              isApplicationComplete: isApplicationComplete(model),
+            }),
+          ),
+        ],
+      }),
+    }),
+
+    ...StepMenu.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { currentStep: () => value }),
+      }),
+      Closed: model => ({ model }),
+    }),
+
+    ...StepTabs.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { currentStep: () => value }),
+      }),
+    }),
+  },
+
+  view,
+})).pipe(
   Layer.provide(
     Layer.mergeAll(
       PersonalInfoLive,

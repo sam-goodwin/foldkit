@@ -38,29 +38,25 @@ const panelView = (model: Model, h: PanelViewBuilder): Html =>
     ],
   )
 
-export const PanelLive = Panel.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ maybePanelHeight: Option.none() }),
+export const PanelLive = Panel.toLayer(() => ({
+  init: () => ({ maybePanelHeight: Option.none() }),
 
-      update: {
-        CompletedMeasurePanel: (model, { height }) => ({
-          model: modifyFields(model, {
-            maybePanelHeight: () => Option.some(height),
-          }),
+  update: {
+    CompletedMeasurePanel: (model, { height }) => ({
+      model: modifyFields(model, {
+        maybePanelHeight: () => Option.some(height),
+      }),
+    }),
+  },
+
+  mounts: {
+    MeasurePanel: ({ element }) =>
+      Effect.sync(() =>
+        Message.CompletedMeasurePanel({
+          height: element.getBoundingClientRect().height,
         }),
-      },
+      ),
+  },
 
-      mounts: {
-        MeasurePanel: ({ element }) =>
-          Effect.sync(() =>
-            Message.CompletedMeasurePanel({
-              height: element.getBoundingClientRect().height,
-            }),
-          ),
-      },
-
-      view: panelView,
-    }
-  }),
-)
+  view: panelView,
+}))

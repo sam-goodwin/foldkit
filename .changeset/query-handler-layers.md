@@ -2,9 +2,9 @@
 'foldkit': minor
 ---
 
-Experimental Query and KeyedQuery are Block classes. `Query.define` returns a class that a parent holds in its Model like any other child Block, and `config.handler` replaces `execute`.
+Experimental Query and KeyedQuery are Block classes. `Query.define` declares a class that a parent holds in its Model like any other child Block, and the class's `layer` replaces `execute`.
 
-`handler` is a generator that runs once when the Query's Layer is built. Yield any services it needs and return the fetch function, which runs for each Fetch Command. A KeyedQuery fetch receives the declared args. The returned class carries its Layer as `Live`. Omit `handler` when a host supplies the fetch implementation, and build the Layer with the class's `toLayer`, which takes an Effect that constructs the fetch function.
+`PostsQuery.toLayer` takes an Effect that runs once when the Layer is built. Yield any services it needs and return the fetch function, which runs for each Fetch Command. A KeyedQuery fetch receives the declared args. The returned Layer provides the Query Block and its fetch function, and requires only what the Effect requires.
 
 ```ts
 // Before
@@ -20,13 +20,17 @@ export const PostsQuery = Query.define({
   name: 'Posts',
   data: PostList,
   error: Schema.String,
-  handler: function* () {
-    return () => fetchPosts
-  },
 })
+
+export const PostsQueryLive = PostsQuery.toLayer(
+  Effect.gen(function* () {
+    const api = yield* PostsApi
+    return () => api.list
+  }),
+)
 ```
 
-Create the instance with `new` in the parent's `init`, put it in the parent's Model, and provide `PostsQuery.Live` to the parent's Layer. Pass `{ isLoadingOnStart: true }` to start the first fetch when the instance enters the Model, or `{}` to start Idle. The parent drives loading by sending `Requested*` Messages and reads the retained value with `PostsQuery.read`:
+Create the instance with `new` in the parent's `init`, put it in the parent's Model, and provide `PostsQueryLive` to the parent's Layer. Pass `{ isLoadingOnStart: true }` to start the first fetch when the instance enters the Model, or `{}` to start Idle. The parent drives loading by sending `Requested*` Messages and reads the retained value with `PostsQuery.read`:
 
 ```ts
 // In the parent's init

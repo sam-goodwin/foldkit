@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Match, Option, Schema, pipe } from 'effect'
+import { Array, Layer, Match, Option, Schema, pipe } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -38,44 +38,40 @@ export class VirtualListPage extends Block<VirtualListPage>()(
   { Model, Message },
 ) {}
 
-export const VirtualListPageLive = VirtualListPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        virtualListDemo: new ActivityVirtualList('virtualListDemo', {
-          id: 'virtual-list-demo',
-          rowHeightPx: 56,
-        }),
-        virtualListVariableDemo: new ActivityVirtualList(
-          'virtualListVariableDemo',
-          { id: 'virtual-list-variable-demo', rowHeightPx: 56 },
-        ),
-      }),
-
-      update: {
-        ClickedVirtualListScrollToMiddle: model => ({
-          model,
-          messages: [
-            model.virtualListDemo.send(
-              VirtualList.requestScrollToIndex(MIDDLE_INDEX),
-            ),
-          ],
-        }),
-
-        ClickedVirtualListVariableScrollToMiddle: model => ({
-          model,
-          messages: [
-            model.virtualListVariableDemo.send(
-              VirtualList.requestScrollToIndex(MIDDLE_INDEX),
-            ),
-          ],
-        }),
-      },
-
-      view,
-    }
+export const VirtualListPageLive = VirtualListPage.toLayer(() => ({
+  init: () => ({
+    virtualListDemo: new ActivityVirtualList('virtualListDemo', {
+      id: 'virtual-list-demo',
+      rowHeightPx: 56,
+    }),
+    virtualListVariableDemo: new ActivityVirtualList(
+      'virtualListVariableDemo',
+      { id: 'virtual-list-variable-demo', rowHeightPx: 56 },
+    ),
   }),
-).pipe(Layer.provide(ActivityVirtualList.Live))
+
+  update: {
+    ClickedVirtualListScrollToMiddle: model => ({
+      model,
+      messages: [
+        model.virtualListDemo.send(
+          VirtualList.requestScrollToIndex(MIDDLE_INDEX),
+        ),
+      ],
+    }),
+
+    ClickedVirtualListVariableScrollToMiddle: model => ({
+      model,
+      messages: [
+        model.virtualListVariableDemo.send(
+          VirtualList.requestScrollToIndex(MIDDLE_INDEX),
+        ),
+      ],
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(ActivityVirtualList.Live))
 
 const actorNames = [
   'Sarah Chen',

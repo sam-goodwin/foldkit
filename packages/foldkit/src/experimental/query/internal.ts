@@ -6,6 +6,7 @@ import {
   type __Registry,
   __registerKeyWhileRunning,
 } from '../../command/interruptible/interruptible.js'
+import type { HandlerRequirements } from '../../definitionIdentity.js'
 
 export type AsyncDataTransition = <A, E>(
   data: AsyncData.AsyncData<A, E>,
@@ -48,16 +49,21 @@ export const makeFetcherLayer = <
     QueryFetcher<Name>,
     (...input: Input) => Effect.Effect<A, E>
   >,
-  build: Effect.Effect<
-    (...input: Input) => Effect.Effect<A, E, R>,
-    BuildE,
-    BuildR
-  >,
-): Layer.Layer<QueryFetcher<Name>, BuildE, Exclude<R | BuildR, Scope.Scope>> =>
+  build:
+    | Effect.Effect<(...input: Input) => Effect.Effect<A, E, R>, BuildE, BuildR>
+    | ((...input: Input) => Effect.Effect<A, E, R>),
+): Layer.Layer<
+  QueryFetcher<Name>,
+  BuildE,
+  Exclude<HandlerRequirements<R> | BuildR, Scope.Scope>
+> =>
+  // oxlint-disable-next-line typescript/consistent-type-assertions, effecttsgo/unsafe-effect-type-assertion
   Layer.effect(
     Fetcher,
     Effect.gen(function* () {
-      const execute = yield* build
+      const execute = yield* Effect.isEffect(build)
+        ? build
+        : Effect.succeed(build)
       const context = yield* Effect.context<R>()
 
       return (...input: Input) =>
@@ -65,7 +71,11 @@ export const makeFetcherLayer = <
           Context.merge(context, invocationContext),
         )
     }),
-  )
+  ) as Layer.Layer<
+    QueryFetcher<Name>,
+    BuildE,
+    Exclude<HandlerRequirements<R> | BuildR, Scope.Scope>
+  >
 
 /** @internal Runs a fetch while it holds an interrupt key in the instance's
  *  own registry, so a cancel reaches only that instance's work. */
@@ -88,3 +98,22 @@ export const withoutChildBlocks = <Self, R, Unresolved = unknown>(
 ): Layer.Layer<Self, never, R> =>
   // oxlint-disable-next-line typescript/consistent-type-assertions, effecttsgo/unsafe-effect-type-assertion
   layer as unknown as Layer.Layer<Self, never, R>
+
+/** @internal Attaches a Query's statics to its Block class. `layer` replaces
+ *  the Block's module-taking `layer`, so it is redefined rather than
+ *  assigned. */
+export const withQueryStatics = <Class extends object, Statics extends object>(
+  QueryBlock: Class,
+  statics: Statics,
+): Class & Statics => {
+  for (const [key, value] of Object.entries(statics)) {
+    Object.defineProperty(QueryBlock, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+    })
+  }
+
+  // oxlint-disable-next-line typescript/consistent-type-assertions
+  return QueryBlock as Class & Statics
+}

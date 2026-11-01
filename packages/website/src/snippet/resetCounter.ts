@@ -20,45 +20,41 @@ export class Application extends Block<Application>()('Application', {
   Command: [WaitBeforeReset],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0 }),
 
-      update: {
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: Number.increment }),
-        }),
-        ClickedDecrement: model => ({
-          model: modifyFields(model, { count: Number.decrement }),
-        }),
-        ClickedResetAfterDelay: model => ({
-          model,
-          commands: [WaitBeforeReset()],
-        }),
-        CompletedWaitBeforeReset: model => ({
-          model: modifyFields(model, { count: () => 0 }),
-        }),
-      },
+  update: {
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+    ClickedDecrement: model => ({
+      model: modifyFields(model, { count: Number.decrement }),
+    }),
+    ClickedResetAfterDelay: model => ({
+      model,
+      commands: [WaitBeforeReset()],
+    }),
+    CompletedWaitBeforeReset: model => ({
+      model: modifyFields(model, { count: () => 0 }),
+    }),
+  },
 
-      commands: {
-        WaitBeforeReset: () =>
-          Effect.sleep('1 second').pipe(
-            Effect.as(Message.CompletedWaitBeforeReset()),
-          ),
-      },
+  commands: {
+    WaitBeforeReset: () =>
+      Effect.sleep('1 second').pipe(
+        Effect.as(Message.CompletedWaitBeforeReset()),
+      ),
+  },
 
-      view: (model, h) => ({
-        title: `Count: ${model.count}`,
-        body: h.div(
-          [],
-          [
-            h.p([], [`${model.count}`]),
-            h.button([h.OnClick(Message.ClickedIncrement())], ['+']),
-            h.button([h.OnClick(Message.ClickedResetAfterDelay())], ['Reset']),
-          ],
-        ),
-      }),
-    }
+  view: (model, h) => ({
+    title: `Count: ${model.count}`,
+    body: h.div(
+      [],
+      [
+        h.p([], [`${model.count}`]),
+        h.button([h.OnClick(Message.ClickedIncrement())], ['+']),
+        h.button([h.OnClick(Message.ClickedResetAfterDelay())], ['Reset']),
+      ],
+    ),
   }),
-)
+}))

@@ -36,7 +36,7 @@ Query does not react to rendering, poll, or refresh related resources on its own
 
 #### Configuration
 
-Import the `Query` namespace from `foldkit/experimental`. Give `Query.define` a name, the data and error Schemas, and a `handler` that constructs the fetch function:
+Import the `Query` namespace from `foldkit/experimental`. Give `Query.define` a name and the data and error Schemas, then implement the class with `PostsQuery.toLayer`, passing an Effect that returns the fetch function:
 
 ::Snippet{name="queryDefine" label="Defining a Query for posts"}
 
@@ -44,7 +44,7 @@ With no `args`, `Query.define` returns a Query class that retains one value. In 
 
 - `data` and `error` determine the `AsyncData`, Model, and Message Schemas.
 - `name: 'Posts'` is the Block id, and it prefixes the Query's `Posts/Fetch` and `Posts/CancelFetch` Commands.
-- The `handler` generator constructs the fetch function. Because the definition has a `handler`, the class carries its Layer as `PostsQuery.Live`.
+- `PostsQuery.toLayer` takes an Effect that constructs the fetch function and returns the Query's Layer, `PostsQueryLive`.
 
 Set `staleTime` to an Effect `Duration.Input` when the parent should revalidate successful data after a fixed interval. The default is `Duration.infinity`, so successful data remains fresh until the parent explicitly requests revalidation. Query records the successful fetch's completion time from Effect Clock; a failed refresh keeps the previous successful timestamp. The interval does not change `read` or remove retained data.
 
@@ -52,11 +52,11 @@ The `data` and `error` values must be Schema Codecs that require no encoding or 
 
 #### The Query Layer
 
-The `handler` generator runs once, when the Runtime builds `PostsQuery.Live`. Services it yields become requirements of that Layer, and the returned fetch function runs for every Fetch Command. Provide `PostsQuery.Live` to the Layer of each parent that creates a `PostsQuery` instance, and provide ordinary services such as an HTTP client through `ApplicationLayer` as usual.
+The Effect passed to `PostsQuery.toLayer` runs once, when the Runtime builds `PostsQueryLive`. Services it yields become requirements of that Layer, and the returned fetch function runs for every Fetch Command. The Layer provides both the Query Block and its fetch function. Provide `PostsQueryLive` to the Layer of each parent that creates a `PostsQuery` instance, and provide ordinary services such as an HTTP client through `ApplicationLayer` as usual.
 
-Omit `handler` when a host supplies the fetch implementation. The class then has no `Live`, and `PostsQuery.toLayer(build)` creates its Layer from an Effect that constructs the fetch function. `toLayer` also builds an alternative Layer for a Query that has a `handler`. Tests usually keep the handler and replace the services it yields instead.
+The class itself is only a declaration, so a host or a test can build a different Layer from another Effect with `PostsQuery.toLayer`. Tests usually keep `PostsQueryLive` and replace the services its Effect yields instead.
 
-`PostsQuery.run` runs the fetch function directly and returns settled `AsyncData`, outside any Block. It requires the Query's fetch function, so provide `PostsQuery.Live` or a `toLayer` result to the Effect.
+`PostsQuery.run` runs the fetch function directly and returns settled `AsyncData`, outside any Block. It requires the Query's fetch function, so provide `PostsQueryLive` or another `PostsQuery.toLayer` result to the Effect.
 
 #### The Query Class
 
@@ -76,7 +76,7 @@ The parent puts the class in its Model Schema, creates an instance with `new Pos
 
 Name the instance for its role in the parent, and use the same name for the Model field and the id. Pass `{}` to create an `Idle` Query. Pass `{ isLoadingOnStart: true }` to return a first Fetch Command as a `start` Command when the instance enters the Model. Rendering the parent does not start a request.
 
-The parent's Layer must provide `PostsQuery.Live`, as the `Layer.provide` call at the end of the snippet does.
+The parent's Layer must provide `PostsQueryLive`, as the `Layer.provide` call at the end of the snippet does.
 
 #### Sending Requests
 
@@ -206,7 +206,7 @@ Each `args` field has the same restriction as `data` and `error`: its Schema Cod
 
 KeyedQuery snapshots args through their declared Codec before storing them or returning a Fetch Command. It captures the canonical cache key for that request once. The completion Message carries that key, so settling the request does not recompute `toKey` from args that may have changed.
 
-The stored args and the handler's args are separate decoded values. This protects fields reconstructed by the declared Codec; an opaque value accepted by a Schema such as `Schema.Unknown` can retain its original identity. Keep opaque argument values immutable for the duration of the request.
+The stored args and the fetch function's args are separate decoded values. This protects fields reconstructed by the declared Codec; an opaque value accepted by a Schema such as `Schema.Unknown` can retain its original identity. Keep opaque argument values immutable for the duration of the request.
 
 ### Custom Keys
 
@@ -248,4 +248,4 @@ The checkout Block's Model owns the `AsyncData` field. Its `SubmitOrder` handler
 
 The [Async Data guide](/core/async-data) covers the state type, transitions, and rendering helpers used when the application owns this wiring.
 
-The [Query API reference](/api-reference/experimental-query) lists the exact `define`, Query class, KeyedQuery class, Message, `read`, `toLayer`, and `run` signatures.
+The [Query API reference](/api-reference/experimental-query) lists the exact `define`, Query class, KeyedQuery class, Message, `read`, `layer`, and `run` signatures.

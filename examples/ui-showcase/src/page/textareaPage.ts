@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -21,21 +21,17 @@ export class TextareaPage extends Block<TextareaPage>()('TextareaPage', {
   Message,
 }) {}
 
-export const TextareaPageLive = TextareaPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ textareaDemoValue: '' }),
+export const TextareaPageLive = TextareaPage.toLayer(() => ({
+  init: () => ({ textareaDemoValue: '' }),
 
-      update: {
-        UpdatedTextareaDemoValue: (model, { value }) => ({
-          model: modifyFields(model, { textareaDemoValue: () => value }),
-        }),
-      },
+  update: {
+    UpdatedTextareaDemoValue: (model, { value }) => ({
+      model: modifyFields(model, { textareaDemoValue: () => value }),
+    }),
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 const textareaClassName =
   'block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 transition-colors placeholder:text-gray-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50'

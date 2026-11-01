@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -21,57 +21,53 @@ export class PlanPicker extends Block<PlanPicker>()('PlanPicker', {
   }),
 }) {}
 
-export const PlanPickerLive = PlanPicker.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        listbox: new PlanListbox('listbox', { id: 'plan' }),
-        maybePlan: Option.none(),
-      }),
-
-      update: {
-        // The parent owns the selection: store the committed value
-        ...PlanListbox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { maybePlan: () => Option.some(value) }),
-          }),
-        }),
-      },
-
-      // A native `<label for>` targeting `buttonId('plan')` gives the trigger
-      // its accessible name, so `ariaLabelledBy` is not needed here
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.label([h.For(ListboxButtonId('plan'))], ['Plan']),
-            model.listbox.view({
-              // `items` must be ReadonlyArray<Plan>. The factory's <Plan> parameter constrains the shape.
-              items: plans,
-              // The parent owns the selection and passes it in. Single-select
-              // takes an Option: None when nothing is selected yet.
-              maybeSelectedValue: model.maybePlan,
-              buttonContent: h.span(
-                [],
-                [Option.getOrElse(model.maybePlan, () => 'Select a plan')],
-              ),
-              buttonClassName: 'w-full rounded-lg border px-3 py-2 text-left',
-              itemsClassName: 'rounded-lg border shadow-lg',
-              itemToConfig: (plan, { isSelected, isActive }) => ({
-                className: isActive ? 'bg-blue-100' : '',
-                content: h.div(
-                  [h.Class('flex items-center gap-2 px-3 py-2')],
-                  [
-                    isSelected ? h.span([], ['✓']) : h.span([h.Class('w-4')]),
-                    h.span([], [plan]),
-                  ],
-                ),
-              }),
-              backdropClassName: 'fixed inset-0',
-              anchor: { placement: 'bottom-start', gap: 4, padding: 8 },
-            }),
-          ],
-        ),
-    }
+export const PlanPickerLive = PlanPicker.toLayer(() => ({
+  init: () => ({
+    listbox: new PlanListbox('listbox', { id: 'plan' }),
+    maybePlan: Option.none(),
   }),
-).pipe(Layer.provide(PlanListbox.Live))
+
+  update: {
+    // The parent owns the selection: store the committed value
+    ...PlanListbox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { maybePlan: () => Option.some(value) }),
+      }),
+    }),
+  },
+
+  // A native `<label for>` targeting `buttonId('plan')` gives the trigger
+  // its accessible name, so `ariaLabelledBy` is not needed here
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.label([h.For(ListboxButtonId('plan'))], ['Plan']),
+        model.listbox.view({
+          // `items` must be ReadonlyArray<Plan>. The factory's <Plan> parameter constrains the shape.
+          items: plans,
+          // The parent owns the selection and passes it in. Single-select
+          // takes an Option: None when nothing is selected yet.
+          maybeSelectedValue: model.maybePlan,
+          buttonContent: h.span(
+            [],
+            [Option.getOrElse(model.maybePlan, () => 'Select a plan')],
+          ),
+          buttonClassName: 'w-full rounded-lg border px-3 py-2 text-left',
+          itemsClassName: 'rounded-lg border shadow-lg',
+          itemToConfig: (plan, { isSelected, isActive }) => ({
+            className: isActive ? 'bg-blue-100' : '',
+            content: h.div(
+              [h.Class('flex items-center gap-2 px-3 py-2')],
+              [
+                isSelected ? h.span([], ['✓']) : h.span([h.Class('w-4')]),
+                h.span([], [plan]),
+              ],
+            ),
+          }),
+          backdropClassName: 'fixed inset-0',
+          anchor: { placement: 'bottom-start', gap: 4, padding: 8 },
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(PlanListbox.Live))

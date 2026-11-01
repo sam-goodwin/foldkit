@@ -32,7 +32,10 @@ export const PostsQuery = Query.define({
   data: PostList,
   error: Schema.String,
   staleTime: '1 minute',
-  handler: function* () {
-    return () => fetchPosts
-  },
 })
+
+export const PostsQueryLive = PostsQuery.toLayer(
+  Effect.gen(function* () {
+    return () => fetchPosts
+  }),
+)

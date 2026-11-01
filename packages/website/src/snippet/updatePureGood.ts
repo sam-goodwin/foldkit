@@ -19,26 +19,22 @@ export class Search extends Block<Search>()('Search', {
   Command: [FocusSearchInput],
 }) {}
 
-export const SearchLive = Search.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ dialogState: 'Closed' }),
+export const SearchLive = Search.toLayer(() => ({
+  init: () => ({ dialogState: 'Closed' }),
 
-      update: {
-        OpenedDialog: model => ({
-          model: modifyFields(model, { dialogState: () => 'Open' }),
-          commands: [FocusSearchInput()],
-        }),
-        CompletedFocusSearchInput: model => ({ model }),
-      },
+  update: {
+    OpenedDialog: model => ({
+      model: modifyFields(model, { dialogState: () => 'Open' }),
+      commands: [FocusSearchInput()],
+    }),
+    CompletedFocusSearchInput: model => ({ model }),
+  },
 
-      commands: {
-        FocusSearchInput: () =>
-          Dom.focus('#search-input').pipe(
-            Effect.ignore,
-            Effect.as(Message.CompletedFocusSearchInput()),
-          ),
-      },
-    }
-  }),
-)
+  commands: {
+    FocusSearchInput: () =>
+      Dom.focus('#search-input').pipe(
+        Effect.ignore,
+        Effect.as(Message.CompletedFocusSearchInput()),
+      ),
+  },
+}))

@@ -65,7 +65,7 @@ export class CommentComposer extends Block<
   Command: [AddComment],
 }) {}
 
-export const CommentComposerLive = CommentComposer.layer(
+export const CommentComposerLive = CommentComposer.toLayer(
   Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 

@@ -30,26 +30,30 @@ class Suffix extends Context.Service<Suffix, { readonly value: string }>()(
 const SendMessage = Command.define('SendMessage', {
   args: { text: Schema.String },
   messages: [Message.CompletedSendMessage],
-  handler: function* () {
+})
+
+const SendMessageLive = SendMessage.toLayer(
+  Effect.gen(function* () {
     return ({ text }) =>
       Effect.map(Prefix, ({ value }) =>
         Message.CompletedSendMessage({ text: value + text }),
       )
-  },
-})
-
-const SendMessageLayer = SendMessage.layer
+  }),
+)
 
 const ReadPrefix = Command.define('ReadPrefix', {
   messages: [Message.CompletedSendMessage],
   interrupt: true,
-  handler: function* () {
+})
+
+const ReadPrefixLive = ReadPrefix.toLayer(
+  Effect.gen(function* () {
     return () =>
       Effect.map(Prefix, ({ value }) =>
         Message.CompletedSendMessage({ text: value }),
       )
-  },
-})
+  }),
+)
 
 if (false) {
   const HostCommand = Command.define('ConstructionHostCommand', {
@@ -77,16 +81,6 @@ if (false) {
         Effect.succeed(Message.CompletedSendMessage({ text: 'complete' }))
     }),
   )
-
-  Command.define('AttachedConstructionCommand', {
-    messages: [Message.CompletedSendMessage],
-    // @ts-expect-error Attached handlers have the same construction requirement guard.
-    handler: function* () {
-      yield* SendMessage({ text: 'nested' }).effect
-      return () =>
-        Effect.succeed(Message.CompletedSendMessage({ text: 'complete' }))
-    },
-  })
 }
 
 const update = (model: Model, message: Message) =>
@@ -114,7 +108,7 @@ it('carries the handler requirement and its implementation dependencies', () => 
   expectTypeOf<
     Command.HandlerOf<typeof SendMessage>
   >().toEqualTypeOf<SendMessageHandler>()
-  expectTypeOf(SendMessageLayer).toEqualTypeOf<
+  expectTypeOf(SendMessageLive).toEqualTypeOf<
     Layer.Layer<SendMessageHandler, never, Prefix>
   >()
 
@@ -167,7 +161,7 @@ it('preserves additional evidence on an extracted handler requirement', () => {
 })
 
 it('uses invocation context over the context captured by the handler Layer', async () => {
-  const handlerLayer = SendMessageLayer.pipe(
+  const handlerLayer = SendMessageLive.pipe(
     Layer.provideMerge(Layer.succeed(Prefix, { value: 'construction:' })),
   )
   const result = await Effect.runPromise(
@@ -239,19 +233,22 @@ it('builds the handler once for multiple Command executions', async () => {
   const BuildOnce = Command.define('BuildOnce', {
     args: { text: Schema.String },
     messages: [Message.CompletedSendMessage],
-    handler: function* () {
+  })
+
+  const BuildOnceLive = BuildOnce.toLayer(
+    Effect.gen(function* () {
       builds += 1
 
       return ({ text }) =>
         Effect.succeed(Message.CompletedSendMessage({ text }))
-    },
-  })
+    }),
+  )
 
   const results = await Effect.runPromise(
     Effect.all([
       BuildOnce({ text: 'first' }).effect,
       BuildOnce({ text: 'second' }).effect,
-    ]).pipe(Effect.provide(BuildOnce.layer)),
+    ]).pipe(Effect.provide(BuildOnceLive)),
   )
 
   expect(builds).toBe(1)
@@ -263,7 +260,7 @@ it('builds the handler once for multiple Command executions', async () => {
 
 it('keeps interruptible Command identity with a Layer-backed handler', async () => {
   const command = ReadPrefix()
-  const handlerLayer = ReadPrefix.layer.pipe(
+  const handlerLayer = ReadPrefixLive.pipe(
     Layer.provideMerge(Layer.succeed(Prefix, { value: 'ready' })),
   )
   const result = await Effect.runPromise(
@@ -286,7 +283,10 @@ it('infers constructor failures and nested handler requirements', () => {
   const NestedRequirements = Command.define('NestedRequirements', {
     args: { text: Schema.String },
     messages: [Message.CompletedSendMessage],
-    handler: function* () {
+  })
+
+  const NestedRequirementsLive = NestedRequirements.toLayer(
+    Effect.gen(function* () {
       yield* Effect.scope
       const suffix = yield* Suffix
       if (suffix.value === 'unavailable') {
@@ -306,10 +306,10 @@ it('infers constructor failures and nested handler requirements', () => {
           })
         })
       }
-    },
-  })
+    }),
+  )
 
-  expectTypeOf(NestedRequirements.layer).toEqualTypeOf<
+  expectTypeOf(NestedRequirementsLive).toEqualTypeOf<
     Layer.Layer<
       Command.Handler<
         'NestedRequirements',
@@ -322,7 +322,7 @@ it('infers constructor failures and nested handler requirements', () => {
   >()
 })
 
-it('keeps host contracts external and accepts alternative handlers', async () => {
+it('accepts alternative implementations of one definition', async () => {
   const SendFromHost = Command.define('SendFromHost', {
     args: { text: Schema.String },
     messages: [Message.CompletedSendMessage],
@@ -333,7 +333,6 @@ it('keeps host contracts external and accepts alternative handlers', async () =>
     ),
   )
 
-  expect('layer' in SendFromHost).toBe(false)
   expect(
     await Effect.runPromise(
       SendFromHost({ text: 'hello' }).effect.pipe(Effect.provide(layer)),

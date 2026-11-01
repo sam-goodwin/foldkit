@@ -48,13 +48,16 @@ export const reloadedSources: ReadonlyArray<RawSource> = [
 
 export const ReloadSources = Command.define('ReloadSources', {
   messages: [Message.CompletedReloadSources],
-  handler: function* () {
+})
+
+export const ReloadSourcesLive = ReloadSources.toLayer(
+  Effect.gen(function* () {
     return () =>
       Effect.succeed(
         Message.CompletedReloadSources({ sources: reloadedSources }),
       )
-  },
-})
+  }),
+)
 
 // INIT
 
@@ -121,4 +124,4 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
   return { title: 'Sources', body }
 }
 
-export const EffectsLayer = Layer.mergeAll(ReloadSources.layer)
+export const EffectsLayer = Layer.mergeAll(ReloadSourcesLive)

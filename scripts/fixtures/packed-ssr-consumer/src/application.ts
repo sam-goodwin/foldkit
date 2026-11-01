@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { CustomElement, Block } from 'foldkit'
 import { type Document, type HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -237,20 +237,16 @@ const view = (model: Model, h: ApplicationViewBuilder): Document => {
   }
 }
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) =>
-        Model.make({ count: flags.start, formState: 'Controlled' }),
-      update: {
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: count => count + 1 }),
-        }),
-        ClickedRelease: model => ({
-          model: modifyFields(model, { formState: () => 'Released' }),
-        }),
-      },
-      view,
-    }
-  }),
-)
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) =>
+    Model.make({ count: flags.start, formState: 'Controlled' }),
+  update: {
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: count => count + 1 }),
+    }),
+    ClickedRelease: model => ({
+      model: modifyFields(model, { formState: () => 'Released' }),
+    }),
+  },
+  view,
+}))

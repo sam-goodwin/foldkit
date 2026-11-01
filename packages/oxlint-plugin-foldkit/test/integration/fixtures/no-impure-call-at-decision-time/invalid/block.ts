@@ -19,7 +19,7 @@ export class Editor extends Block<Editor>()('Editor', {
   Command: [Save],
 }) {}
 
-export const EditorLive = Editor.layer(
+export const EditorLive = Editor.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ isRunning: true, lastSavedAt: Date.now() }),

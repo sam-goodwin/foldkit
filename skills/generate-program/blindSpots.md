@@ -69,7 +69,7 @@ Every Block a Model holds needs its Live Layer provided to the Layer of the pare
 - The Layer is provided in `entry.ts` but not in the test Layer, so the test file reaches for `Layer.merge`, casts, or skips the child. Tests provide children with `Layer.provide`, exactly as the entry does.
 - A component's dependencies are provided twice: `Layer.mergeAll(Dialog.DialogLive, AnimationLive)` when `DialogLive` already provides Animation. Provide only the components your Models hold.
 
-When a feature always holds the same children, provide them inside its own Live (`EditorLive = Editor.layer(...).pipe(Layer.provide(DatePicker.DatePickerLive))`) so every parent and test provides only `EditorLive`. Flag a graph where each parent repeats the same child Layer list.
+When a feature always holds the same children, provide them inside its own Live (`EditorLive = Editor.toLayer(...).pipe(Layer.provide(DatePicker.DatePickerLive))`) so every parent and test provides only `EditorLive`. Flag a graph where each parent repeats the same child Layer list.
 
 ### `startup-work-outside-start`
 

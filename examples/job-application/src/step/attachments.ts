@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Array, Effect, Layer, Match, Number, Option, Schema } from 'effect'
+import { Array, Layer, Match, Number, Option, Schema } from 'effect'
 import { Block, File } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -26,51 +26,47 @@ export class Attachments extends Block<Attachments>()('Attachments', {
   Message,
 }) {}
 
-export const AttachmentsLive = Attachments.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        resumeDrop: new FileDrop.FileDrop('resumeDrop', {
-          id: 'attachments-resume',
-        }),
-        maybeResume: Option.none(),
-        additionalFilesDrop: new FileDrop.FileDrop('additionalFilesDrop', {
-          id: 'attachments-additional',
-        }),
-        additionalFiles: [],
-      }),
-
-      update: {
-        RemovedResume: model => ({
-          model: modifyFields(model, { maybeResume: () => Option.none() }),
-        }),
-
-        RemovedAdditionalFile: (model, { fileIndex }) => ({
-          model: modifyFields(model, {
-            additionalFiles: Array.remove(fileIndex),
-          }),
-        }),
-
-        ...FileDrop.FileDrop.on({
-          ReceivedFiles: (model, { files }, { id }) => ({
-            model:
-              id === 'resumeDrop'
-                ? modifyFields(model, {
-                    maybeResume: maybeResume =>
-                      Option.orElse(Array.head(files), () => maybeResume),
-                  })
-                : modifyFields(model, {
-                    additionalFiles: Array.appendAll(files),
-                  }),
-          }),
-          RejectedNonFiles: model => ({ model }),
-        }),
-      },
-
-      view,
-    }
+export const AttachmentsLive = Attachments.toLayer(() => ({
+  init: () => ({
+    resumeDrop: new FileDrop.FileDrop('resumeDrop', {
+      id: 'attachments-resume',
+    }),
+    maybeResume: Option.none(),
+    additionalFilesDrop: new FileDrop.FileDrop('additionalFilesDrop', {
+      id: 'attachments-additional',
+    }),
+    additionalFiles: [],
   }),
-).pipe(Layer.provide(FileDrop.FileDropLive))
+
+  update: {
+    RemovedResume: model => ({
+      model: modifyFields(model, { maybeResume: () => Option.none() }),
+    }),
+
+    RemovedAdditionalFile: (model, { fileIndex }) => ({
+      model: modifyFields(model, {
+        additionalFiles: Array.remove(fileIndex),
+      }),
+    }),
+
+    ...FileDrop.FileDrop.on({
+      ReceivedFiles: (model, { files }, { id }) => ({
+        model:
+          id === 'resumeDrop'
+            ? modifyFields(model, {
+                maybeResume: maybeResume =>
+                  Option.orElse(Array.head(files), () => maybeResume),
+              })
+            : modifyFields(model, {
+                additionalFiles: Array.appendAll(files),
+              }),
+      }),
+      RejectedNonFiles: model => ({ model }),
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(FileDrop.FileDropLive))
 
 const BYTES_PER_KB = 1024
 const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB

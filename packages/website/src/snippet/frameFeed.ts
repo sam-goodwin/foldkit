@@ -1,4 +1,4 @@
-import { Array, Effect, Number, Schema } from 'effect'
+import { Array, Number, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -16,30 +16,26 @@ export class FrameFeed extends Block<FrameFeed>()('FrameFeed', {
   Message,
 }) {}
 
-export const FrameFeedLive = FrameFeed.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ sessionId: 1, frames: [] }),
+export const FrameFeedLive = FrameFeed.toLayer(() => ({
+  init: () => ({ sessionId: 1, frames: [] }),
 
-      update: {
-        ClickedReconnect: model => ({
-          model: modifyFields(model, {
-            sessionId: Number.increment,
-            frames: () => [],
-          }),
-        }),
-        ReceivedFrame: (model, { sessionId, frame }) => {
-          if (sessionId !== model.sessionId) {
-            return { model }
-          }
+  update: {
+    ClickedReconnect: model => ({
+      model: modifyFields(model, {
+        sessionId: Number.increment,
+        frames: () => [],
+      }),
+    }),
+    ReceivedFrame: (model, { sessionId, frame }) => {
+      if (sessionId !== model.sessionId) {
+        return { model }
+      }
 
-          return {
-            model: modifyFields(model, { frames: Array.append(frame) }),
-          }
-        },
-      },
+      return {
+        model: modifyFields(model, { frames: Array.append(frame) }),
+      }
+    },
+  },
 
-      view: (model, h) => h.p([], [`${model.frames.length} frames`]),
-    }
-  }),
-)
+  view: (model, h) => h.p([], [`${model.frames.length} frames`]),
+}))

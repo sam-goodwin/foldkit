@@ -32,37 +32,33 @@ class Note extends Block<Note>()('Note', {
   Command: [Save],
 }) {}
 
-const NoteLive = Note.layer(
-  Effect.gen(function* () {
-    return {
-      init: (_, { id }) => ({ noteId: id, status: 'Idle' }),
-      update: {
-        ClickedSave: model => ({
-          model,
-          commands: [Save({ body: 'draft' })],
-        }),
-        SucceededSave: model => ({ model: { ...model, status: 'Saved' } }),
-        FailedSave: (model, { reason }) => ({
-          model: { ...model, status: reason },
-        }),
-      },
-      commands: {
-        Save: () => Effect.succeed(Note.Message.SucceededSave()),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.button(
-              [h.OnClick(Note.Message.ClickedSave())],
-              [`Save ${model.noteId}`],
-            ),
-            h.p([], [`${model.noteId}: ${model.status}`]),
-          ],
+const NoteLive = Note.toLayer(() => ({
+  init: (_, { id }) => ({ noteId: id, status: 'Idle' }),
+  update: {
+    ClickedSave: model => ({
+      model,
+      commands: [Save({ body: 'draft' })],
+    }),
+    SucceededSave: model => ({ model: { ...model, status: 'Saved' } }),
+    FailedSave: (model, { reason }) => ({
+      model: { ...model, status: reason },
+    }),
+  },
+  commands: {
+    Save: () => Effect.succeed(Note.Message.SucceededSave()),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.button(
+          [h.OnClick(Note.Message.ClickedSave())],
+          [`Save ${model.noteId}`],
         ),
-    }
-  }),
-)
+        h.p([], [`${model.noteId}: ${model.status}`]),
+      ],
+    ),
+}))
 
 class Notes extends Block<Notes>()('Notes', {
   Model: Schema.Struct({
@@ -73,29 +69,22 @@ class Notes extends Block<Notes>()('Notes', {
   Message: defineMessageUnion({ ClickedAddRow: {} }),
 }) {}
 
-const NotesLive = Notes.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        left: new Note('left'),
-        right: new Note('right'),
-        rows: [],
-      }),
-      update: {
-        ClickedAddRow: model => ({
-          model: {
-            ...model,
-            rows: Array.append(
-              model.rows,
-              new Note(`row-${model.rows.length}`),
-            ),
-          },
-        }),
-      },
-      view: (model, h) => h.div([], [model.left.view(), model.right.view()]),
-    }
+const NotesLive = Notes.toLayer(() => ({
+  init: () => ({
+    left: new Note('left'),
+    right: new Note('right'),
+    rows: [],
   }),
-).pipe(Layer.provide(NoteLive))
+  update: {
+    ClickedAddRow: model => ({
+      model: {
+        ...model,
+        rows: Array.append(model.rows, new Note(`row-${model.rows.length}`)),
+      },
+    }),
+  },
+  view: (model, h) => h.div([], [model.left.view(), model.right.view()]),
+})).pipe(Layer.provide(NoteLive))
 
 const saveBoth = [
   message(deliver(Note, 'left', Note.Message.ClickedSave())),

@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 
@@ -15,16 +15,12 @@ export class HoverIntentPage extends Block<HoverIntentPage>()(
   { Model },
 ) {}
 
-export const HoverIntentPageLive = HoverIntentPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        hoverIntentDemo: new HoverIntent.HoverIntent('hoverIntentDemo', {}),
-      }),
-      view,
-    }
+export const HoverIntentPageLive = HoverIntentPage.toLayer(() => ({
+  init: () => ({
+    hoverIntentDemo: new HoverIntent.HoverIntent('hoverIntentDemo', {}),
   }),
-).pipe(Layer.provide(HoverIntent.HoverIntentLive))
+  view,
+})).pipe(Layer.provide(HoverIntent.HoverIntentLive))
 
 const triggerClassName =
   'inline-flex cursor-pointer items-center rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600'

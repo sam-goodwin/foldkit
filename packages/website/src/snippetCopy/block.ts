@@ -18,54 +18,50 @@ export class SnippetCopy extends Block<SnippetCopy, void, ViewInputs>()(
   },
 ) {}
 
-export const SnippetCopyLive = SnippetCopy.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ copiedSnippetIds: HashSet.empty() }),
+export const SnippetCopyLive = SnippetCopy.toLayer(() => ({
+  init: () => ({ copiedSnippetIds: HashSet.empty() }),
 
-      update: {
-        ClickedCopySnippet: (model, { snippetId, text }) => ({
-          model,
-          commands: [CopySnippet({ snippetId, text })],
-        }),
+  update: {
+    ClickedCopySnippet: (model, { snippetId, text }) => ({
+      model,
+      commands: [CopySnippet({ snippetId, text })],
+    }),
 
-        SucceededCopySnippet: (model, { snippetId }) =>
-          HashSet.has(model.copiedSnippetIds, snippetId)
-            ? { model }
-            : {
-                model: modifyFields(model, {
-                  copiedSnippetIds: HashSet.add(snippetId),
-                }),
-                commands: [WaitBeforeHidingCopiedIndicator({ snippetId })],
-              },
+    SucceededCopySnippet: (model, { snippetId }) =>
+      HashSet.has(model.copiedSnippetIds, snippetId)
+        ? { model }
+        : {
+            model: modifyFields(model, {
+              copiedSnippetIds: HashSet.add(snippetId),
+            }),
+            commands: [WaitBeforeHidingCopiedIndicator({ snippetId })],
+          },
 
-        FailedCopySnippet: model => ({ model }),
+    FailedCopySnippet: model => ({ model }),
 
-        CompletedWaitBeforeHidingCopiedIndicator: (model, { snippetId }) => ({
-          model: modifyFields(model, {
-            copiedSnippetIds: HashSet.remove(snippetId),
-          }),
-        }),
-      },
+    CompletedWaitBeforeHidingCopiedIndicator: (model, { snippetId }) => ({
+      model: modifyFields(model, {
+        copiedSnippetIds: HashSet.remove(snippetId),
+      }),
+    }),
+  },
 
-      commands: {
-        CopySnippet: ({ snippetId, text }) =>
-          Effect.tryPromise({
-            try: () => navigator.clipboard.writeText(text),
-            catch: () => new Error('Failed to copy to clipboard'),
-          }).pipe(
-            Effect.as(Message.SucceededCopySnippet({ snippetId })),
-            Effect.catch(() => Effect.succeed(Message.FailedCopySnippet())),
-          ),
-        WaitBeforeHidingCopiedIndicator: ({ snippetId }) =>
-          Effect.sleep(COPY_INDICATOR_DURATION).pipe(
-            Effect.as(
-              Message.CompletedWaitBeforeHidingCopiedIndicator({ snippetId }),
-            ),
-          ),
-      },
+  commands: {
+    CopySnippet: ({ snippetId, text }) =>
+      Effect.tryPromise({
+        try: () => navigator.clipboard.writeText(text),
+        catch: () => new Error('Failed to copy to clipboard'),
+      }).pipe(
+        Effect.as(Message.SucceededCopySnippet({ snippetId })),
+        Effect.catch(() => Effect.succeed(Message.FailedCopySnippet())),
+      ),
+    WaitBeforeHidingCopiedIndicator: ({ snippetId }) =>
+      Effect.sleep(COPY_INDICATOR_DURATION).pipe(
+        Effect.as(
+          Message.CompletedWaitBeforeHidingCopiedIndicator({ snippetId }),
+        ),
+      ),
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))

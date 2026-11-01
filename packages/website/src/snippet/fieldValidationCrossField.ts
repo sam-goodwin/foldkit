@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import {
   Field,
@@ -49,49 +49,45 @@ class PasswordForm extends Block<PasswordForm>()('PasswordForm', {
   Message,
 }) {}
 
-const PasswordFormLive = PasswordForm.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        password: NotValidated({ value: '' }),
-        confirmPassword: NotValidated({ value: '' }),
-      }),
-
-      update: {
-        ChangedPassword: (model, { value }) => ({
-          model: modifyFields(model, {
-            password: () => validatePassword(value),
-            confirmPassword: confirmPassword =>
-              confirmPassword._tag === 'NotValidated'
-                ? confirmPassword
-                : validateConfirmPassword(value, confirmPassword.value),
-          }),
-        }),
-
-        ChangedConfirmPassword: (model, { value }) => ({
-          model: modifyFields(model, {
-            confirmPassword: () =>
-              validateConfirmPassword(model.password.value, value),
-          }),
-        }),
-      },
-
-      view: (model, h) =>
-        h.form(
-          [],
-          [
-            h.input([
-              h.Type('password'),
-              h.Value(model.password.value),
-              h.OnInput(value => Message.ChangedPassword({ value })),
-            ]),
-            h.input([
-              h.Type('password'),
-              h.Value(model.confirmPassword.value),
-              h.OnInput(value => Message.ChangedConfirmPassword({ value })),
-            ]),
-          ],
-        ),
-    }
+const PasswordFormLive = PasswordForm.toLayer(() => ({
+  init: () => ({
+    password: NotValidated({ value: '' }),
+    confirmPassword: NotValidated({ value: '' }),
   }),
-)
+
+  update: {
+    ChangedPassword: (model, { value }) => ({
+      model: modifyFields(model, {
+        password: () => validatePassword(value),
+        confirmPassword: confirmPassword =>
+          confirmPassword._tag === 'NotValidated'
+            ? confirmPassword
+            : validateConfirmPassword(value, confirmPassword.value),
+      }),
+    }),
+
+    ChangedConfirmPassword: (model, { value }) => ({
+      model: modifyFields(model, {
+        confirmPassword: () =>
+          validateConfirmPassword(model.password.value, value),
+      }),
+    }),
+  },
+
+  view: (model, h) =>
+    h.form(
+      [],
+      [
+        h.input([
+          h.Type('password'),
+          h.Value(model.password.value),
+          h.OnInput(value => Message.ChangedPassword({ value })),
+        ]),
+        h.input([
+          h.Type('password'),
+          h.Value(model.confirmPassword.value),
+          h.OnInput(value => Message.ChangedConfirmPassword({ value })),
+        ]),
+      ],
+    ),
+}))

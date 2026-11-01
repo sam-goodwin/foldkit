@@ -100,7 +100,7 @@ export class Home extends Block<Home>()('Home', {
 
 // LIVE
 
-export const HomeLive = Home.layer(
+export const HomeLive = Home.toLayer(
   Effect.gen(function* () {
     const client = yield* RoomsClient
 

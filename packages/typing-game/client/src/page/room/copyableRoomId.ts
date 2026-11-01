@@ -39,78 +39,74 @@ export class CopyableRoomId extends Block<CopyableRoomId, CopyableRoomIdArgs>()(
   },
 ) {}
 
-export const CopyableRoomIdLive = CopyableRoomId.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ roomId }) => ({ roomId, isCopiedIndicatorVisible: false }),
+export const CopyableRoomIdLive = CopyableRoomId.toLayer(() => ({
+  init: ({ roomId }) => ({ roomId, isCopiedIndicatorVisible: false }),
 
-      update: {
-        ClickedCopyRoomId: model => ({
-          model,
-          commands: [CopyRoomId({ roomId: model.roomId })],
-        }),
-        SucceededCopyRoomId: model => {
-          if (model.isCopiedIndicatorVisible) {
-            return { model }
-          } else {
-            return {
-              model: modifyFields(model, {
-                isCopiedIndicatorVisible: () => true,
-              }),
-              commands: [WaitBeforeHidingRoomIdCopiedIndicator()],
-            }
-          }
-        },
-        FailedCopyRoomId: model => ({ model }),
-        CompletedWaitBeforeHidingRoomIdCopiedIndicator: model => ({
+  update: {
+    ClickedCopyRoomId: model => ({
+      model,
+      commands: [CopyRoomId({ roomId: model.roomId })],
+    }),
+    SucceededCopyRoomId: model => {
+      if (model.isCopiedIndicatorVisible) {
+        return { model }
+      } else {
+        return {
           model: modifyFields(model, {
-            isCopiedIndicatorVisible: () => false,
+            isCopiedIndicatorVisible: () => true,
           }),
-        }),
-      },
+          commands: [WaitBeforeHidingRoomIdCopiedIndicator()],
+        }
+      }
+    },
+    FailedCopyRoomId: model => ({ model }),
+    CompletedWaitBeforeHidingRoomIdCopiedIndicator: model => ({
+      model: modifyFields(model, {
+        isCopiedIndicatorVisible: () => false,
+      }),
+    }),
+  },
 
-      commands: {
-        CopyRoomId: ({ roomId }) =>
-          Effect.tryPromise(() => navigator.clipboard.writeText(roomId)).pipe(
-            Effect.as(Message.SucceededCopyRoomId()),
-            Effect.catch(() => Effect.succeed(Message.FailedCopyRoomId())),
-          ),
-        WaitBeforeHidingRoomIdCopiedIndicator: () =>
-          Effect.sleep(COPIED_INDICATOR_DURATION).pipe(
-            Effect.as(Message.CompletedWaitBeforeHidingRoomIdCopiedIndicator()),
-          ),
-      },
+  commands: {
+    CopyRoomId: ({ roomId }) =>
+      Effect.tryPromise(() => navigator.clipboard.writeText(roomId)).pipe(
+        Effect.as(Message.SucceededCopyRoomId()),
+        Effect.catch(() => Effect.succeed(Message.FailedCopyRoomId())),
+      ),
+    WaitBeforeHidingRoomIdCopiedIndicator: () =>
+      Effect.sleep(COPIED_INDICATOR_DURATION).pipe(
+        Effect.as(Message.CompletedWaitBeforeHidingRoomIdCopiedIndicator()),
+      ),
+  },
 
-      view: (model, h) =>
-        h.div(
-          [h.Class('mb-12 flex items-center gap-2')],
+  view: (model, h) =>
+    h.div(
+      [h.Class('mb-12 flex items-center gap-2')],
+      [
+        h.span([], [model.roomId]),
+        h.button(
           [
-            h.span([], [model.roomId]),
-            h.button(
+            h.Class(
+              'p-2 rounded hover:bg-terminal-green-dim hover:text-terminal-bg transition text-terminal-green',
+            ),
+            h.AriaLabel('Copy room ID'),
+            h.OnClick(Message.ClickedCopyRoomId()),
+          ],
+          [copyIcon],
+        ),
+        model.isCopiedIndicatorVisible
+          ? h.div(
               [
                 h.Class(
-                  'p-2 rounded hover:bg-terminal-green-dim hover:text-terminal-bg transition text-terminal-green',
+                  'text-lg rounded py-1 px-2 font-medium bg-terminal-green-dim text-terminal-bg uppercase',
                 ),
-                h.AriaLabel('Copy room ID'),
-                h.OnClick(Message.ClickedCopyRoomId()),
               ],
-              [copyIcon],
-            ),
-            model.isCopiedIndicatorVisible
-              ? h.div(
-                  [
-                    h.Class(
-                      'text-lg rounded py-1 px-2 font-medium bg-terminal-green-dim text-terminal-bg uppercase',
-                    ),
-                  ],
-                  ['Copied'],
-                )
-              : h.empty,
-          ],
-        ),
-    }
-  }),
-)
+              ['Copied'],
+            )
+          : h.empty,
+      ],
+    ),
+}))
 
 const copyIcon: Html = ih.svg(
   [

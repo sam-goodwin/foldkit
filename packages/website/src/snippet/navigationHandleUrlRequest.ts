@@ -48,52 +48,46 @@ class Application extends Block<Application, Readonly<{ url: Url.Url }>>()(
   { Model, Message, Command: [NavigateInternal, LoadExternal] },
 ) {}
 
-const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({ route: urlToApplicationRoute(url) }),
+const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => ({ route: urlToApplicationRoute(url) }),
 
-      update: {
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
+  update: {
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
 
-        ClickedLink: (model, { request }) =>
-          Navigation.UrlRequest.match(request, {
-            Internal: ({ url: internalUrl }) => ({
-              model,
-              commands: [NavigateInternal({ url: Url.toString(internalUrl) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
-
-        ChangedUrl: (model, { url: nextUrl }) => ({
-          model: modifyFields(model, {
-            route: () => urlToApplicationRoute(nextUrl),
-          }),
+    ClickedLink: (model, { request }) =>
+      Navigation.UrlRequest.match(request, {
+        Internal: ({ url: internalUrl }) => ({
+          model,
+          commands: [NavigateInternal({ url: Url.toString(internalUrl) })],
         }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url: internalUrl }) =>
-          Navigation.pushUrl(internalUrl).pipe(
-            Effect.as(Message.CompletedNavigateInternal()),
-          ),
-        LoadExternal: ({ href }) =>
-          Navigation.load(href).pipe(
-            Effect.as(Message.CompletedLoadExternal()),
-          ),
-      },
-
-      view: (model, h) => ({
-        title: model.route._tag,
-        body: h.main([], [model.route._tag]),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
       }),
-    }
+
+    ChangedUrl: (model, { url: nextUrl }) => ({
+      model: modifyFields(model, {
+        route: () => urlToApplicationRoute(nextUrl),
+      }),
+    }),
+  },
+
+  commands: {
+    NavigateInternal: ({ url: internalUrl }) =>
+      Navigation.pushUrl(internalUrl).pipe(
+        Effect.as(Message.CompletedNavigateInternal()),
+      ),
+    LoadExternal: ({ href }) =>
+      Navigation.load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
+
+  view: (model, h) => ({
+    title: model.route._tag,
+    body: h.main([], [model.route._tag]),
   }),
-)
+}))
 
 // The Program delivers link clicks and URL changes to the root Block
 const program = Program.make(Application, {

@@ -44,33 +44,29 @@ const autoScrollFrames = (readDependencies: () => AutoScrollDependencies) =>
     ).pipe(Effect.flatMap(() => Effect.never)),
   )
 
-export const DragLive = Drag.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isDragging: false, clientY: 0 }),
+export const DragLive = Drag.toLayer(() => ({
+  init: () => ({ isDragging: false, clientY: 0 }),
 
-      update: {
-        MovedPointer: (model, { clientY }) => ({
-          model: modifyFields(model, { clientY: () => clientY }),
-        }),
-        AdvancedAutoScrollFrame: model => ({ model }),
-      },
+  update: {
+    MovedPointer: (model, { clientY }) => ({
+      model: modifyFields(model, { clientY: () => clientY }),
+    }),
+    AdvancedAutoScrollFrame: model => ({ model }),
+  },
 
-      subscriptions: {
-        autoScrollDuringDrag: {
-          dependencies: model => ({
-            isDragging: model.isDragging,
-            clientY: model.clientY,
-          }),
-          keepAliveEquivalence: Equivalence.Struct({
-            isDragging: Equivalence.Boolean,
-          }),
-          stream: (
-            { isDragging }: AutoScrollDependencies,
-            readDependencies: () => AutoScrollDependencies,
-          ) => (isDragging ? autoScrollFrames(readDependencies) : Stream.empty),
-        },
-      },
-    }
-  }),
-)
+  subscriptions: {
+    autoScrollDuringDrag: {
+      dependencies: model => ({
+        isDragging: model.isDragging,
+        clientY: model.clientY,
+      }),
+      keepAliveEquivalence: Equivalence.Struct({
+        isDragging: Equivalence.Boolean,
+      }),
+      stream: (
+        { isDragging }: AutoScrollDependencies,
+        readDependencies: () => AutoScrollDependencies,
+      ) => (isDragging ? autoScrollFrames(readDependencies) : Stream.empty),
+    },
+  },
+}))

@@ -36,7 +36,7 @@ export class Counter extends Block<Counter, Readonly<{ max: number }>>()(
   },
 ) {}
 
-export const CounterLive = Counter.layer(
+export const CounterLive = Counter.toLayer(
   Effect.gen(function* () {
     const countStore = yield* CountStore
 
@@ -97,53 +97,47 @@ export class Board extends Block<Board>()('Board', {
   Message,
 }) {}
 
-export const BoardLive = Board.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        pinned: new Counter('pinned', { max: 10 }),
-        rows: [],
-        nextRowId: 0,
-        completedCount: 0,
-      }),
-
-      update: {
-        ClickedAddRow: model => ({
-          model: modifyFields(model, {
-            rows: Array.append(
-              new Counter(`row-${model.nextRowId}`, { max: 3 }),
-            ),
-            nextRowId: Number.increment,
-          }),
-        }),
-        // One entry for every Counter in the Model. Branch on the instance.
-        ...Counter.on({
-          ReachedMax: (model, _outMessage, counter) => {
-            if (counter.id === model.pinned.id) {
-              return {
-                model: modifyFields(model, {
-                  completedCount: Number.increment,
-                }),
-              }
-            } else {
-              return {
-                model: modifyFields(model, {
-                  rows: Array.filter(({ id }) => id !== counter.id),
-                }),
-              }
-            }
-          },
-        }),
-      },
-
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.pinned.view(),
-            ...Array.map(model.rows, counter => counter.view()),
-          ],
-        ),
-    }
+export const BoardLive = Board.toLayer(() => ({
+  init: () => ({
+    pinned: new Counter('pinned', { max: 10 }),
+    rows: [],
+    nextRowId: 0,
+    completedCount: 0,
   }),
-)
+
+  update: {
+    ClickedAddRow: model => ({
+      model: modifyFields(model, {
+        rows: Array.append(new Counter(`row-${model.nextRowId}`, { max: 3 })),
+        nextRowId: Number.increment,
+      }),
+    }),
+    // One entry for every Counter in the Model. Branch on the instance.
+    ...Counter.on({
+      ReachedMax: (model, _outMessage, counter) => {
+        if (counter.id === model.pinned.id) {
+          return {
+            model: modifyFields(model, {
+              completedCount: Number.increment,
+            }),
+          }
+        } else {
+          return {
+            model: modifyFields(model, {
+              rows: Array.filter(({ id }) => id !== counter.id),
+            }),
+          }
+        }
+      },
+    }),
+  },
+
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.pinned.view(),
+        ...Array.map(model.rows, counter => counter.view()),
+      ],
+    ),
+}))

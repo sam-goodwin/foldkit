@@ -19,27 +19,23 @@ export class Application extends Block<Application>()('Application', {
   Command: [WaitBeforeReset],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0 }),
 
-      update: {
-        ClickedResetAfterDelay: (model, { delayMs }) => ({
-          model,
-          commands: [WaitBeforeReset({ delayMs })],
-        }),
-        CompletedWaitBeforeReset: model => ({
-          model: modifyFields(model, { count: () => 0 }),
-        }),
-      },
+  update: {
+    ClickedResetAfterDelay: (model, { delayMs }) => ({
+      model,
+      commands: [WaitBeforeReset({ delayMs })],
+    }),
+    CompletedWaitBeforeReset: model => ({
+      model: modifyFields(model, { count: () => 0 }),
+    }),
+  },
 
-      commands: {
-        WaitBeforeReset: ({ delayMs }) =>
-          Effect.sleep(Duration.millis(delayMs)).pipe(
-            Effect.as(Application.Message.CompletedWaitBeforeReset()),
-          ),
-      },
-    }
-  }),
-)
+  commands: {
+    WaitBeforeReset: ({ delayMs }) =>
+      Effect.sleep(Duration.millis(delayMs)).pipe(
+        Effect.as(Application.Message.CompletedWaitBeforeReset()),
+      ),
+  },
+}))

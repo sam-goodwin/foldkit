@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Attribute, ChildAttribute } from 'foldkit/html'
 import * as Scene from 'foldkit/scene'
@@ -12,39 +12,35 @@ class DragAndDropScene extends Block<DragAndDropScene>()('DragAndDropScene', {
   Model: Schema.Struct({ dragAndDrop: DragAndDrop }),
 }) {}
 
-const DragAndDropSceneLive = DragAndDropScene.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ dragAndDrop: new DragAndDrop('board', {}) }),
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.dragAndDrop.view({
-              toView: ({ draggable, droppable }) =>
+const DragAndDropSceneLive = DragAndDropScene.toLayer(() => ({
+  init: () => ({ dragAndDrop: new DragAndDrop('board', {}) }),
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.dragAndDrop.view({
+          toView: ({ draggable, droppable }) =>
+            h.div(
+              [...droppable('todo', 'Todo')],
+              [
                 h.div(
-                  [...droppable('todo', 'Todo')],
                   [
-                    h.div(
-                      [
-                        h.Id('card'),
-                        ...draggable({
-                          itemId: 'card-1',
-                          containerId: 'todo',
-                          index: 0,
-                        }),
-                      ],
-                      ['Card'],
-                    ),
+                    h.Id('card'),
+                    ...draggable({
+                      itemId: 'card-1',
+                      containerId: 'todo',
+                      index: 0,
+                    }),
                   ],
+                  ['Card'],
                 ),
-            }),
-            h.p([h.Id('drag-state')], [model.dragAndDrop.model.dragState._tag]),
-          ],
-        ),
-    }
-  }),
-).pipe(Layer.provide(DragAndDropLive))
+              ],
+            ),
+        }),
+        h.p([h.Id('drag-state')], [model.dragAndDrop.model.dragState._tag]),
+      ],
+    ),
+})).pipe(Layer.provide(DragAndDropLive))
 
 const card = Scene.selector('#card')
 

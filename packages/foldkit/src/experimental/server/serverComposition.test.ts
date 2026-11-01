@@ -35,7 +35,7 @@ class Child extends Block<Child, { readonly title: string }>()('Child', {
 
 const events: Array<string> = []
 
-const ChildLive = Child.layer(
+const ChildLive = Child.toLayer(
   Effect.gen(function* () {
     yield* Effect.acquireRelease(
       Effect.sync(() => {
@@ -93,19 +93,15 @@ class Root extends Block<Root>()('Root', {
   Model: Schema.Struct({ child: Child }),
 }) {}
 
-const RootLive = Root.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        child: new Child('child', { title: 'Server-rendered child' }),
-      }),
-      view: (model, h) => ({
-        title: model.child.model.title,
-        body: h.div([], [model.child.view()]),
-      }),
-    }
+const RootLive = Root.toLayer(() => ({
+  init: () => ({
+    child: new Child('child', { title: 'Server-rendered child' }),
   }),
-).pipe(Layer.provide(ChildLive))
+  view: (model, h) => ({
+    title: model.child.model.title,
+    body: h.div([], [model.child.view()]),
+  }),
+})).pipe(Layer.provide(ChildLive))
 
 const ServerFlags = Schema.Struct({ title: Schema.String })
 type ServerFlags = typeof ServerFlags.Type
@@ -115,64 +111,48 @@ class FlagsRoot extends Block<FlagsRoot, { readonly flags: ServerFlags }>()(
   { Model: Schema.Struct({ title: Schema.String }) },
 ) {}
 
-const FlagsRootLive = FlagsRoot.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({ title: flags.title }),
-      view: (model, h) => ({
-        title: model.title,
-        body: h.main([], [model.title]),
-      }),
-    }
+const FlagsRootLive = FlagsRoot.toLayer(() => ({
+  init: ({ flags }) => ({ title: flags.title }),
+  view: (model, h) => ({
+    title: model.title,
+    body: h.main([], [model.title]),
   }),
-)
+}))
 
 class RoutingRoot extends Block<RoutingRoot, { readonly url: Url }>()(
   'RoutingRoot',
   { Model: Schema.Struct({ title: Schema.String }) },
 ) {}
 
-const RoutingRootLive = RoutingRoot.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({ title: url.pathname }),
-      view: (model, h) => ({
-        title: model.title,
-        body: h.main([], [model.title]),
-      }),
-    }
+const RoutingRootLive = RoutingRoot.toLayer(() => ({
+  init: ({ url }) => ({ title: url.pathname }),
+  view: (model, h) => ({
+    title: model.title,
+    body: h.main([], [model.title]),
   }),
-)
+}))
 
 class RoutingFlagsRoot extends Block<
   RoutingFlagsRoot,
   { readonly flags: ServerFlags; readonly url: Url }
 >()('RoutingFlagsRoot', { Model: Schema.Struct({ title: Schema.String }) }) {}
 
-const RoutingFlagsRootLive = RoutingFlagsRoot.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags, url }) => ({ title: `${flags.title}${url.pathname}` }),
-      view: (model, h) => ({
-        title: model.title,
-        body: h.main([], [model.title]),
-      }),
-    }
+const RoutingFlagsRootLive = RoutingFlagsRoot.toLayer(() => ({
+  init: ({ flags, url }) => ({ title: `${flags.title}${url.pathname}` }),
+  view: (model, h) => ({
+    title: model.title,
+    body: h.main([], [model.title]),
   }),
-)
+}))
 
 class HtmlRoot extends Block<HtmlRoot>()('HtmlRoot', {
   Model: Schema.Struct({ title: Schema.String }),
 }) {}
 
-const HtmlRootLive = HtmlRoot.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ title: 'html' }),
-      view: (model, h) => h.main([], [model.title]),
-    }
-  }),
-)
+const HtmlRootLive = HtmlRoot.toLayer(() => ({
+  init: () => ({ title: 'html' }),
+  view: (model, h) => h.main([], [model.title]),
+}))
 
 const OtherFlags = Schema.Struct({ count: Schema.Number })
 

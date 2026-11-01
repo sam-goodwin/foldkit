@@ -49,7 +49,7 @@ class SignupForm extends Block<SignupForm>()('SignupForm', {
   Command: [CheckEmailAvailable],
 }) {}
 
-const SignupFormLive = SignupForm.layer(
+const SignupFormLive = SignupForm.toLayer(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 

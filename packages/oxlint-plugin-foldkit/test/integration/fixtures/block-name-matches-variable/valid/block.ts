@@ -10,7 +10,7 @@ export class Counter extends Block<Counter>()('Counter', {
   Message,
 }) {}
 
-export const CounterLive = Counter.layer(
+export const CounterLive = Counter.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ count: 0 }),
@@ -26,7 +26,7 @@ export class Badge extends AliasedBlock<Badge, { readonly label: string }>()(
   {},
 ) {}
 
-export const BadgeLive = Badge.layer(
+export const BadgeLive = Badge.toLayer(
   Effect.gen(function* () {
     return {}
   }),
@@ -34,7 +34,7 @@ export const BadgeLive = Badge.layer(
 
 export class Panel extends Foldkit.Block<Panel>()('Panel', {}) {}
 
-export const PanelLive = Panel.layer(
+export const PanelLive = Panel.toLayer(
   Effect.gen(function* () {
     return {}
   }),
@@ -46,7 +46,7 @@ export interface Tabs<Value> {
 
 export const makeTabs = <Value>() => {
   const TabsClass = Block<Tabs<Value>>()('Tabs', {})
-  const TabsLive = TabsClass.layer(
+  const TabsLive = TabsClass.toLayer(
     Effect.gen(function* () {
       return {}
     }),
@@ -59,9 +59,9 @@ const blockName = 'Dynamic'
 export class DynamicName extends Block<DynamicName>()(blockName, {}) {}
 
 const registry = {
-  layer: (build: unknown) => build,
+  toLayer: (build: unknown) => build,
 }
 
-export const unrelated = registry.layer(() => ({}))
+export const unrelated = registry.toLayer(() => ({}))
 
 export class Unrelated extends Object {}

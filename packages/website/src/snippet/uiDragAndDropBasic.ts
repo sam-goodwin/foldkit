@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Schema } from 'effect'
+import { Array, Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -21,55 +21,51 @@ export class SortableList extends Block<SortableList>()('SortableList', {
   }),
 }) {}
 
-export const SortableListLive = SortableList.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dragAndDrop: new DragAndDrop.DragAndDrop('dragAndDrop', {
-          id: 'sortable-list',
-        }),
-        items: [
-          { id: '1', label: 'First' },
-          { id: '2', label: 'Second' },
-          { id: '3', label: 'Third' },
-        ],
-      }),
-
-      update: {
-        // `Reordered` carries the move so you can apply it to your own list
-        ...DragAndDrop.DragAndDrop.on({
-          Reordered: (model, { itemId, fromIndex, toIndex }) => ({
-            model: modifyFields(model, {
-              items: items => reorder(items, itemId, fromIndex, toIndex),
-            }),
-          }),
-        }),
-      },
-
-      // Lay out the draggable and droppable attribute bundles in `toView`
-      view: (model, h) =>
-        model.dragAndDrop.view({
-          toView: ({ draggable, droppable }) =>
-            h.ul(
-              [
-                ...droppable('list', 'Sortable items'),
-                h.Class('flex flex-col gap-2'),
-              ],
-              Array.map(model.items, (item, index) =>
-                h.li(
-                  [
-                    ...draggable({
-                      itemId: item.id,
-                      containerId: 'list',
-                      index,
-                    }),
-                    h.Class('p-3 rounded-lg border cursor-grab'),
-                  ],
-                  [h.span([], [item.label])],
-                ),
-              ),
-            ),
-        }),
-    }
+export const SortableListLive = SortableList.toLayer(() => ({
+  init: () => ({
+    dragAndDrop: new DragAndDrop.DragAndDrop('dragAndDrop', {
+      id: 'sortable-list',
+    }),
+    items: [
+      { id: '1', label: 'First' },
+      { id: '2', label: 'Second' },
+      { id: '3', label: 'Third' },
+    ],
   }),
-).pipe(Layer.provide(DragAndDrop.DragAndDropLive))
+
+  update: {
+    // `Reordered` carries the move so you can apply it to your own list
+    ...DragAndDrop.DragAndDrop.on({
+      Reordered: (model, { itemId, fromIndex, toIndex }) => ({
+        model: modifyFields(model, {
+          items: items => reorder(items, itemId, fromIndex, toIndex),
+        }),
+      }),
+    }),
+  },
+
+  // Lay out the draggable and droppable attribute bundles in `toView`
+  view: (model, h) =>
+    model.dragAndDrop.view({
+      toView: ({ draggable, droppable }) =>
+        h.ul(
+          [
+            ...droppable('list', 'Sortable items'),
+            h.Class('flex flex-col gap-2'),
+          ],
+          Array.map(model.items, (item, index) =>
+            h.li(
+              [
+                ...draggable({
+                  itemId: item.id,
+                  containerId: 'list',
+                  index,
+                }),
+                h.Class('p-3 rounded-lg border cursor-grab'),
+              ],
+              [h.span([], [item.label])],
+            ),
+          ),
+        ),
+    }),
+})).pipe(Layer.provide(DragAndDrop.DragAndDropLive))

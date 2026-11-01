@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -42,104 +42,100 @@ export class Controls extends Block<Controls, void, ViewInput>()('Controls', {
   OutMessage,
 }) {}
 
-export const ControlsLive = Controls.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        flowStrength: Slider.snapAndClamp(
-          INITIAL_FLOW_STRENGTH,
-          FLOW_STRENGTH_MIN,
-          FLOW_STRENGTH_MAX,
-          FLOW_STRENGTH_STEP,
-        ),
-        flowStrengthSlider: new Slider.Slider('flowStrengthSlider', {
-          id: 'flow-strength-slider',
-          min: FLOW_STRENGTH_MIN,
-          max: FLOW_STRENGTH_MAX,
-          step: FLOW_STRENGTH_STEP,
-        }),
-        noiseScale: Slider.snapAndClamp(
-          INITIAL_NOISE_SCALE,
-          NOISE_SCALE_MIN_DIVISOR,
-          NOISE_SCALE_MAX_DIVISOR,
-          NOISE_SCALE_STEP,
-        ),
-        noiseScaleSlider: new Slider.Slider('noiseScaleSlider', {
-          id: 'noise-scale-slider',
-          min: NOISE_SCALE_MIN_DIVISOR,
-          max: NOISE_SCALE_MAX_DIVISOR,
-          step: NOISE_SCALE_STEP,
-        }),
-      }),
+export const ControlsLive = Controls.toLayer(() => ({
+  init: () => ({
+    flowStrength: Slider.snapAndClamp(
+      INITIAL_FLOW_STRENGTH,
+      FLOW_STRENGTH_MIN,
+      FLOW_STRENGTH_MAX,
+      FLOW_STRENGTH_STEP,
+    ),
+    flowStrengthSlider: new Slider.Slider('flowStrengthSlider', {
+      id: 'flow-strength-slider',
+      min: FLOW_STRENGTH_MIN,
+      max: FLOW_STRENGTH_MAX,
+      step: FLOW_STRENGTH_STEP,
+    }),
+    noiseScale: Slider.snapAndClamp(
+      INITIAL_NOISE_SCALE,
+      NOISE_SCALE_MIN_DIVISOR,
+      NOISE_SCALE_MAX_DIVISOR,
+      NOISE_SCALE_STEP,
+    ),
+    noiseScaleSlider: new Slider.Slider('noiseScaleSlider', {
+      id: 'noise-scale-slider',
+      min: NOISE_SCALE_MIN_DIVISOR,
+      max: NOISE_SCALE_MAX_DIVISOR,
+      step: NOISE_SCALE_STEP,
+    }),
+  }),
 
-      update: {
-        ClickedTogglePlay: model => ({
-          model,
-          outMessage: OutMessage.RequestedTogglePlay(),
-        }),
-        ClickedReset: model => ({
-          model,
-          outMessage: OutMessage.RequestedReset(),
-        }),
-        ...Slider.Slider.on({
-          ChangedValue: (model: Model, { value }, slider) =>
-            slider.id === 'flowStrengthSlider'
-              ? { model: modifyFields(model, { flowStrength: () => value }) }
-              : { model: modifyFields(model, { noiseScale: () => value }) },
-        }),
-      },
+  update: {
+    ClickedTogglePlay: model => ({
+      model,
+      outMessage: OutMessage.RequestedTogglePlay(),
+    }),
+    ClickedReset: model => ({
+      model,
+      outMessage: OutMessage.RequestedReset(),
+    }),
+    ...Slider.Slider.on({
+      ChangedValue: (model: Model, { value }, slider) =>
+        slider.id === 'flowStrengthSlider'
+          ? { model: modifyFields(model, { flowStrength: () => value }) }
+          : { model: modifyFields(model, { noiseScale: () => value }) },
+    }),
+  },
 
-      view: (model, h, { isRunning, particleCount }) =>
+  view: (model, h, { isRunning, particleCount }) =>
+    h.div(
+      [
+        h.Class(
+          'flex flex-wrap items-end gap-6 mt-6 px-6 py-4 rounded-xl ' +
+            'bg-black/40 border border-white/10 backdrop-blur',
+        ),
+      ],
+      [
         h.div(
+          [h.Class('flex items-center gap-3')],
           [
-            h.Class(
-              'flex flex-wrap items-end gap-6 mt-6 px-6 py-4 rounded-xl ' +
-                'bg-black/40 border border-white/10 backdrop-blur',
+            controlButton(
+              playPauseLabel(isRunning),
+              Message.ClickedTogglePlay(),
+              h,
             ),
-          ],
-          [
-            h.div(
-              [h.Class('flex items-center gap-3')],
+            controlButton('Reset', Message.ClickedReset(), h),
+            h.span(
+              [h.Class('text-xs uppercase tracking-widest text-white/40')],
               [
-                controlButton(
-                  playPauseLabel(isRunning),
-                  Message.ClickedTogglePlay(),
-                  h,
-                ),
-                controlButton('Reset', Message.ClickedReset(), h),
                 h.span(
-                  [h.Class('text-xs uppercase tracking-widest text-white/40')],
                   [
-                    h.span(
-                      [
-                        h.Class(
-                          'inline-block tabular-nums text-right min-w-8 tracking-normal',
-                        ),
-                      ],
-                      [`${particleCount}`],
+                    h.Class(
+                      'inline-block tabular-nums text-right min-w-8 tracking-normal',
                     ),
-                    ' particles',
                   ],
+                  [`${particleCount}`],
                 ),
+                ' particles',
               ],
             ),
-            slider(
-              'Turbulence',
-              model.flowStrength,
-              viewInputs => model.flowStrengthSlider.view(viewInputs),
-              h,
-            ),
-            slider(
-              'Noise scale',
-              model.noiseScale,
-              viewInputs => model.noiseScaleSlider.view(viewInputs),
-              h,
-            ),
           ],
         ),
-    }
-  }),
-).pipe(Layer.provide(SliderLive))
+        slider(
+          'Turbulence',
+          model.flowStrength,
+          viewInputs => model.flowStrengthSlider.view(viewInputs),
+          h,
+        ),
+        slider(
+          'Noise scale',
+          model.noiseScale,
+          viewInputs => model.noiseScaleSlider.view(viewInputs),
+          h,
+        ),
+      ],
+    ),
+})).pipe(Layer.provide(SliderLive))
 
 type ControlsViewBuilder = HtmlBuilder<Message>
 

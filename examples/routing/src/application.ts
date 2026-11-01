@@ -57,99 +57,93 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => {
+    const route = urlToApplicationRoute(url)
+
+    const initialPeopleRoute = Match.value(route).pipe(
+      Match.tag('People', peopleRoute => peopleRoute),
+      Match.orElse(() =>
+        ApplicationRoute.People({ searchText: Option.none() }),
+      ),
+    )
+
     return {
-      init: ({ url }) => {
-        const route = urlToApplicationRoute(url)
-
-        const initialPeopleRoute = Match.value(route).pipe(
-          Match.tag('People', peopleRoute => peopleRoute),
-          Match.orElse(() =>
-            ApplicationRoute.People({ searchText: Option.none() }),
-          ),
-        )
-
-        return {
-          route,
-          peoplePage: new People('peoplePage', { route: initialPeopleRoute }),
-        }
-      },
-
-      subscriptions: {
-        navigationShortcutPresses: {
-          dependencies: () => null,
-          stream: () => navigationShortcutPresses,
-        },
-      },
-
-      update: {
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
-
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url: internalUrl }) => ({
-              model,
-              commands: [NavigateInternal({ url: urlToString(internalUrl) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
-
-        ChangedUrl: (model, { url: nextUrl }) => {
-          const nextRoute = urlToApplicationRoute(nextUrl)
-
-          const transition = Transition.make(model.route, nextRoute)
-          const peopleMessages = Transition.matchOrElse<ReadonlyArray<Send>>()(
-            transition,
-            'People',
-            {
-              Entered: peopleRoute => [
-                model.peoplePage.send(
-                  People.Message.InformedOfRouteChange({ route: peopleRoute }),
-                ),
-              ],
-              Stayed: ({ nextRoute: nextPeopleRoute }) => [
-                model.peoplePage.send(
-                  People.Message.InformedOfRouteChange({
-                    route: nextPeopleRoute,
-                  }),
-                ),
-              ],
-            },
-            () => [],
-          )
-
-          return {
-            model: { ...model, route: nextRoute },
-            messages: peopleMessages,
-          }
-        },
-
-        EnteredNavigationShortcut: (model, { shortcut }) => ({
-          model,
-          commands: [
-            NavigateInternal({ url: navigationUrlByShortcut[shortcut]() }),
-          ],
-        }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url: internalUrl }) =>
-          pushUrl(internalUrl).pipe(
-            Effect.as(Message.CompletedNavigateInternal()),
-          ),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-      },
-
-      view,
+      route,
+      peoplePage: new People('peoplePage', { route: initialPeopleRoute }),
     }
-  }),
-)
+  },
+
+  subscriptions: {
+    navigationShortcutPresses: {
+      dependencies: () => null,
+      stream: () => navigationShortcutPresses,
+    },
+  },
+
+  update: {
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url: internalUrl }) => ({
+          model,
+          commands: [NavigateInternal({ url: urlToString(internalUrl) })],
+        }),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
+      }),
+
+    ChangedUrl: (model, { url: nextUrl }) => {
+      const nextRoute = urlToApplicationRoute(nextUrl)
+
+      const transition = Transition.make(model.route, nextRoute)
+      const peopleMessages = Transition.matchOrElse<ReadonlyArray<Send>>()(
+        transition,
+        'People',
+        {
+          Entered: peopleRoute => [
+            model.peoplePage.send(
+              People.Message.InformedOfRouteChange({ route: peopleRoute }),
+            ),
+          ],
+          Stayed: ({ nextRoute: nextPeopleRoute }) => [
+            model.peoplePage.send(
+              People.Message.InformedOfRouteChange({
+                route: nextPeopleRoute,
+              }),
+            ),
+          ],
+        },
+        () => [],
+      )
+
+      return {
+        model: { ...model, route: nextRoute },
+        messages: peopleMessages,
+      }
+    },
+
+    EnteredNavigationShortcut: (model, { shortcut }) => ({
+      model,
+      commands: [
+        NavigateInternal({ url: navigationUrlByShortcut[shortcut]() }),
+      ],
+    }),
+  },
+
+  commands: {
+    NavigateInternal: ({ url: internalUrl }) =>
+      pushUrl(internalUrl).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
+
+  view,
+}))
 
 const navigationUrlByShortcut: Readonly<
   Record<NavigationShortcut, () => string>

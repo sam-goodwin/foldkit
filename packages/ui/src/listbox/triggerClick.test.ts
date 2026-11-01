@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { afterEach, expect, vi } from 'vitest'
 
@@ -15,31 +15,27 @@ class ListboxTriggerClickTest extends Block<ListboxTriggerClickTest>()(
   },
 ) {}
 
-const ListboxTriggerClickTestLive = ListboxTriggerClickTest.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        listbox: new TestListbox('listbox', {
-          id: 'sort',
-          isModal: true,
-        }),
-      }),
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.listbox.view({
-              items: ['Name'],
-              itemToConfig: item => ({ content: h.span([], [item]) }),
-              buttonContent: h.span([], ['Sort']),
-              maybeSelectedValue: Option.none(),
-              anchor: { placement: 'bottom-start' },
-            }),
-          ],
-        ),
-    }
+const ListboxTriggerClickTestLive = ListboxTriggerClickTest.toLayer(() => ({
+  init: () => ({
+    listbox: new TestListbox('listbox', {
+      id: 'sort',
+      isModal: true,
+    }),
   }),
-).pipe(Layer.provide(TestListbox.Live))
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.listbox.view({
+          items: ['Name'],
+          itemToConfig: item => ({ content: h.span([], [item]) }),
+          buttonContent: h.span([], ['Sort']),
+          maybeSelectedValue: Option.none(),
+          anchor: { placement: 'bottom-start' },
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(TestListbox.Live))
 
 const requireElement = (id: string): HTMLElement => {
   const element = document.getElementById(id)

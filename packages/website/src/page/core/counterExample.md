@@ -6,7 +6,7 @@
 
 This counter puts the core loop from [Architecture](/core/architecture) into one small application. Its Model holds the count. Its Messages record button clicks. Its update handlers decide the next count, and its view renders the result.
 
-The example uses two files. `src/application.ts` declares the root Block, `Application`, as a class with its Model and Message Schemas, and implements it with `Application.layer`. The Effect passed to `layer` returns the Block's module: `init` for the starting Model, one update handler per Message, and the view. `layer` returns `ApplicationLive`, an Effect Layer. Nothing runs yet: importing the file in a test does not start the application.
+The example uses two files. `src/application.ts` declares the root Block, `Application`, as a class with its Model and Message Schemas, and implements it with `Application.toLayer`. The Effect passed to `layer` returns the Block's module: `init` for the starting Model, one update handler per Message, and the view. `layer` returns `ApplicationLive`, an Effect Layer. Nothing runs yet: importing the file in a test does not start the application.
 
 ::Snippet{name="counter" label="Counter application"}
 

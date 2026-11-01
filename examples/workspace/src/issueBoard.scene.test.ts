@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import {
   Command,
@@ -34,18 +34,14 @@ const makeIssueBoardSceneLive = (viewInputOverrides: Partial<ViewInput>) => {
     ...viewInputOverrides,
   }
 
-  return IssueBoardScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ issueBoard: new IssueBoard('issueBoard') }),
-        update: IssueBoard.on({
-          RequestedCreation: (model, outMessage) => ({ model, outMessage }),
-          RequestedMove: (model, outMessage) => ({ model, outMessage }),
-        }),
-        view: (model, h) => h.div([], [model.issueBoard.view(viewInput)]),
-      }
+  return IssueBoardScene.toLayer(() => ({
+    init: () => ({ issueBoard: new IssueBoard('issueBoard') }),
+    update: IssueBoard.on({
+      RequestedCreation: (model, outMessage) => ({ model, outMessage }),
+      RequestedMove: (model, outMessage) => ({ model, outMessage }),
     }),
-  ).pipe(Layer.provide(IssueBoardLive))
+    view: (model, h) => h.div([], [model.issueBoard.view(viewInput)]),
+  })).pipe(Layer.provide(IssueBoardLive))
 }
 
 describe('Issue Board view', () => {

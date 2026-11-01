@@ -32,7 +32,7 @@ export class SettingsPage extends Block<SettingsPage>()('SettingsPage', {
   Command: [LoadSavedTheme],
 }) {}
 
-export const SettingsPageLive = SettingsPage.layer(
+export const SettingsPageLive = SettingsPage.toLayer(
   Effect.gen(function* () {
     const savedTheme = yield* SavedTheme
 

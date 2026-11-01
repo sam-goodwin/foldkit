@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Option, Schema } from 'effect'
+import { Array, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import {
@@ -38,37 +38,33 @@ class CommandPaletteScene extends Block<CommandPaletteScene>()(
   },
 ) {}
 
-const CommandPaletteSceneLive = CommandPaletteScene.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ commandPalette: new CommandPalette('commandPalette') }),
-      update: {
-        PressedShortcut: model => ({
-          model,
-          messages: [model.commandPalette.send(Message.PressedOpenShortcut())],
-        }),
-        ...CommandPalette.on({
-          SelectedIssue: (model, outMessage) => ({ model, outMessage }),
-          SelectedProject: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.button(
-              [h.OnClick(SceneMessage.PressedShortcut())],
-              ['Press shortcut'],
-            ),
-            model.commandPalette.view({
-              issues: initialWorkspace.issues,
-              projects: initialWorkspace.projects,
-            }),
-          ],
+const CommandPaletteSceneLive = CommandPaletteScene.toLayer(() => ({
+  init: () => ({ commandPalette: new CommandPalette('commandPalette') }),
+  update: {
+    PressedShortcut: model => ({
+      model,
+      messages: [model.commandPalette.send(Message.PressedOpenShortcut())],
+    }),
+    ...CommandPalette.on({
+      SelectedIssue: (model, outMessage) => ({ model, outMessage }),
+      SelectedProject: (model, outMessage) => ({ model, outMessage }),
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.button(
+          [h.OnClick(SceneMessage.PressedShortcut())],
+          ['Press shortcut'],
         ),
-    }
-  }),
-).pipe(Layer.provide(CommandPaletteLive))
+        model.commandPalette.view({
+          issues: initialWorkspace.issues,
+          projects: initialWorkspace.projects,
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(CommandPaletteLive))
 
 const openFromShortcut = click(role('button', { name: 'Press shortcut' }))
 const showDialog = Command.resolve(

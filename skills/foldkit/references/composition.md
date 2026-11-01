@@ -71,7 +71,7 @@ export class Counter extends Block<Counter, Readonly<{ max: number }>>()(
   { Model, Message, OutMessage, Command: [SaveCount] },
 ) {}
 
-export const CounterLive = Counter.layer(
+export const CounterLive = Counter.toLayer(
   Effect.gen(function* () {
     const store = yield* CountStore
 
@@ -176,7 +176,7 @@ export class Board extends Block<Board>()('Board', {
   }),
 }) {}
 
-export const BoardLive = Board.layer(
+export const BoardLive = Board.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({
@@ -391,7 +391,7 @@ const SendChat = Command.define('SendChat', {
   messages: [Message.SucceededSendChat, Message.FailedSendChat],
 })
 
-export const ChatRoomLive = ChatRoom.layer(
+export const ChatRoomLive = ChatRoom.toLayer(
   Effect.gen(function* () {
     const makeWebSocket = yield* Socket.WebSocketConstructor
     const sockets = yield* RcMap.make({

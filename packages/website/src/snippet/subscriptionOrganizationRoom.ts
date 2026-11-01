@@ -39,37 +39,33 @@ const keyPresses = (isDialogOpen: boolean) =>
         Stream.map(({ key }) => Message.PressedKey({ key })),
       )
 
-export const RoomLive = Room.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ roomId }) => ({ roomId, transcript: [], isDialogOpen: false }),
+export const RoomLive = Room.toLayer(() => ({
+  init: ({ roomId }) => ({ roomId, transcript: [], isDialogOpen: false }),
 
-      update: {
-        ReceivedRoomEvent: (model, { text }) => ({
-          model: modifyFields(model, {
-            transcript: transcript => [...transcript, text],
-          }),
-        }),
-        PressedKey: (model, { key }) => ({
-          model: modifyFields(model, {
-            transcript: transcript => [...transcript, `You pressed ${key}`],
-          }),
-        }),
-        InformedOfDialogChange: (model, { isDialogOpen }) => ({
-          model: modifyFields(model, { isDialogOpen: () => isDialogOpen }),
-        }),
-      },
+  update: {
+    ReceivedRoomEvent: (model, { text }) => ({
+      model: modifyFields(model, {
+        transcript: transcript => [...transcript, text],
+      }),
+    }),
+    PressedKey: (model, { key }) => ({
+      model: modifyFields(model, {
+        transcript: transcript => [...transcript, `You pressed ${key}`],
+      }),
+    }),
+    InformedOfDialogChange: (model, { isDialogOpen }) => ({
+      model: modifyFields(model, { isDialogOpen: () => isDialogOpen }),
+    }),
+  },
 
-      subscriptions: {
-        roomEvents: {
-          dependencies: model => model.roomId,
-          stream: roomEvents,
-        },
-        keyPresses: {
-          dependencies: model => model.isDialogOpen,
-          stream: keyPresses,
-        },
-      },
-    }
-  }),
-)
+  subscriptions: {
+    roomEvents: {
+      dependencies: model => model.roomId,
+      stream: roomEvents,
+    },
+    keyPresses: {
+      dependencies: model => model.isDialogOpen,
+      stream: keyPresses,
+    },
+  },
+}))

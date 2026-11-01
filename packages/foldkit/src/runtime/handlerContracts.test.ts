@@ -17,19 +17,25 @@ type Message = typeof Message.Type
 const Send = Command.define('Send', {
   args: { text: Schema.String },
   messages: [Message.CompletedSend],
-  handler: function* () {
-    return ({ text }) => Effect.succeed(Message.CompletedSend({ text }))
-  },
 })
+
+const SendLive = Send.toLayer(
+  Effect.gen(function* () {
+    return ({ text }) => Effect.succeed(Message.CompletedSend({ text }))
+  }),
+)
 
 const SendWithOptionalText = Command.define('Send', {
   args: { text: Schema.optional(Schema.String) },
   messages: [Message.CompletedSend],
-  handler: function* () {
+})
+
+const SendWithOptionalTextLive = SendWithOptionalText.toLayer(
+  Effect.gen(function* () {
     return ({ text }) =>
       Effect.succeed(Message.CompletedSend({ text: text ?? '' }))
-  },
-})
+  }),
+)
 
 class Cache extends Context.Service<Cache, Readonly<{ value: string }>>()(
   'HandlerContractsTestCache',
@@ -169,26 +175,23 @@ const checkAssemblyTypes = (): void => {
     container: document.createElement('div'),
   })
 
-  const independentLayers = Layer.mergeAll(Send.layer, CacheLayer)
+  const independentLayers = Layer.mergeAll(SendLive, CacheLayer)
   application.provide(Layer.empty)
   run(application.provide(independentLayers))
-  run(application.provide(Send.layer).provide(CacheLayer))
+  run(application.provide(SendLive).provide(CacheLayer))
 
-  const conflictingLayers = Layer.mergeAll(
-    Send.layer,
-    SendWithOptionalText.layer,
-  )
+  const conflictingLayers = Layer.mergeAll(SendLive, SendWithOptionalTextLive)
 
   // @ts-expect-error Two contracts cannot occupy the same Command Context key.
   application.provide(conflictingLayers)
 
   // @ts-expect-error The provider conflicts with the required Command contract.
-  application.provide(SendWithOptionalText.layer)
+  application.provide(SendWithOptionalTextLive)
 
-  const provided = application.provide(Send.layer)
+  const provided = application.provide(SendLive)
 
   // @ts-expect-error Subsequent providers cannot overwrite a different contract.
-  provided.provide(SendWithOptionalText.layer)
+  provided.provide(SendWithOptionalTextLive)
 
   const requiresOtherContract = Layer.effect(
     Cache,
@@ -198,10 +201,7 @@ const checkAssemblyTypes = (): void => {
     }),
   )
 
-  const outputAndInputConflict = Layer.mergeAll(
-    Send.layer,
-    requiresOtherContract,
-  )
+  const outputAndInputConflict = Layer.mergeAll(SendLive, requiresOtherContract)
 
   // @ts-expect-error Layer dependencies also cannot use a conflicting handler contract.
   application.provide(outputAndInputConflict)

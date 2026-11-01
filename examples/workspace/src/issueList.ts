@@ -1,7 +1,6 @@
 import { clsx } from 'clsx'
 import {
   Array,
-  Effect,
   Layer,
   Match,
   Option,
@@ -86,150 +85,139 @@ export class IssueList extends Block<IssueList, void, ViewInputs>()(
   { Model, Message, OutMessage },
 ) {}
 
-export const IssueListLive = IssueList.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        savedViewName: '',
-        statusListbox: new StatusFilterListbox('statusListbox', {
-          id: 'issue-list-filter-by-status',
-        }),
-        sortListbox: new SortListbox('sortListbox', {
-          id: 'issue-list-sort-issues',
-        }),
-        groupListbox: new GroupListbox('groupListbox', {
-          id: 'issue-list-group-issues',
-        }),
-      }),
+export const IssueListLive = IssueList.toLayer(() => ({
+  init: () => ({
+    savedViewName: '',
+    statusListbox: new StatusFilterListbox('statusListbox', {
+      id: 'issue-list-filter-by-status',
+    }),
+    sortListbox: new SortListbox('sortListbox', {
+      id: 'issue-list-sort-issues',
+    }),
+    groupListbox: new GroupListbox('groupListbox', {
+      id: 'issue-list-group-issues',
+    }),
+  }),
 
-      update: {
-        UpdatedGrouping: (model, { value }) => ({
+  update: {
+    UpdatedGrouping: (model, { value }) => ({
+      model,
+      outMessage: OutMessage.ChangedGrouping({ groupBy: value }),
+    }),
+    UpdatedSavedViewName: (model, { value }) => ({
+      model: modifyFields(model, { savedViewName: () => value }),
+    }),
+    SubmittedSavedView: (model, { filters }) => {
+      const name = String.trim(model.savedViewName)
+
+      if (String.isEmpty(name)) {
+        return { model }
+      }
+
+      return {
+        model: modifyFields(model, { savedViewName: () => '' }),
+        outMessage: OutMessage.SavedFilter({
+          name,
+          filters,
+        }),
+      }
+    },
+    UpdatedQuery: (model, { value }) => ({
+      model,
+      outMessage: OutMessage.ChangedQuery({ query: value }),
+    }),
+    UpdatedStatusFilter: (model, { value }) => {
+      if (value === 'All') {
+        return {
           model,
-          outMessage: OutMessage.ChangedGrouping({ groupBy: value }),
-        }),
-        UpdatedSavedViewName: (model, { value }) => ({
-          model: modifyFields(model, { savedViewName: () => value }),
-        }),
-        SubmittedSavedView: (model, { filters }) => {
-          const name = String.trim(model.savedViewName)
+          outMessage: OutMessage.ChangedStatusFilter({
+            maybeStatus: Option.none(),
+          }),
+        }
+      }
 
-          if (String.isEmpty(name)) {
-            return { model }
-          }
-
-          return {
-            model: modifyFields(model, { savedViewName: () => '' }),
-            outMessage: OutMessage.SavedFilter({
-              name,
-              filters,
-            }),
-          }
-        },
-        UpdatedQuery: (model, { value }) => ({
-          model,
-          outMessage: OutMessage.ChangedQuery({ query: value }),
+      return {
+        model,
+        outMessage: OutMessage.ChangedStatusFilter({
+          maybeStatus: Option.some(value),
         }),
-        UpdatedStatusFilter: (model, { value }) => {
-          if (value === 'All') {
-            return {
+      }
+    },
+    UpdatedSort: (model, { value }) => ({
+      model,
+      outMessage: OutMessage.ChangedSort({ sort: value }),
+    }),
+    ClickedCreateIssue: model => ({
+      model,
+      outMessage: OutMessage.RequestedCreation(),
+    }),
+    RequestedClearFilters: model => ({
+      model,
+      outMessage: OutMessage.RequestedClearFilters(),
+    }),
+    ...StatusFilterListbox.on({
+      Selected: (model, { value }) => selectStatusFilter(model, value),
+    }),
+    ...SortListbox.on({
+      Selected: (model, { value }) => selectSort(model, value),
+    }),
+    ...GroupListbox.on({
+      Selected: (model, { value }) => selectGrouping(model, value),
+    }),
+  },
+
+  view: (model, h, viewInputs) => {
+    const issues = filterAndSortIssues(viewInputs.filters, viewInputs.issues)
+
+    return h.section(
+      [
+        h.Class('@container min-w-0 flex-1 bg-white text-sm font-medium'),
+        h.AriaLabel('Issues'),
+      ],
+      [
+        h.div(
+          [h.Class('space-y-3 border-b border-slate-200 px-4 py-4 @lg:px-5')],
+          [
+            filterToolbarView(
               model,
-              outMessage: OutMessage.ChangedStatusFilter({
-                maybeStatus: Option.none(),
-              }),
-            }
-          }
-
-          return {
-            model,
-            outMessage: OutMessage.ChangedStatusFilter({
-              maybeStatus: Option.some(value),
-            }),
-          }
-        },
-        UpdatedSort: (model, { value }) => ({
-          model,
-          outMessage: OutMessage.ChangedSort({ sort: value }),
-        }),
-        ClickedCreateIssue: model => ({
-          model,
-          outMessage: OutMessage.RequestedCreation(),
-        }),
-        RequestedClearFilters: model => ({
-          model,
-          outMessage: OutMessage.RequestedClearFilters(),
-        }),
-        ...StatusFilterListbox.on({
-          Selected: (model, { value }) => selectStatusFilter(model, value),
-        }),
-        ...SortListbox.on({
-          Selected: (model, { value }) => selectSort(model, value),
-        }),
-        ...GroupListbox.on({
-          Selected: (model, { value }) => selectGrouping(model, value),
-        }),
-      },
-
-      view: (model, h, viewInputs) => {
-        const issues = filterAndSortIssues(
-          viewInputs.filters,
-          viewInputs.issues,
-        )
-
-        return h.section(
-          [
-            h.Class('@container min-w-0 flex-1 bg-white text-sm font-medium'),
-            h.AriaLabel('Issues'),
+              viewInputs.filters,
+              Array.isReadonlyArrayEmpty(viewInputs.projects),
+              h,
+            ),
+            listSummaryView(model, viewInputs.filters, issues.length, h),
           ],
-          [
+        ),
+        Array.match(issues, {
+          onEmpty: () =>
             h.div(
               [
                 h.Class(
-                  'space-y-3 border-b border-slate-200 px-4 py-4 @lg:px-5',
+                  'p-12 text-center text-sm text-slate-500 [&_h2]:mb-2 [&_h2]:font-semibold',
                 ),
               ],
               [
-                filterToolbarView(
-                  model,
-                  viewInputs.filters,
-                  Array.isReadonlyArrayEmpty(viewInputs.projects),
+                h.h2([], ['No matching issues']),
+                h.p([], ['Try another search or status filter.']),
+                Button.view(
+                  {
+                    onClick: Message.RequestedClearFilters(),
+                    toView: attributes =>
+                      h.button(
+                        [...attributes.button, h.Class('button-compact')],
+                        ['Clear filters'],
+                      ),
+                  },
                   h,
                 ),
-                listSummaryView(model, viewInputs.filters, issues.length, h),
               ],
             ),
-            Array.match(issues, {
-              onEmpty: () =>
-                h.div(
-                  [
-                    h.Class(
-                      'p-12 text-center text-sm text-slate-500 [&_h2]:mb-2 [&_h2]:font-semibold',
-                    ),
-                  ],
-                  [
-                    h.h2([], ['No matching issues']),
-                    h.p([], ['Try another search or status filter.']),
-                    Button.view(
-                      {
-                        onClick: Message.RequestedClearFilters(),
-                        toView: attributes =>
-                          h.button(
-                            [...attributes.button, h.Class('button-compact')],
-                            ['Clear filters'],
-                          ),
-                      },
-                      h,
-                    ),
-                  ],
-                ),
-              onNonEmpty: issues =>
-                issueGroupsView(issues, viewInputs.filters, viewInputs, h),
-            }),
-          ],
-        )
-      },
-    }
-  }),
-).pipe(
+          onNonEmpty: issues =>
+            issueGroupsView(issues, viewInputs.filters, viewInputs, h),
+        }),
+      ],
+    )
+  },
+})).pipe(
   Layer.provide(
     Layer.mergeAll(
       StatusFilterListbox.Live,

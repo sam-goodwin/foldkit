@@ -14,38 +14,32 @@ class Ticker extends Block<Ticker>()('Ticker', {
 
 const tickerEvents: Array<string> = []
 
-const TickerLive = Ticker.layer(
-  Effect.gen(function* () {
-    return {
-      subscriptions: {
-        ticks: {
-          dependencies: () => 'ticks',
-          stream: () =>
-            Stream.unwrap(
-              Effect.acquireRelease(
-                Effect.sync(() => {
-                  tickerEvents.push('acquired')
-                }),
-                () =>
-                  Effect.sync(() => {
-                    tickerEvents.push('released')
-                  }),
-              ).pipe(
-                Effect.as(
-                  Stream.tick('5 millis').pipe(
-                    Stream.as(Ticker.Message.Ticked()),
-                  ),
-                ),
-              ),
+const TickerLive = Ticker.toLayer(() => ({
+  subscriptions: {
+    ticks: {
+      dependencies: () => 'ticks',
+      stream: () =>
+        Stream.unwrap(
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              tickerEvents.push('acquired')
+            }),
+            () =>
+              Effect.sync(() => {
+                tickerEvents.push('released')
+              }),
+          ).pipe(
+            Effect.as(
+              Stream.tick('5 millis').pipe(Stream.as(Ticker.Message.Ticked())),
             ),
-        },
-      },
-      update: {
-        Ticked: model => ({ model, outMessage: Ticker.OutMessage.Ticked() }),
-      },
-    }
-  }),
-)
+          ),
+        ),
+    },
+  },
+  update: {
+    Ticked: model => ({ model, outMessage: Ticker.OutMessage.Ticked() }),
+  },
+}))
 
 class Saved extends Context.Service<
   Saved,
@@ -72,7 +66,7 @@ class AutoCounter extends Block<AutoCounter>()('AutoCounter', {
   Command: [Save],
 }) {}
 
-const AutoCounterLive = AutoCounter.layer(
+const AutoCounterLive = AutoCounter.toLayer(
   Effect.gen(function* () {
     const saved = yield* Saved
 
@@ -193,44 +187,40 @@ class Clock extends Block<Clock>()('Clock', {
   Command: [Load],
 }) {}
 
-const ClockLive = Clock.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ ticks: 0, isPaused: false }),
-      start: () => [Load()],
-      update: {
-        ClickedPause: model => ({ model: { ...model, isPaused: true } }),
-        Ticked: model => ({ model: { ...model, ticks: model.ticks + 1 } }),
-        CompletedLoad: (model, { start }) => ({
-          model: { ...model, ticks: model.ticks + start },
-        }),
-      },
-      commands: {
-        Load: () => Effect.succeed(Clock.Message.CompletedLoad({ start: 100 })),
-      },
-      subscriptions: {
-        ticks: {
-          dependencies: model => model.isPaused,
-          stream: (isPaused: boolean) =>
-            isPaused
-              ? Stream.empty
-              : Stream.tick('5 millis').pipe(Stream.as(Clock.Message.Ticked())),
-        },
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.span([h.Id('ticks')], [`${model.ticks}`]),
-            h.button(
-              [h.Id('pause'), h.OnClick(Clock.Message.ClickedPause())],
-              ['Pause'],
-            ),
-          ],
+const ClockLive = Clock.toLayer(() => ({
+  init: () => ({ ticks: 0, isPaused: false }),
+  start: () => [Load()],
+  update: {
+    ClickedPause: model => ({ model: { ...model, isPaused: true } }),
+    Ticked: model => ({ model: { ...model, ticks: model.ticks + 1 } }),
+    CompletedLoad: (model, { start }) => ({
+      model: { ...model, ticks: model.ticks + start },
+    }),
+  },
+  commands: {
+    Load: () => Effect.succeed(Clock.Message.CompletedLoad({ start: 100 })),
+  },
+  subscriptions: {
+    ticks: {
+      dependencies: model => model.isPaused,
+      stream: (isPaused: boolean) =>
+        isPaused
+          ? Stream.empty
+          : Stream.tick('5 millis').pipe(Stream.as(Clock.Message.Ticked())),
+    },
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.span([h.Id('ticks')], [`${model.ticks}`]),
+        h.button(
+          [h.Id('pause'), h.OnClick(Clock.Message.ClickedPause())],
+          ['Pause'],
         ),
-    }
-  }),
-)
+      ],
+    ),
+}))
 
 describe('Block program startup', () => {
   it.live(
@@ -266,14 +256,10 @@ class Probe extends Block<Probe>()('Probe', {
   Model: Schema.Struct({ label: Schema.String }),
 }) {}
 
-const ProbeLive = Probe.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ label: 'probe' }),
-      view: (model, h) => h.div([h.Id('probe')], [model.label]),
-    }
-  }),
-)
+const ProbeLive = Probe.toLayer(() => ({
+  init: () => ({ label: 'probe' }),
+  view: (model, h) => h.div([h.Id('probe')], [model.label]),
+}))
 
 describe('Block element program', () => {
   it.live('renders the root view as Html into its container', () =>

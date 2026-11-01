@@ -17,21 +17,17 @@ class Counter extends Block<Counter, { readonly start: number }>()('Counter', {
   Message: CounterMessage,
 }) {}
 
-const CounterLive = Counter.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ start }) => ({ count: start }),
-      update: {
-        ClickedIncrement: model => ({ model: { count: model.count + 1 } }),
-      },
-      view: (model, h) =>
-        h.button(
-          [h.Id('increment'), h.OnClick(Counter.Message.ClickedIncrement())],
-          [`${model.count}`],
-        ),
-    }
-  }),
-)
+const CounterLive = Counter.toLayer(() => ({
+  init: ({ start }) => ({ count: start }),
+  update: {
+    ClickedIncrement: model => ({ model: { count: model.count + 1 } }),
+  },
+  view: (model, h) =>
+    h.button(
+      [h.Id('increment'), h.OnClick(Counter.Message.ClickedIncrement())],
+      [`${model.count}`],
+    ),
+}))
 
 const Flags = Schema.Struct({ start: Schema.Number, owner: Schema.String })
 type Flags = typeof Flags.Type
@@ -55,38 +51,34 @@ class Page extends Block<Page, { readonly flags: Flags }>()('Page', {
 
 const greetings: Array<string> = []
 
-const PageLive = Page.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({
-        owner: flags.owner,
-        isGreeted: false,
-        counter: new Counter('counter', { start: flags.start }),
-      }),
-      start: model => [Greet({ owner: model.owner })],
-      update: {
-        CompletedGreet: model => ({ model: { ...model, isGreeted: true } }),
-      },
-      commands: {
-        Greet: ({ owner }) =>
-          Effect.sync(() => {
-            greetings.push(owner)
-            return Page.Message.CompletedGreet()
-          }),
-      },
-      view: (model, h) => ({
-        title: `${model.owner}: ${model.counter.model.count}`,
-        body: h.div(
-          [],
-          [
-            h.p([h.Id('greeting')], [model.isGreeted ? 'Greeted' : 'Waiting']),
-            model.counter.view(),
-          ],
-        ),
-      }),
-    }
+const PageLive = Page.toLayer(() => ({
+  init: ({ flags }) => ({
+    owner: flags.owner,
+    isGreeted: false,
+    counter: new Counter('counter', { start: flags.start }),
   }),
-).pipe(Layer.provide(CounterLive))
+  start: model => [Greet({ owner: model.owner })],
+  update: {
+    CompletedGreet: model => ({ model: { ...model, isGreeted: true } }),
+  },
+  commands: {
+    Greet: ({ owner }) =>
+      Effect.sync(() => {
+        greetings.push(owner)
+        return Page.Message.CompletedGreet()
+      }),
+  },
+  view: (model, h) => ({
+    title: `${model.owner}: ${model.counter.model.count}`,
+    body: h.div(
+      [],
+      [
+        h.p([h.Id('greeting')], [model.isGreeted ? 'Greeted' : 'Waiting']),
+        model.counter.view(),
+      ],
+    ),
+  }),
+})).pipe(Layer.provide(CounterLive))
 
 afterEach(() => {
   document.body.innerHTML = ''

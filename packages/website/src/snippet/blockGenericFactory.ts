@@ -1,4 +1,4 @@
-import { Array, Effect, Option, Schema } from 'effect'
+import { Array, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -15,38 +15,32 @@ export const makeBlock = <Item>() => {
     OutMessage: defineMessageUnion({ SelectedItem: { index: Schema.Number } }),
   }) {}
 
-  const PickerLive = Picker.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ maybeSelectedIndex: Option.none() }),
+  const PickerLive = Picker.toLayer(() => ({
+    init: () => ({ maybeSelectedIndex: Option.none() }),
 
-        update: {
-          ClickedItem: (model, { index }) => ({
-            model: modifyFields(model, {
-              maybeSelectedIndex: () => Option.some(index),
-            }),
-            outMessage: Picker.OutMessage.SelectedItem({ index }),
-          }),
-        },
+    update: {
+      ClickedItem: (model, { index }) => ({
+        model: modifyFields(model, {
+          maybeSelectedIndex: () => Option.some(index),
+        }),
+        outMessage: Picker.OutMessage.SelectedItem({ index }),
+      }),
+    },
 
-        view: (model, h, { items, toLabel }) =>
-          h.ul(
-            [],
-            Array.map(items, (item, index) =>
-              h.li(
-                [
-                  h.AriaSelected(
-                    Option.contains(model.maybeSelectedIndex, index),
-                  ),
-                  h.OnClick(Picker.Message.ClickedItem({ index })),
-                ],
-                [toLabel(item)],
-              ),
-            ),
+    view: (model, h, { items, toLabel }) =>
+      h.ul(
+        [],
+        Array.map(items, (item, index) =>
+          h.li(
+            [
+              h.AriaSelected(Option.contains(model.maybeSelectedIndex, index)),
+              h.OnClick(Picker.Message.ClickedItem({ index })),
+            ],
+            [toLabel(item)],
           ),
-      }
-    }),
-  )
+        ),
+      ),
+  }))
 
   return Object.assign(Picker, { Live: PickerLive })
 }

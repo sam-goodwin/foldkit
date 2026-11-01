@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import * as Scene from 'foldkit/scene'
 import { modifyFields } from 'foldkit/struct'
@@ -25,44 +25,40 @@ class RadioGroupScene extends Block<RadioGroupScene>()('RadioGroupScene', {
 }) {}
 
 const makeRadioGroupSceneLive = (overrides: Overrides) =>
-  RadioGroupScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          radioGroup: new TestRadioGroup('radioGroup', {
-            id: RADIO_ID,
-          }),
-          maybeSelectedValue: Option.none(),
-        }),
-        update: {
-          ...TestRadioGroup.on({
-            Selected: (model, { value }) => ({
-              model: modifyFields(model, {
-                maybeSelectedValue: () => Option.some(value),
-              }),
-            }),
-          }),
-        },
-        view: (model, h) =>
-          model.radioGroup.view({
-            options,
-            selectedValue: model.maybeSelectedValue,
-            ariaLabel: 'Tool',
-            ...overrides,
-            toView: ({ group, options: optionInfos }) =>
-              h.div(
-                [...group],
-                optionInfos.map(option =>
-                  h.button(
-                    [...option.option],
-                    [h.span([...option.label], [option.value])],
-                  ),
-                ),
-              ),
-          }),
-      }
+  RadioGroupScene.toLayer(() => ({
+    init: () => ({
+      radioGroup: new TestRadioGroup('radioGroup', {
+        id: RADIO_ID,
+      }),
+      maybeSelectedValue: Option.none(),
     }),
-  ).pipe(Layer.provide(TestRadioGroup.Live))
+    update: {
+      ...TestRadioGroup.on({
+        Selected: (model, { value }) => ({
+          model: modifyFields(model, {
+            maybeSelectedValue: () => Option.some(value),
+          }),
+        }),
+      }),
+    },
+    view: (model, h) =>
+      model.radioGroup.view({
+        options,
+        selectedValue: model.maybeSelectedValue,
+        ariaLabel: 'Tool',
+        ...overrides,
+        toView: ({ group, options: optionInfos }) =>
+          h.div(
+            [...group],
+            optionInfos.map(option =>
+              h.button(
+                [...option.option],
+                [h.span([...option.label], [option.value])],
+              ),
+            ),
+          ),
+      }),
+  })).pipe(Layer.provide(TestRadioGroup.Live))
 
 const modelWith = (maybeSelectedValue: Option.Option<string>) => ({
   radioGroup: { id: RADIO_ID, maybeFocusedIndex: Option.none() },

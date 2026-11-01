@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import {
   Mount,
@@ -27,26 +27,19 @@ class TooltipScene extends Block<TooltipScene>()('TooltipScene', {
 }) {}
 
 const makeTooltipSceneLive = (overrides: Overrides) =>
-  TooltipScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ tooltip: new Tooltip('tooltip', { id: 'test' }) }),
-        view: (model, h) =>
-          model.tooltip.view({
-            anchor: { placement: 'top' },
-            ...overrides,
-            toView: ({ trigger, panel, isVisible }) =>
-              h.div(
-                [],
-                [
-                  h.button([...trigger]),
-                  ...(isVisible ? [h.div([...panel])] : []),
-                ],
-              ),
-          }),
-      }
-    }),
-  ).pipe(Layer.provide(TooltipLive))
+  TooltipScene.toLayer(() => ({
+    init: () => ({ tooltip: new Tooltip('tooltip', { id: 'test' }) }),
+    view: (model, h) =>
+      model.tooltip.view({
+        anchor: { placement: 'top' },
+        ...overrides,
+        toView: ({ trigger, panel, isVisible }) =>
+          h.div(
+            [],
+            [h.button([...trigger]), ...(isVisible ? [h.div([...panel])] : [])],
+          ),
+      }),
+  })).pipe(Layer.provide(TooltipLive))
 
 const acknowledgeAnchor = Mount.resolve(
   AnchorTooltip,

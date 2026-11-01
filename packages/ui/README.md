@@ -54,7 +54,7 @@ class ConfirmDelete extends Block<ConfirmDelete>()('ConfirmDelete', {
   Model: Schema.Struct({ dialog: Dialog.Dialog }),
 }) {}
 
-const ConfirmDeleteLive = ConfirmDelete.layer(
+const ConfirmDeleteLive = ConfirmDelete.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({

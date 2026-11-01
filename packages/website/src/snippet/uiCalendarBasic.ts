@@ -207,50 +207,46 @@ const yearsView = (
     ],
   )
 
-export const CalendarExampleLive = CalendarExample.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ today }) => ({
-        // `initialViewDate` seeds the month the calendar opens onto
-        calendarDemo: new UiCalendar.Calendar('calendarDemo', {
-          id: 'calendar-demo',
-          today,
-          initialViewDate: today,
-        }),
-        maybeSelectedDate: Option.none(),
-      }),
-
-      update: {
-        // `SelectedDate` fires when the user commits a date with a click,
-        // Enter, or Space. `ChangedViewMonth` fires when navigation shifts the
-        // visible month without selecting a date.
-        ...UiCalendar.Calendar.on({
-          SelectedDate: (model, { date }) => ({
-            model: modifyFields(model, {
-              maybeSelectedDate: () => Option.some(date),
-            }),
-          }),
-        }),
-      },
-
-      // `toView` receives a discriminated `CalendarAttributes` whose variant
-      // matches the calendar's current `viewMode`, so the match hands each
-      // grid to its own view function
-      view: (model, h) => {
-        const calendarView = Match.type<UiCalendarCalendarAttributes>().pipe(
-          Match.tagsExhaustive({
-            Days: days => daysView(days, h),
-            Months: months => monthsView(months, h),
-            Years: years => yearsView(years, h),
-          }),
-        )
-
-        return model.calendarDemo.view({
-          // The parent-owned selection. The selected-day marker derives from it.
-          maybeSelectedDate: model.maybeSelectedDate,
-          toView: calendarView,
-        })
-      },
-    }
+export const CalendarExampleLive = CalendarExample.toLayer(() => ({
+  init: ({ today }) => ({
+    // `initialViewDate` seeds the month the calendar opens onto
+    calendarDemo: new UiCalendar.Calendar('calendarDemo', {
+      id: 'calendar-demo',
+      today,
+      initialViewDate: today,
+    }),
+    maybeSelectedDate: Option.none(),
   }),
-).pipe(Layer.provide(UiCalendar.CalendarLive))
+
+  update: {
+    // `SelectedDate` fires when the user commits a date with a click,
+    // Enter, or Space. `ChangedViewMonth` fires when navigation shifts the
+    // visible month without selecting a date.
+    ...UiCalendar.Calendar.on({
+      SelectedDate: (model, { date }) => ({
+        model: modifyFields(model, {
+          maybeSelectedDate: () => Option.some(date),
+        }),
+      }),
+    }),
+  },
+
+  // `toView` receives a discriminated `CalendarAttributes` whose variant
+  // matches the calendar's current `viewMode`, so the match hands each
+  // grid to its own view function
+  view: (model, h) => {
+    const calendarView = Match.type<UiCalendarCalendarAttributes>().pipe(
+      Match.tagsExhaustive({
+        Days: days => daysView(days, h),
+        Months: months => monthsView(months, h),
+        Years: years => yearsView(years, h),
+      }),
+    )
+
+    return model.calendarDemo.view({
+      // The parent-owned selection. The selected-day marker derives from it.
+      maybeSelectedDate: model.maybeSelectedDate,
+      toView: calendarView,
+    })
+  },
+})).pipe(Layer.provide(UiCalendar.CalendarLive))

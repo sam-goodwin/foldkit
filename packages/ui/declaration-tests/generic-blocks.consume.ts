@@ -58,7 +58,7 @@ export class Mall extends Block<Mall>()('Mall', {
   Message: MallMessage,
 }) {}
 
-export const MallLive = Mall.layer(
+export const MallLive = Mall.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({

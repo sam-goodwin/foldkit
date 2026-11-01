@@ -34,7 +34,7 @@ export class Application extends Block<Application>()('Application', {
   Command: [Search],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 

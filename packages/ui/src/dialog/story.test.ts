@@ -147,40 +147,36 @@ class DialogParent extends Block<DialogParent>()('DialogParent', {
   Command: [LoadParentData],
 }) {}
 
-const DialogParentLive = DialogParent.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dialog: new Dialog('dialog', { id: 'initial-dialog' }),
-        dialogEvents: [],
-      }),
-      update: {
-        ClickedOpenDialog: model => ({
-          model,
-          commands: [LoadParentData()],
-          messages: [model.dialog.send(Dialog.Message.RequestedOpen())],
-        }),
-        CompletedLoadParentData: model => ({ model }),
-        ...Dialog.on({
-          Opened: model => ({
-            model: modifyFields(model, {
-              dialogEvents: Array.append(DialogEvent.make('Opened')),
-            }),
-          }),
-          Closed: model => ({
-            model: modifyFields(model, {
-              dialogEvents: Array.append(DialogEvent.make('Closed')),
-            }),
-          }),
-        }),
-      },
-      commands: {
-        LoadParentData: () =>
-          Effect.succeed(DialogParent.Message.CompletedLoadParentData()),
-      },
-    }
+const DialogParentLive = DialogParent.toLayer(() => ({
+  init: () => ({
+    dialog: new Dialog('dialog', { id: 'initial-dialog' }),
+    dialogEvents: [],
   }),
-).pipe(Layer.provide(DialogLive))
+  update: {
+    ClickedOpenDialog: model => ({
+      model,
+      commands: [LoadParentData()],
+      messages: [model.dialog.send(Dialog.Message.RequestedOpen())],
+    }),
+    CompletedLoadParentData: model => ({ model }),
+    ...Dialog.on({
+      Opened: model => ({
+        model: modifyFields(model, {
+          dialogEvents: Array.append(DialogEvent.make('Opened')),
+        }),
+      }),
+      Closed: model => ({
+        model: modifyFields(model, {
+          dialogEvents: Array.append(DialogEvent.make('Closed')),
+        }),
+      }),
+    }),
+  },
+  commands: {
+    LoadParentData: () =>
+      Effect.succeed(DialogParent.Message.CompletedLoadParentData()),
+  },
+})).pipe(Layer.provide(DialogLive))
 
 // SCENE
 
@@ -199,26 +195,22 @@ const makeDialogSceneLive = ({
   hasDescription,
   onRender,
 }: DialogSceneArgs) =>
-  DialogScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          dialog: new Dialog('dialog', config),
-          isDialogRendered: false,
-        }),
-        view: (model, h) =>
-          model.isDialogRendered
-            ? model.dialog.view({
-                hasDescription,
-                toView: render => {
-                  onRender(render)
-                  return h.dialog([...render.dialog])
-                },
-              })
-            : h.div([]),
-      }
+  DialogScene.toLayer(() => ({
+    init: () => ({
+      dialog: new Dialog('dialog', config),
+      isDialogRendered: false,
     }),
-  ).pipe(Layer.provide(DialogLive))
+    view: (model, h) =>
+      model.isDialogRendered
+        ? model.dialog.view({
+            hasDescription,
+            toView: render => {
+              onRender(render)
+              return h.dialog([...render.dialog])
+            },
+          })
+        : h.div([]),
+  })).pipe(Layer.provide(DialogLive))
 
 const renderDialog = (model: DialogModel) =>
   Scene.given({ dialog: model, isDialogRendered: true })

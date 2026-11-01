@@ -11,7 +11,6 @@ export type {
   KeyedQueryModel,
   KeyedQueryOutMessage,
   KeyedQueryStatics,
-  KeyedQueryWithLive,
   SyncFields,
 } from './keyedQuery.js'
 export type {
@@ -25,5 +24,4 @@ export type {
   QueryFetch,
   QueryOutMessage,
   QueryStatics,
-  QueryWithLive,
 } from './query.js'

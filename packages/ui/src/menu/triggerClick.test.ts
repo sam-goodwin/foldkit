@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { afterEach, expect, vi } from 'vitest'
 
@@ -13,27 +13,23 @@ class MenuTriggerClickTest extends Block<MenuTriggerClickTest>()(
   { Model: Schema.Struct({ menu: TestMenu }) },
 ) {}
 
-const MenuTriggerClickTestLive = MenuTriggerClickTest.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        menu: new TestMenu('menu', { id: 'actions', isModal: true }),
-      }),
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.menu.view({
-              items: ['Name'],
-              itemToConfig: item => ({ content: h.span([], [item]) }),
-              buttonContent: h.span([], ['Actions']),
-              anchor: { placement: 'bottom-start' },
-            }),
-          ],
-        ),
-    }
+const MenuTriggerClickTestLive = MenuTriggerClickTest.toLayer(() => ({
+  init: () => ({
+    menu: new TestMenu('menu', { id: 'actions', isModal: true }),
   }),
-).pipe(Layer.provide(TestMenu.Live))
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.menu.view({
+          items: ['Name'],
+          itemToConfig: item => ({ content: h.span([], [item]) }),
+          buttonContent: h.span([], ['Actions']),
+          anchor: { placement: 'bottom-start' },
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(TestMenu.Live))
 
 const requireElement = (id: string): HTMLElement => {
   const element = document.getElementById(id)

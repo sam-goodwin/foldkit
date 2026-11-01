@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import {
   Field,
@@ -29,24 +29,20 @@ class SignupForm extends Block<SignupForm>()('SignupForm', {
   Message,
 }) {}
 
-const SignupFormLive = SignupForm.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ username: NotValidated({ value: '' }) }),
+const SignupFormLive = SignupForm.toLayer(() => ({
+  init: () => ({ username: NotValidated({ value: '' }) }),
 
-      update: {
-        ChangedUsername: (model, { value }) => ({
-          model: modifyFields(model, {
-            username: () => validateUsername(value),
-          }),
-        }),
-      },
+  update: {
+    ChangedUsername: (model, { value }) => ({
+      model: modifyFields(model, {
+        username: () => validateUsername(value),
+      }),
+    }),
+  },
 
-      view: (model, h) =>
-        h.input([
-          h.Value(model.username.value),
-          h.OnInput(value => Message.ChangedUsername({ value })),
-        ]),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.input([
+      h.Value(model.username.value),
+      h.OnInput(value => Message.ChangedUsername({ value })),
+    ]),
+}))

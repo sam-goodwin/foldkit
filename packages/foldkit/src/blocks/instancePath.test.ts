@@ -11,44 +11,34 @@ class Ticker extends Block<Ticker>()('Ticker', {
   Model: Schema.Struct({ commandIdPrefix: Schema.String }),
 }) {}
 
-const TickerLive = Ticker.layer(
-  Effect.gen(function* () {
-    return {
-      init: (_, { path }) => ({ commandIdPrefix: Array.join(path, '/') }),
-    }
-  }),
-)
+const TickerLive = Ticker.toLayer(() => ({
+  init: (_, { path }) => ({ commandIdPrefix: Array.join(path, '/') }),
+}))
 
 class Tickers extends Block<Tickers>()('Tickers', {
   Model: Schema.Struct({ ticker: Ticker, tickers: Schema.Array(Ticker) }),
   Message: defineMessageUnion({ ClickedAdd: {} }),
 }) {}
 
-const TickersLive = Tickers.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ ticker: new Ticker('ticker'), tickers: [] }),
-      update: {
-        ClickedAdd: model => ({
-          model: {
-            ...model,
-            tickers: Array.append(model.tickers, new Ticker('wo-42')),
-          },
-        }),
+const TickersLive = Tickers.toLayer(() => ({
+  init: () => ({ ticker: new Ticker('ticker'), tickers: [] }),
+  update: {
+    ClickedAdd: model => ({
+      model: {
+        ...model,
+        tickers: Array.append(model.tickers, new Ticker('wo-42')),
       },
-    }
-  }),
-)
+    }),
+  },
+}))
 
 class Board extends Block<Board>()('Board', {
   Model: Schema.Struct({ group: Tickers }),
 }) {}
 
-const BoardLive = Board.layer(
-  Effect.gen(function* () {
-    return { init: () => ({ group: new Tickers('group') }) }
-  }),
-)
+const BoardLive = Board.toLayer(() => ({
+  init: () => ({ group: new Tickers('group') }),
+}))
 
 describe('Block instance path', () => {
   it.effect('gives init the path of the instance from the root', () =>

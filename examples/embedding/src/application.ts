@@ -46,39 +46,35 @@ export class Application extends Block<
   Command: [ReportCount],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({ count: flags.initialCount, step: 1 }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) => ({ count: flags.initialCount, step: 1 }),
 
-      update: {
-        Ticked: advance,
-        ClickedAdvance: advance,
-        ChangedStep: (model, { step }) => ({
-          model: modifyFields(model, { step: () => step }),
-        }),
-        CompletedReportCount: model => ({ model }),
-      },
+  update: {
+    Ticked: advance,
+    ClickedAdvance: advance,
+    ChangedStep: (model, { step }) => ({
+      model: modifyFields(model, { step: () => step }),
+    }),
+    CompletedReportCount: model => ({ model }),
+  },
 
-      commands: {
-        ReportCount: ({ count }) =>
-          Port.emit(ports.outbound.countChanged, count).pipe(
-            Effect.as(Message.CompletedReportCount()),
-          ),
-      },
+  commands: {
+    ReportCount: ({ count }) =>
+      Port.emit(ports.outbound.countChanged, count).pipe(
+        Effect.as(Message.CompletedReportCount()),
+      ),
+  },
 
-      subscriptions: {
-        widgetTicks: { dependencies: () => null, stream: () => widgetTicks },
-        hostStepChanges: {
-          dependencies: () => null,
-          stream: () => hostStepChanges,
-        },
-      },
+  subscriptions: {
+    widgetTicks: { dependencies: () => null, stream: () => widgetTicks },
+    hostStepChanges: {
+      dependencies: () => null,
+      stream: () => hostStepChanges,
+    },
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 const advance = (model: Model) => {
   const count = model.count + model.step

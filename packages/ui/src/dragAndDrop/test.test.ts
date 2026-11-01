@@ -53,51 +53,45 @@ class Parent extends Block<Parent>()('Parent', {
   Message: ParentMessage,
 }) {}
 
-const ParentLive = Parent.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        left: new DragAndDrop('left', {}),
-        right: new DragAndDrop('right', {}),
-      }),
-      update: {
-        RequestedLeftMove: model => ({
-          model,
-          messages: [
-            model.left.send(
-              DragAndDrop.Message.PressedArrowKey({ direction: 'Right' }),
-            ),
-          ],
-        }),
-        RequestedRightMove: model => ({
-          model,
-          messages: [
-            model.right.send(
-              DragAndDrop.Message.PressedArrowKey({ direction: 'Right' }),
-            ),
-          ],
-        }),
-        RequestedBothMoves: model => ({
-          model,
-          messages: [
-            model.left.send(
-              DragAndDrop.Message.PressedArrowKey({ direction: 'Right' }),
-            ),
-            model.right.send(
-              DragAndDrop.Message.PressedArrowKey({ direction: 'Right' }),
-            ),
-          ],
-        }),
-        RequestedLeftDrop: model => ({
-          model,
-          messages: [
-            model.left.send(DragAndDrop.Message.ConfirmedKeyboardDrop()),
-          ],
-        }),
-      },
-    }
+const ParentLive = Parent.toLayer(() => ({
+  init: () => ({
+    left: new DragAndDrop('left', {}),
+    right: new DragAndDrop('right', {}),
   }),
-).pipe(Layer.provide(DragAndDropLive))
+  update: {
+    RequestedLeftMove: model => ({
+      model,
+      messages: [
+        model.left.send(
+          DragAndDrop.Message.PressedArrowKey({ direction: 'Right' }),
+        ),
+      ],
+    }),
+    RequestedRightMove: model => ({
+      model,
+      messages: [
+        model.right.send(
+          DragAndDrop.Message.PressedArrowKey({ direction: 'Right' }),
+        ),
+      ],
+    }),
+    RequestedBothMoves: model => ({
+      model,
+      messages: [
+        model.left.send(
+          DragAndDrop.Message.PressedArrowKey({ direction: 'Right' }),
+        ),
+        model.right.send(
+          DragAndDrop.Message.PressedArrowKey({ direction: 'Right' }),
+        ),
+      ],
+    }),
+    RequestedLeftDrop: model => ({
+      model,
+      messages: [model.left.send(DragAndDrop.Message.ConfirmedKeyboardDrop())],
+    }),
+  },
+})).pipe(Layer.provide(DragAndDropLive))
 
 const initialModel = {
   left: keyboardDragging('left', 'left-item'),
@@ -271,21 +265,17 @@ class NestedParent extends Block<NestedParent>()('NestedParent', {
   Message: NestedMessage,
 }) {}
 
-const NestedParentLive = NestedParent.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ slots: [new Parent('first'), new Parent('second')] }),
-      update: {
-        RequestedBothMoves: model => ({
-          model,
-          messages: Array.map(model.slots, parent =>
-            parent.send(ParentMessage.RequestedLeftMove()),
-          ),
-        }),
-      },
-    }
-  }),
-).pipe(Layer.provide(ParentLive))
+const NestedParentLive = NestedParent.toLayer(() => ({
+  init: () => ({ slots: [new Parent('first'), new Parent('second')] }),
+  update: {
+    RequestedBothMoves: model => ({
+      model,
+      messages: Array.map(model.slots, parent =>
+        parent.send(ParentMessage.RequestedLeftMove()),
+      ),
+    }),
+  },
+})).pipe(Layer.provide(ParentLive))
 
 const nestedInitialModel = { slots: [initialModel, initialModel] }
 
@@ -360,29 +350,25 @@ class KeyedParent extends Block<KeyedParent>()('KeyedParent', {
   Message: KeyedParentMessage,
 }) {}
 
-const KeyedParentLive = KeyedParent.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        boards: [new DragAndDrop('first', {}), new DragAndDrop('second', {})],
-      }),
-      update: {
-        RequestedMove: (model, { key }) => ({
-          model,
-          messages: pipe(
-            model.boards,
-            Array.filter(dragAndDrop => dragAndDrop.id === key),
-            Array.map(dragAndDrop =>
-              dragAndDrop.send(
-                DragAndDrop.Message.PressedArrowKey({ direction: 'Down' }),
-              ),
-            ),
-          ),
-        }),
-      },
-    }
+const KeyedParentLive = KeyedParent.toLayer(() => ({
+  init: () => ({
+    boards: [new DragAndDrop('first', {}), new DragAndDrop('second', {})],
   }),
-).pipe(Layer.provide(DragAndDropLive))
+  update: {
+    RequestedMove: (model, { key }) => ({
+      model,
+      messages: pipe(
+        model.boards,
+        Array.filter(dragAndDrop => dragAndDrop.id === key),
+        Array.map(dragAndDrop =>
+          dragAndDrop.send(
+            DragAndDrop.Message.PressedArrowKey({ direction: 'Down' }),
+          ),
+        ),
+      ),
+    }),
+  },
+})).pipe(Layer.provide(DragAndDropLive))
 
 const keyedInitialModel = {
   boards: [

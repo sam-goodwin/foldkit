@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Match, Option, Schema } from 'effect'
+import { Array, Layer, Match, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -33,66 +33,62 @@ export class ComboboxPage extends Block<ComboboxPage>()('ComboboxPage', {
   Model,
 }) {}
 
-export const ComboboxPageLive = ComboboxPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        comboboxDemo: new CityCombobox('comboboxDemo', {
-          id: 'combobox-demo',
-        }),
-        maybeComboboxDemoSelectedCity: Option.none(),
-        comboboxNullableDemo: new CityCombobox('comboboxNullableDemo', {
-          id: 'combobox-nullable-demo',
-          nullable: true,
-        }),
-        maybeComboboxNullableDemoSelectedCity: Option.none(),
-        comboboxMultiDemo: new CityMultiCombobox('comboboxMultiDemo', {
-          id: 'combobox-multi-demo',
-        }),
-        comboboxMultiDemoSelectedCities: [],
-        comboboxPlacementLockDemo: new CityCombobox(
-          'comboboxPlacementLockDemo',
-          { id: 'combobox-placement-lock-demo' },
-        ),
-        maybeComboboxPlacementLockDemoSelectedCity: Option.none(),
-        comboboxSelectOnFocusDemo: new CityCombobox(
-          'comboboxSelectOnFocusDemo',
-          { id: 'combobox-select-on-focus-demo', selectInputOnFocus: true },
-        ),
-        maybeComboboxSelectOnFocusDemoSelectedCity: Option.none(),
-      }),
-
-      update: {
-        ...CityCombobox.on({
-          Selected: (model, { value }, { id }) => ({
-            model: selectCity(model, id, value),
-          }),
-          ClearedSelection: (model, _, { id }) => ({
-            model: clearCity(model, id),
-          }),
-        }),
-
-        ...CityMultiCombobox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              comboboxMultiDemoSelectedCities:
-                comboboxMultiDemoSelectedCities =>
-                  Array.contains(comboboxMultiDemoSelectedCities, value)
-                    ? Array.filter(
-                        comboboxMultiDemoSelectedCities,
-                        city => city !== value,
-                      )
-                    : Array.append(comboboxMultiDemoSelectedCities, value),
-            }),
-          }),
-          ClearedSelection: model => ({ model }),
-        }),
-      },
-
-      view,
-    }
+export const ComboboxPageLive = ComboboxPage.toLayer(() => ({
+  init: () => ({
+    comboboxDemo: new CityCombobox('comboboxDemo', {
+      id: 'combobox-demo',
+    }),
+    maybeComboboxDemoSelectedCity: Option.none(),
+    comboboxNullableDemo: new CityCombobox('comboboxNullableDemo', {
+      id: 'combobox-nullable-demo',
+      nullable: true,
+    }),
+    maybeComboboxNullableDemoSelectedCity: Option.none(),
+    comboboxMultiDemo: new CityMultiCombobox('comboboxMultiDemo', {
+      id: 'combobox-multi-demo',
+    }),
+    comboboxMultiDemoSelectedCities: [],
+    comboboxPlacementLockDemo: new CityCombobox('comboboxPlacementLockDemo', {
+      id: 'combobox-placement-lock-demo',
+    }),
+    maybeComboboxPlacementLockDemoSelectedCity: Option.none(),
+    comboboxSelectOnFocusDemo: new CityCombobox('comboboxSelectOnFocusDemo', {
+      id: 'combobox-select-on-focus-demo',
+      selectInputOnFocus: true,
+    }),
+    maybeComboboxSelectOnFocusDemoSelectedCity: Option.none(),
   }),
-).pipe(Layer.provide(Layer.mergeAll(CityCombobox.Live, CityMultiCombobox.Live)))
+
+  update: {
+    ...CityCombobox.on({
+      Selected: (model, { value }, { id }) => ({
+        model: selectCity(model, id, value),
+      }),
+      ClearedSelection: (model, _, { id }) => ({
+        model: clearCity(model, id),
+      }),
+    }),
+
+    ...CityMultiCombobox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, {
+          comboboxMultiDemoSelectedCities: comboboxMultiDemoSelectedCities =>
+            Array.contains(comboboxMultiDemoSelectedCities, value)
+              ? Array.filter(
+                  comboboxMultiDemoSelectedCities,
+                  city => city !== value,
+                )
+              : Array.append(comboboxMultiDemoSelectedCities, value),
+        }),
+      }),
+      ClearedSelection: model => ({ model }),
+    }),
+  },
+
+  view,
+})).pipe(
+  Layer.provide(Layer.mergeAll(CityCombobox.Live, CityMultiCombobox.Live)),
+)
 
 const selectCity = (model: Model, id: string, value: City): Model =>
   Match.value(id).pipe(

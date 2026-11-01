@@ -65,7 +65,7 @@ export class ProjectSettings extends Block<
   Command: [SaveProject],
 }) {}
 
-export const ProjectSettingsLive = ProjectSettings.layer(
+export const ProjectSettingsLive = ProjectSettings.toLayer(
   Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 

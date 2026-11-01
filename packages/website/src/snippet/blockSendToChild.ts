@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -9,31 +9,24 @@ export class Account extends Block<Account>()('Account', {
   Message: defineMessageUnion({ ClickedSignOut: {} }),
 }) {}
 
-export const AccountLive = Account.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        settings: new Settings('settings', { initialTheme: 'System' }),
-      }),
-
-      update: {
-        ClickedSignOut: model => ({
-          model,
-          messages: [model.settings.send(Settings.Message.RequestedReset())],
-        }),
-      },
-
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.settings.view(),
-            h.button(
-              [h.OnClick(Account.Message.ClickedSignOut())],
-              ['Sign out'],
-            ),
-          ],
-        ),
-    }
+export const AccountLive = Account.toLayer(() => ({
+  init: () => ({
+    settings: new Settings('settings', { initialTheme: 'System' }),
   }),
-)
+
+  update: {
+    ClickedSignOut: model => ({
+      model,
+      messages: [model.settings.send(Settings.Message.RequestedReset())],
+    }),
+  },
+
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.settings.view(),
+        h.button([h.OnClick(Account.Message.ClickedSignOut())], ['Sign out']),
+      ],
+    ),
+}))

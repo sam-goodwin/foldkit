@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import * as Story from 'foldkit/story'
 import { expect } from 'vitest'
@@ -20,18 +20,14 @@ class SliderHarness extends Block<SliderHarness>()('SliderHarness', {
 }) {}
 
 const makeSliderHarnessLive = (config: InitConfig) =>
-  SliderHarness.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ slider: new Slider('slider', config) }),
-        update: {
-          ...Slider.on({
-            ChangedValue: (model, outMessage) => ({ model, outMessage }),
-          }),
-        },
-      }
-    }),
-  ).pipe(Layer.provide(SliderLive))
+  SliderHarness.toLayer(() => ({
+    init: () => ({ slider: new Slider('slider', config) }),
+    update: {
+      ...Slider.on({
+        ChangedValue: (model, outMessage) => ({ model, outMessage }),
+      }),
+    },
+  })).pipe(Layer.provide(SliderLive))
 
 const withRange = (min: number, max: number, step: number): InitConfig => ({
   id: 'test',

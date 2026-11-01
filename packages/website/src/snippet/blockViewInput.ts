@@ -1,4 +1,4 @@
-import { Array, Effect, Schema } from 'effect'
+import { Array, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { type ChildAttribute, type Html, childAttributes } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -21,32 +21,28 @@ export class Disclosure extends Block<Disclosure, void, DisclosureViewInput>()(
   },
 ) {}
 
-export const DisclosureLive = Disclosure.layer(
-  Effect.gen(function* () {
-    return {
-      init: (_args, { path }) => ({
-        panelId: `${Array.join(path, '-')}-panel`,
-        isOpen: false,
-      }),
-
-      update: {
-        ClickedToggle: model => ({
-          model: modifyFields(model, { isOpen: isOpen => !isOpen }),
-        }),
-      },
-
-      view: (model, h, { toView }) =>
-        toView(
-          {
-            button: childAttributes([
-              h.AriaExpanded(model.isOpen),
-              h.AriaControls(model.panelId),
-              h.OnClick(Disclosure.Message.ClickedToggle()),
-            ]),
-            panel: childAttributes([h.Id(model.panelId)]),
-          },
-          model.isOpen,
-        ),
-    }
+export const DisclosureLive = Disclosure.toLayer(() => ({
+  init: (_args, { path }) => ({
+    panelId: `${Array.join(path, '-')}-panel`,
+    isOpen: false,
   }),
-)
+
+  update: {
+    ClickedToggle: model => ({
+      model: modifyFields(model, { isOpen: isOpen => !isOpen }),
+    }),
+  },
+
+  view: (model, h, { toView }) =>
+    toView(
+      {
+        button: childAttributes([
+          h.AriaExpanded(model.isOpen),
+          h.AriaControls(model.panelId),
+          h.OnClick(Disclosure.Message.ClickedToggle()),
+        ]),
+        panel: childAttributes([h.Id(model.panelId)]),
+      },
+      model.isOpen,
+    ),
+}))

@@ -26,14 +26,10 @@ class Application extends Block<Application>()('Application', {
   Model: Schema.Struct({ editor: Editor }),
 }) {}
 
-const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ editor: new Editor('editor') }),
-      view: model => ({ title: 'Notes', body: model.editor.view() }),
-    }
-  }),
-)
+const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ editor: new Editor('editor') }),
+  view: model => ({ title: 'Notes', body: model.editor.view() }),
+}))
 
 const program = Program.make(Application, {
   layer: ApplicationLive.pipe(

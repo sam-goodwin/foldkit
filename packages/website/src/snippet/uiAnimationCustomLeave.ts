@@ -23,41 +23,37 @@ export class Drawer extends Block<Drawer>()('Drawer', {
   Command: [WaitForPanelSettled],
 }) {}
 
-export const DrawerLive = Drawer.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        animation: new Animation.Animation('animation', {
-          id: 'drawer',
-        }),
-      }),
-
-      update: {
-        // When the panel settles, tell Animation that this leave finished
-        CompletedWaitForPanelSettled: (model, { generation }) => ({
-          model,
-          messages: [
-            model.animation.send(
-              Animation.Animation.Message.RequestedFinish({ generation }),
-            ),
-          ],
-        }),
-
-        // Wait on a child panel instead of the Animation wrapper
-        ...Animation.Animation.on({
-          StartedLeaveAnimating: (model, { generation }) => ({
-            model,
-            commands: [WaitForPanelSettled({ generation })],
-          }),
-        }),
-      },
-
-      commands: {
-        WaitForPanelSettled: ({ generation }) =>
-          Dom.waitForAnimationSettled('#drawer-panel').pipe(
-            Effect.as(Message.CompletedWaitForPanelSettled({ generation })),
-          ),
-      },
-    }
+export const DrawerLive = Drawer.toLayer(() => ({
+  init: () => ({
+    animation: new Animation.Animation('animation', {
+      id: 'drawer',
+    }),
   }),
-).pipe(Layer.provide(Animation.AnimationLive))
+
+  update: {
+    // When the panel settles, tell Animation that this leave finished
+    CompletedWaitForPanelSettled: (model, { generation }) => ({
+      model,
+      messages: [
+        model.animation.send(
+          Animation.Animation.Message.RequestedFinish({ generation }),
+        ),
+      ],
+    }),
+
+    // Wait on a child panel instead of the Animation wrapper
+    ...Animation.Animation.on({
+      StartedLeaveAnimating: (model, { generation }) => ({
+        model,
+        commands: [WaitForPanelSettled({ generation })],
+      }),
+    }),
+  },
+
+  commands: {
+    WaitForPanelSettled: ({ generation }) =>
+      Dom.waitForAnimationSettled('#drawer-panel').pipe(
+        Effect.as(Message.CompletedWaitForPanelSettled({ generation })),
+      ),
+  },
+})).pipe(Layer.provide(Animation.AnimationLive))

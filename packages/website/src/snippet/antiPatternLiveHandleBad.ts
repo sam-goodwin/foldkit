@@ -1,6 +1,6 @@
 // ❌ Bad: module state owns the WebSocket outside the Runtime.
 
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -14,22 +14,18 @@ export class ChatRoom extends Block<ChatRoom, Readonly<{ roomId: string }>>()(
   },
 ) {}
 
-export const ChatRoomLive = ChatRoom.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ roomId }) => ({ roomId }),
+export const ChatRoomLive = ChatRoom.toLayer(() => ({
+  init: ({ roomId }) => ({ roomId }),
 
-      update: {
-        ClickedJoin: model => {
-          socket = new WebSocket(`/rooms/${model.roomId}`)
-          return { model }
-        },
-        ClickedLeave: model => {
-          socket?.close()
-          socket = undefined
-          return { model }
-        },
-      },
-    }
-  }),
-)
+  update: {
+    ClickedJoin: model => {
+      socket = new WebSocket(`/rooms/${model.roomId}`)
+      return { model }
+    },
+    ClickedLeave: model => {
+      socket?.close()
+      socket = undefined
+      return { model }
+    },
+  },
+}))

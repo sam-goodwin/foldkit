@@ -48,61 +48,57 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => {
+    const route = urlToApplicationRoute(url)
+
     return {
-      init: ({ url }) => {
-        const route = urlToApplicationRoute(url)
-
-        return {
-          route,
-          browse: new Browse('browse', { fields: routeToBrowseFields(route) }),
-        }
-      },
-
-      update: {
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
-
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url }) => ({
-              model,
-              commands: [NavigateInternal({ url: urlToString(url) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
-
-        ChangedUrl: (model, { url }) => {
-          const nextRoute = urlToApplicationRoute(url)
-
-          return {
-            model: modifyFields(model, { route: () => nextRoute }),
-            messages: [
-              model.browse.send(
-                Browse.Message.InformedOfRouteChange({
-                  fields: routeToBrowseFields(nextRoute),
-                }),
-              ),
-            ],
-          }
-        },
-      },
-
-      commands: {
-        NavigateInternal: ({ url }) =>
-          pushUrl(url).pipe(Effect.as(Message.CompletedNavigateInternal())),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-      },
-
-      view,
+      route,
+      browse: new Browse('browse', { fields: routeToBrowseFields(route) }),
     }
-  }),
-)
+  },
+
+  update: {
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url }) => ({
+          model,
+          commands: [NavigateInternal({ url: urlToString(url) })],
+        }),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
+      }),
+
+    ChangedUrl: (model, { url }) => {
+      const nextRoute = urlToApplicationRoute(url)
+
+      return {
+        model: modifyFields(model, { route: () => nextRoute }),
+        messages: [
+          model.browse.send(
+            Browse.Message.InformedOfRouteChange({
+              fields: routeToBrowseFields(nextRoute),
+            }),
+          ),
+        ],
+      }
+    },
+  },
+
+  commands: {
+    NavigateInternal: ({ url }) =>
+      pushUrl(url).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
+
+  view,
+}))
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

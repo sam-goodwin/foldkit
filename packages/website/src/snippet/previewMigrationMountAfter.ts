@@ -17,28 +17,24 @@ export class Panel extends Block<Panel>()('Panel', {
   Mount: [MeasurePanel],
 }) {}
 
-export const PanelLive = Panel.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ height: 0 }),
+export const PanelLive = Panel.toLayer(() => ({
+  init: () => ({ height: 0 }),
 
-      update: {
-        CompletedMeasurePanel: (model, { height }) => ({
-          model: modifyFields(model, { height: () => height }),
+  update: {
+    CompletedMeasurePanel: (model, { height }) => ({
+      model: modifyFields(model, { height: () => height }),
+    }),
+  },
+
+  mounts: {
+    MeasurePanel: ({ element }) =>
+      Effect.sync(() =>
+        Message.CompletedMeasurePanel({
+          height: element.getBoundingClientRect().height,
         }),
-      },
+      ),
+  },
 
-      mounts: {
-        MeasurePanel: ({ element }) =>
-          Effect.sync(() =>
-            Message.CompletedMeasurePanel({
-              height: element.getBoundingClientRect().height,
-            }),
-          ),
-      },
-
-      view: (model, h) =>
-        h.section([h.OnMount(MeasurePanel())], [`${model.height}px tall`]),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.section([h.OnMount(MeasurePanel())], [`${model.height}px tall`]),
+}))

@@ -23,7 +23,7 @@ export class Weather extends Block<Weather>()('Weather', {
   Command: [FetchWeather],
 }) {}
 
-export const WeatherLive = Weather.layer(
+export const WeatherLive = Weather.toLayer(
   Effect.gen(function* () {
     const weatherApi = yield* WeatherApi
 

@@ -46,19 +46,15 @@ class ListboxScene extends Block<ListboxScene>()('ListboxScene', {
 }) {}
 
 const makeListboxSceneLive = (viewInputs: ViewInputs<string>) =>
-  ListboxScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ listbox: new TestListbox('listbox', testConfig) }),
-        update: {
-          ...TestListbox.on({
-            Selected: (model, outMessage) => ({ model, outMessage }),
-          }),
-        },
-        view: model => model.listbox.view(viewInputs),
-      }
-    }),
-  ).pipe(Layer.provide(TestListbox.Live))
+  ListboxScene.toLayer(() => ({
+    init: () => ({ listbox: new TestListbox('listbox', testConfig) }),
+    update: {
+      ...TestListbox.on({
+        Selected: (model, outMessage) => ({ model, outMessage }),
+      }),
+    },
+    view: model => model.listbox.view(viewInputs),
+  })).pipe(Layer.provide(TestListbox.Live))
 
 const acknowledgeAnchor = Scene.Mount.resolve(
   AnchorListbox,

@@ -45,7 +45,7 @@ export class StatsTab extends Block<StatsTab>()('StatsTab', {
   Command: [FetchStats],
 }) {}
 
-export const StatsTabLive = StatsTab.layer(
+export const StatsTabLive = StatsTab.toLayer(
   Effect.gen(function* () {
     const clock = yield* Clock.Clock
 

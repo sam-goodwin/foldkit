@@ -687,7 +687,7 @@ const isEffectOrStreamCallback = (
   )
 }
 
-const isToLayerCall = (call: ESTree.CallExpression): boolean => {
+const isLayerCall = (call: ESTree.CallExpression): boolean => {
   const callee = innermostExpression(call.callee)
   return (
     isMemberExpression(callee) &&
@@ -970,24 +970,15 @@ const handlerConstructorArgument = (
   references: WeakMap<ESTree.Node, Reference> | undefined,
   call: ESTree.CallExpression,
 ): Option.Option<ESTree.Node> => {
-  if (isToLayerCall(call) && call.arguments.length === 1) {
+  if (isLayerCall(call) && call.arguments.length === 1) {
     return Array.head(call.arguments)
   }
 
-  const isDefinition = Option.exists(
-    apiCallKey(references, call),
-    key =>
-      (call.arguments.length === 2 &&
-        (key === 'Command.define' ||
-          key === 'Mount.define' ||
-          key === 'Mount.defineStream')) ||
-      (call.arguments.length === 1 && key === 'Query.define'),
-  )
   const isEntry =
     (call.arguments.length === 2 || call.arguments.length === 3) &&
     isEntryBuilderCall(references, call)
 
-  return isDefinition || isEntry
+  return isEntry
     ? pipe(
         call.arguments,
         Array.last,

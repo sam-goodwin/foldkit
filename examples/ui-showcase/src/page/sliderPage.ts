@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -16,41 +16,37 @@ type Model = typeof Model.Type
 
 export class SliderPage extends Block<SliderPage>()('SliderPage', { Model }) {}
 
-export const SliderPageLive = SliderPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        sliderRatingDemo: new Slider.Slider('sliderRatingDemo', {
-          id: 'slider-rating-demo',
-          min: 0,
-          max: 10,
-          step: 1,
-        }),
-        sliderRatingValue: 3,
-        sliderVolumeDemo: new Slider.Slider('sliderVolumeDemo', {
-          id: 'slider-volume-demo',
-          min: 0,
-          max: 1,
-          step: 0.05,
-        }),
-        sliderVolumeValue: 0.5,
-      }),
-
-      update: {
-        ...Slider.Slider.on({
-          ChangedValue: (model, { value }, { id }) => ({
-            model:
-              id === 'sliderRatingDemo'
-                ? modifyFields(model, { sliderRatingValue: () => value })
-                : modifyFields(model, { sliderVolumeValue: () => value }),
-          }),
-        }),
-      },
-
-      view,
-    }
+export const SliderPageLive = SliderPage.toLayer(() => ({
+  init: () => ({
+    sliderRatingDemo: new Slider.Slider('sliderRatingDemo', {
+      id: 'slider-rating-demo',
+      min: 0,
+      max: 10,
+      step: 1,
+    }),
+    sliderRatingValue: 3,
+    sliderVolumeDemo: new Slider.Slider('sliderVolumeDemo', {
+      id: 'slider-volume-demo',
+      min: 0,
+      max: 1,
+      step: 0.05,
+    }),
+    sliderVolumeValue: 0.5,
   }),
-).pipe(Layer.provide(Slider.SliderLive))
+
+  update: {
+    ...Slider.Slider.on({
+      ChangedValue: (model, { value }, { id }) => ({
+        model:
+          id === 'sliderRatingDemo'
+            ? modifyFields(model, { sliderRatingValue: () => value })
+            : modifyFields(model, { sliderVolumeValue: () => value }),
+      }),
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(Slider.SliderLive))
 
 const horizontalRowClassName = 'flex flex-col gap-2 w-full max-w-sm'
 

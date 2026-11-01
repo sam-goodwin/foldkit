@@ -360,7 +360,7 @@ For each symbol you'll call, write one line. For example:
 
 ```text
 class X extends Block<X, Args?, ViewInput?>()('X', { Model?, Message?, OutMessage?, Command?: [...], Mount?: [...] }) {}
-XLive = X.layer(Effect.gen(function* () { ...yield services; return { init: (args, { id, path }) => Model, start?: (model, args) => [Commands], update, commands?, mounts?, subscriptions?, view } }))
+XLive = X.toLayer(Effect.gen(function* () { ...yield services; return { init: (args, { id, path }) => Model, start?: (model, args) => [Commands], update, commands?, mounts?, subscriptions?, view } }))
 update handler: (model, message) => { model, commands?, outMessage?, messages? }
 instance: new Child(id, args) anywhere; .id, .model, .view(input?), .send(Child.Message.X())
 parent update record: ...Child.on({ Tag: (model, outMessage, instance) => result }), ...Child.onAll({ ... }), ...Child.when((model, message) => boolean)
@@ -402,7 +402,7 @@ Record these in the crib and keep them visible while generating:
 - **`Field.Invalid` has `errors: NonEmptyArray<string>`, not `error: string`.** Use `Array.headNonEmpty(errors)` for the first message.
 - **Route variants stay on `ApplicationRoute`**: `ApplicationRoute.Home`, not sibling bindings named `HomeRoute`.
 - **Routers are callable for printing**: `homeRouter()` returns `'/'`, `tagFilterRouter({ tag: 'foo' })` returns `'/tag/foo'`. Never hand-construct URLs.
-- **`HttpClient` and `HttpClientRequest` come from `effect/http`**, not `@effect/platform`. Yield `HttpClient.HttpClient` in the Layer constructor and provide `Http.layer` from `foldkit` in `ApplicationLayer`, so a test can provide a deterministic HTTP Layer instead. `@effect/platform-browser` is a different package, used for `BrowserKeyValueStore` and `BrowserCrypto`.
+- **`HttpClient` and `HttpClientRequest` come from `effect/http`**, not `@effect/platform`. Yield `HttpClient.HttpClient` in the Layer constructor and provide `Http.toLayer` from `foldkit` in `ApplicationLayer`, so a test can provide a deterministic HTTP Layer instead. `@effect/platform-browser` is a different package, used for `BrowserKeyValueStore` and `BrowserCrypto`.
 - **Branch on a Model array with `Array.match`.** `Array.isArrayEmpty` / `Array.isArrayNonEmpty` take a mutable `Array<A>` and reject the `ReadonlyArray` that `Schema.Array(...)` decodes to.
 - **Omit only statically empty Commands.** A handler that statically creates none omits `commands`. A computed collection is returned directly, even when empty. Never write `commands: []`. The same holds for `messages`.
 
@@ -465,7 +465,7 @@ A child Block that reports facts to its parent declares an `OutMessage` union th
 
 ### Layer (init and startup Commands)
 
-- Implement each Block with `XLive = X.layer(Effect.gen(function* () { ... }))` directly after the class. The constructor runs once per Block, when the program's Layer is built, and returns the module every instance shares
+- Implement each Block with `XLive = X.toLayer(Effect.gen(function* () { ... }))` directly after the class. The constructor runs once per Block, when the program's Layer is built, and returns the module every instance shares
 - Yield Services in the constructor. Hold nothing per instance there
 - Return `init: (args, { id, path }) => Model`, the starting Model of each new instance. Copy into the Model every arg and id the Block needs later. Create child instances inside it with `new Child(id, args)`
 - When startup work is needed, return `start: (model, args) => [LoadX({ ... })]`. Foldkit runs these Commands when an instance appears in the Model. Do not fetch, read storage, or read the clock in the constructor or `init`
@@ -496,8 +496,8 @@ A child Block that reports facts to its parent declares an `OutMessage` union th
 - Command args carry values already in the Model or Message, including per-instance data such as an id the handler needs. Read time, randomness, and UUIDs inside the handler and return them in the result Message
 - Name each Command for the effect its handler performs, not the later Model transition: a timer that only waits before dismissal is `WaitBeforeDismissal`, not `DismissAfter`
 - Commands that can't meaningfully fail return `Completed*` Messages named from the Command, payload-carrying ones included: `DetermineStartTime` → `CompletedDetermineStartTime`
-- Use Foldkit's `Dom` module for DOM operations (`Dom.focus`, `Dom.scrollIntoView`, `Dom.showDialog`, `Dom.lockScroll`) and Effect built-ins for time, randomness, and delay. For UUIDs, yield `Crypto.Crypto` in the Layer constructor and provide `BrowserCrypto.layer` in `ApplicationLayer`. See DOM and Effect Helpers in [architecture.md](architecture.md)
-- For HTTP, yield `HttpClient.HttpClient` (from `effect/http`) in the Layer constructor and provide `Http.layer` from `foldkit` in `ApplicationLayer`
+- Use Foldkit's `Dom` module for DOM operations (`Dom.focus`, `Dom.scrollIntoView`, `Dom.showDialog`, `Dom.lockScroll`) and Effect built-ins for time, randomness, and delay. For UUIDs, yield `Crypto.Crypto` in the Layer constructor and provide `BrowserCrypto.toLayer` in `ApplicationLayer`. See DOM and Effect Helpers in [architecture.md](architecture.md)
+- For HTTP, yield `HttpClient.HttpClient` (from `effect/http`) in the Layer constructor and provide `Http.toLayer` from `foldkit` in `ApplicationLayer`
 - A child's Command result returns to the child that issued it. The parent never maps child Commands
 
 ### Form Validation
@@ -580,8 +580,8 @@ const program = Program.make(Application, {
 Runtime.run(program)
 ```
 
-- `layer` provides the root Block, every Block the Models hold, and their Services. A child Block's Layer must be provided to every parent Layer whose Model holds it. A feature may instead provide its own children inside its Live Layer (`EditorLive = Editor.layer(...).pipe(Layer.provide(DatePicker.DatePickerLive))`) so its parents provide only `EditorLive`
-- `ApplicationLayer` (in `services.ts`) holds ordinary Services: `Http.layer`, `BrowserKeyValueStore.layerLocalStorage`, `BrowserCrypto.layer`, and app-specific Services
+- `layer` provides the root Block, every Block the Models hold, and their Services. A child Block's Layer must be provided to every parent Layer whose Model holds it. A feature may instead provide its own children inside its Live Layer (`EditorLive = Editor.toLayer(...).pipe(Layer.provide(DatePicker.DatePickerLive))`) so its parents provide only `EditorLive`
+- `ApplicationLayer` (in `services.ts`) holds ordinary Services: `Http.toLayer`, `BrowserKeyValueStore.layerLocalStorage`, `BrowserCrypto.toLayer`, and app-specific Services
 - With Flags, add `Flags` to the options and call `Runtime.run(program, { flags: flags.pipe(Effect.provide(ApplicationLayer)) })`
 - `devTools: { dispatch: true }` lets external DevTools clients dispatch the root's Messages. Omit `devTools` to keep inspection with dispatch disabled; `devTools: false` disables DevTools entirely
 - `Program.makeElement(Application, { layer, container, ... })` creates a widget scoped to a container on a page it does not own. Its root view returns `Html`, it has no `routing`, and it never touches the document head. Use `Runtime.embed(program)` when a host must mount, dispose, or communicate through Ports; mirror `repos/foldkit/examples/embedding/`

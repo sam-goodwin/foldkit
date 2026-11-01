@@ -35,7 +35,7 @@ If the argument is ambiguous (could be a path OR a focus), ask which. Don't gues
 A Block is a class. The class declares the contract, and `layer` implements it and returns its Layer:
 
 - `class Search extends Block<Search, Args, ViewInput>()('Search', { Model, Message, OutMessage?, Command?: [...], Mount?: [...] }) {}`. The string id matches the class name. Messages, OutMessages, Commands (`Command.define`), and Mounts (`Mount.define` / `Mount.defineStream`) are declared at module level before the class.
-- `export const SearchLive = Search.layer(Effect.gen(function* () { ... return { init, start?, update, commands?, mounts?, subscriptions?, view } }))`, directly after the class. The constructor runs once per Block, when the program's Layer is built. It yields Services, the handlers close over them, and the returned module is shared by every instance. `init: (args, { id, path }) => Model` builds an instance's starting Model; `start: (model, args) => [Commands]` lists its startup work. Per-instance data lives in the Model and reaches Commands as Command args.
+- `export const SearchLive = Search.toLayer(Effect.gen(function* () { ... return { init, start?, update, commands?, mounts?, subscriptions?, view } }))`, directly after the class. The constructor runs once per Block, when the program's Layer is built. It yields Services, the handlers close over them, and the returned module is shared by every instance. `init: (args, { id, path }) => Model` builds an instance's starting Model; `start: (model, args) => [Commands]` lists its startup work. Per-instance data lives in the Model and reaches Commands as Command args.
 - `update` has one handler per Message tag, returning `{ model, commands?, outMessage?, messages? }`.
 - Children are plain values created with `new Child(id, args)` in the parent's `init` or update handlers, held in the parent Model (the child class is the field's Schema), rendered with `model.child.view(input?)`, changed only by returning `messages: [model.child.send(Child.Message.RequestedX())]`, and heard through one `...Child.on({ Tag: (model, outMessage, instance) => result })` entry per child Block. Foldkit runs a child's `start` Commands and Subscriptions while it is in the Model, keyed by its path (parent path plus id); ids are unique among one parent's children.
 - `entry.ts` calls `Program.make(Application, { layer, container, routing?, Flags?, devTools? })`, where `layer` is `ApplicationLive` with every child Block Layer and the root `ApplicationLayer` of ordinary Services provided. Then `Runtime.run(program)`.
@@ -131,8 +131,8 @@ grep -rnE '\.make\(\s*Effect\.fn|yield\* new [A-Z]|\.each\(|NotConnected|Block\.
 
 Then check the installed `foldkit` version against the vendored subtree (or the release notes) to decide which case applies:
 
-- **Installed Foldkit has `X.layer` Blocks**: every hit is a BLOCKER, because the code cannot compile against the installed package. Group them under one **Stale API** heading inside BLOCKERS, one line per file, and point the user to the migration. For example:
-  - `class X extends Block<...>()('X', {...})` plus `XLive = X.layer(Effect.gen(...))` returning `{ init, start?, update, commands?, mounts?, subscriptions?, view }`, in place of Definition, Composition, and assembly, and of `X.make(Effect.fn(...))` per-instance constructors. Per-instance args and ids move into the Model through `init` and reach Commands as Command args.
+- **Installed Foldkit has `X.toLayer` Blocks**: every hit is a BLOCKER, because the code cannot compile against the installed package. Group them under one **Stale API** heading inside BLOCKERS, one line per file, and point the user to the migration. For example:
+  - `class X extends Block<...>()('X', {...})` plus `XLive = X.toLayer(Effect.gen(...))` returning `{ init, start?, update, commands?, mounts?, subscriptions?, view }`, in place of Definition, Composition, and assembly, and of `X.make(Effect.fn(...))` per-instance constructors. Per-instance args and ids move into the Model through `init` and reach Commands as Command args.
   - `new Child(id, args)` values in the Model, in place of Bindings, `yield* new Child(...)`, and `Child.each(...)` factories.
   - `Child.on` / `Child.onAll` / `Child.when`, in place of OutMessage folds and forwards and of per-instance `.on` / `.when`.
   - `send` in place of operations, and `model.child.view()` in place of embedded views.
@@ -144,9 +144,9 @@ Then check the installed `foldkit` version against the vendored subtree (or the 
 
   With the subtree vendored, cite the matching exemplar file for each.
 
-- **Installed Foldkit predates `X.layer` Blocks**: the code matches its package, and this audit's Block guidance does not apply to it. Say so at the top of the report, recommend upgrading Foldkit and migrating, and limit the rest of the audit to the conventions that do not depend on the Block API (naming, state modeling, Effect idiom, view, accessibility).
+- **Installed Foldkit predates `X.toLayer` Blocks**: the code matches its package, and this audit's Block guidance does not apply to it. Say so at the top of the report, recommend upgrading Foldkit and migrating, and limit the rest of the audit to the conventions that do not depend on the Block API (naming, state modeling, Effect idiom, view, accessibility).
 
-Do not grade old-API code against old-API conventions. This skill teaches only the `X.layer` Block shape.
+Do not grade old-API code against old-API conventions. This skill teaches only the `X.toLayer` Block shape.
 
 ### Then the scans
 
@@ -264,7 +264,7 @@ When findings overlap (for example, one helper has both a naming issue and a len
 Then, in a separate turn, ask whether to apply fixes. Group by reversibility and blast radius:
 
 - **Mechanical fixes** (single-line edits, name changes, import reorders, `({})` → `()`): offer to batch as one pass. Even the batch needs explicit consent. "Apply all 12 mechanical fixes?" is a real question with a real answer; don't proceed on assumed yes.
-- **Structural fixes** (handler extraction, Block introduction, view decomposition, replacing hand-rolled widgets with `@foldkit/ui` components, migrating stale API to `X.layer` Blocks): offer one at a time, confirm each, show the diff before applying.
+- **Structural fixes** (handler extraction, Block introduction, view decomposition, replacing hand-rolled widgets with `@foldkit/ui` components, migrating stale API to `X.toLayer` Blocks): offer one at a time, confirm each, show the diff before applying.
 - **Semantic fixes** (changing state shape, swapping booleans for discriminated unions, restructuring update logic): describe the change in prose, get explicit approval, then apply.
 
 Don't apply fixes silently. Don't apply fixes the user didn't approve. Don't bundle a structural change into a "mechanical" batch. If the user said "audit my app" without saying "and fix what you find", treat that as report-only and ask before doing anything else.

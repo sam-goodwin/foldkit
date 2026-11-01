@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { afterEach, expect, vi } from 'vitest'
 
@@ -14,45 +14,41 @@ class PopoverTriggerClickTest extends Block<PopoverTriggerClickTest>()(
 ) {}
 
 const makePopoverTriggerClickTestLive = (isModal: boolean) =>
-  PopoverTriggerClickTest.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          popover: new Popover('popover', { id: 'sort', isModal }),
-        }),
-        view: (model, h) =>
-          h.div(
-            [],
-            [
-              model.popover.view({
-                anchor: { placement: 'bottom-start' },
-                toView: ({ button, panel, backdrop, isVisible }) =>
-                  h.div(
-                    [],
-                    [
-                      h.button([...button], ['Sort']),
-                      ...(isVisible
-                        ? [
-                            h.div([...backdrop]),
-                            h.div(
-                              [...panel],
-                              [
-                                h.button(
-                                  [h.Id('item'), h.Type('button')],
-                                  ['Name'],
-                                ),
-                              ],
-                            ),
-                          ]
-                        : []),
-                    ],
-                  ),
-              }),
-            ],
-          ),
-      }
+  PopoverTriggerClickTest.toLayer(() => ({
+    init: () => ({
+      popover: new Popover('popover', { id: 'sort', isModal }),
     }),
-  ).pipe(Layer.provide(PopoverLive))
+    view: (model, h) =>
+      h.div(
+        [],
+        [
+          model.popover.view({
+            anchor: { placement: 'bottom-start' },
+            toView: ({ button, panel, backdrop, isVisible }) =>
+              h.div(
+                [],
+                [
+                  h.button([...button], ['Sort']),
+                  ...(isVisible
+                    ? [
+                        h.div([...backdrop]),
+                        h.div(
+                          [...panel],
+                          [
+                            h.button(
+                              [h.Id('item'), h.Type('button')],
+                              ['Name'],
+                            ),
+                          ],
+                        ),
+                      ]
+                    : []),
+                ],
+              ),
+          }),
+        ],
+      ),
+  })).pipe(Layer.provide(PopoverLive))
 
 const makeProgram = (container: HTMLElement, isModal: boolean) =>
   Program.makeElement(PopoverTriggerClickTest, {

@@ -18,22 +18,18 @@ export class Welcome extends Block<Welcome>()('Welcome', {
   Command: [StartWelcome],
 }) {}
 
-export const WelcomeLive = Welcome.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ dialog: new Dialog.Dialog('dialog', { id: 'welcome' }) }),
-      start: () => [StartWelcome()],
+export const WelcomeLive = Welcome.toLayer(() => ({
+  init: () => ({ dialog: new Dialog.Dialog('dialog', { id: 'welcome' }) }),
+  start: () => [StartWelcome()],
 
-      update: {
-        CompletedStartWelcome: model => ({
-          model,
-          messages: [model.dialog.send(Dialog.Dialog.Message.RequestedOpen())],
-        }),
-      },
+  update: {
+    CompletedStartWelcome: model => ({
+      model,
+      messages: [model.dialog.send(Dialog.Dialog.Message.RequestedOpen())],
+    }),
+  },
 
-      commands: {
-        StartWelcome: () => Effect.succeed(Message.CompletedStartWelcome()),
-      },
-    }
-  }),
-).pipe(Layer.provide(Dialog.DialogLive))
+  commands: {
+    StartWelcome: () => Effect.succeed(Message.CompletedStartWelcome()),
+  },
+})).pipe(Layer.provide(Dialog.DialogLive))

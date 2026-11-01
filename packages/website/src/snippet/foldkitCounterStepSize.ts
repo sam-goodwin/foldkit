@@ -1,4 +1,4 @@
-import { Duration, Effect, Schema, Stream } from 'effect'
+import { Duration, Schema, Stream } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -25,66 +25,60 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0, step: 1, isAutoCounting: false }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0, step: 1, isAutoCounting: false }),
 
-      update: {
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: count => count + model.step }),
-        }),
-        ClickedToggleAutoCount: model => ({
-          model: modifyFields(model, {
-            isAutoCounting: isAutoCounting => !isAutoCounting,
-          }),
-        }),
-        ChangedStep: (model, { step }) => ({
-          model: modifyFields(model, { step: () => step }),
-        }),
-        Ticked: model => ({
-          model: modifyFields(model, { count: count => count + model.step }),
-        }),
-      },
+  update: {
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: count => count + model.step }),
+    }),
+    ClickedToggleAutoCount: model => ({
+      model: modifyFields(model, {
+        isAutoCounting: isAutoCounting => !isAutoCounting,
+      }),
+    }),
+    ChangedStep: (model, { step }) => ({
+      model: modifyFields(model, { step: () => step }),
+    }),
+    Ticked: model => ({
+      model: modifyFields(model, { count: count => count + model.step }),
+    }),
+  },
 
-      subscriptions: {
-        ticks: {
-          dependencies: model => model.isAutoCounting,
-          stream: (isAutoCounting: boolean) =>
-            isAutoCounting
-              ? Stream.tick(Duration.millis(TICK_INTERVAL_MS)).pipe(
-                  Stream.drop(1),
-                  Stream.map(Message.Ticked),
-                )
-              : Stream.empty,
-        },
-      },
+  subscriptions: {
+    ticks: {
+      dependencies: model => model.isAutoCounting,
+      stream: (isAutoCounting: boolean) =>
+        isAutoCounting
+          ? Stream.tick(Duration.millis(TICK_INTERVAL_MS)).pipe(
+              Stream.drop(1),
+              Stream.map(Message.Ticked),
+            )
+          : Stream.empty,
+    },
+  },
 
-      view: (model, h) => ({
-        title: `Count: ${model.count}`,
-        body: h.div(
+  view: (model, h) => ({
+    title: `Count: ${model.count}`,
+    body: h.div(
+      [],
+      [
+        h.p([], [`Count: ${model.count}`]),
+        h.label(
           [],
           [
-            h.p([], [`Count: ${model.count}`]),
-            h.label(
-              [],
-              [
-                'Step: ',
-                h.input([
-                  h.OnInput(value =>
-                    Message.ChangedStep({ step: Number(value) }),
-                  ),
-                ]),
-              ],
-            ),
-            h.button([h.OnClick(Message.ClickedIncrement())], ['Increment']),
-            h.button(
-              [h.OnClick(Message.ClickedToggleAutoCount())],
-              [model.isAutoCounting ? 'Stop' : 'Auto-Count'],
-            ),
+            'Step: ',
+            h.input([
+              h.OnInput(value => Message.ChangedStep({ step: Number(value) })),
+            ]),
           ],
         ),
-      }),
-    }
+        h.button([h.OnClick(Message.ClickedIncrement())], ['Increment']),
+        h.button(
+          [h.OnClick(Message.ClickedToggleAutoCount())],
+          [model.isAutoCounting ? 'Stop' : 'Auto-Count'],
+        ),
+      ],
+    ),
   }),
-)
+}))

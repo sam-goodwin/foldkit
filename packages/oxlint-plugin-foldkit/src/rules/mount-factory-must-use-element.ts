@@ -11,7 +11,6 @@ import {
 import { isBlockImplementationObject } from '../block-implementation.ts'
 import {
   effectConstructorValue,
-  generatorConstructorValue,
   resolveLocalValue,
 } from '../effect-constructor.ts'
 import {
@@ -338,39 +337,11 @@ const isLocalMountDefinition = (
   )
 }
 
-const attachedMountHandler = (
-  config: ESTree.Node,
-  references: WeakMap<ESTree.Node, Reference> | undefined,
-): Option.Option<MountHandler> =>
-  pipe(
-    resolveLocalValue(config, references),
-    Option.filter(isObjectExpression),
-    Option.flatMap(object =>
-      Array.findFirst(
-        object.properties,
-        (property): property is ESTree.ObjectProperty =>
-          isObjectProperty(property) &&
-          Option.contains(staticPropertyName(property), 'handler'),
-      ),
-    ),
-    Option.flatMap(property =>
-      generatorConstructorValue(property.value, references),
-    ),
-    Option.filter(isMountHandler),
-  )
-
 const mountHandler = (
   node: ESTree.CallExpression,
   localMountDefinitions: ReadonlySet<string>,
   references: WeakMap<ESTree.Node, Reference> | undefined,
 ): Option.Option<MountHandler> => {
-  if (isMountDefinitionCall(node, references) && node.arguments.length === 2) {
-    return pipe(
-      Array.last(node.arguments),
-      Option.flatMap(config => attachedMountHandler(config, references)),
-    )
-  }
-
   if (
     !isMemberExpression(node.callee) ||
     !Option.exists(staticMemberName(node.callee), name => name === 'toLayer') ||
@@ -423,7 +394,7 @@ const blockMountHandlers = (
   )
 }
 
-/** Flags local Mount handlers, attached to a Mount definition or listed under a Block's `mounts`, whose implementation never uses its element. A Mount exists for element-caused, element-targeted work; work that ignores the element belongs in a Command, Subscription, or ManagedResource. */
+/** Flags local Mount handlers, passed to a Mount definition's `layer` or listed under a Block's `mounts`, whose implementation never uses its element. A Mount exists for element-caused, element-targeted work; work that ignores the element belongs in a Command, Subscription, or ManagedResource. */
 export const mountFactoryMustUseElement = Rule.define({
   name: 'mount-factory-must-use-element',
   meta: Rule.meta({

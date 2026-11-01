@@ -73,50 +73,46 @@ class Widget extends Block<Widget>()('Widget', {
 
 const widgetEvents: Array<string> = []
 
-const WidgetLive = Widget.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
-      subscriptions: {
-        steps: {
-          dependencies: () => 'steps',
-          stream: () =>
-            Stream.unwrap(
-              Effect.acquireRelease(
-                Effect.sync(() => {
-                  widgetEvents.push('acquired')
-                }),
-                () =>
-                  Effect.sync(() => {
-                    widgetEvents.push('released')
-                  }),
-              ).pipe(
-                Effect.as(
-                  Port.stream(ports.inbound.stepChanged).pipe(
-                    Stream.map(step => Widget.Message.ReceivedStep({ step })),
-                  ),
-                ),
+const WidgetLive = Widget.toLayer(() => ({
+  init: () => ({ count: 0 }),
+  subscriptions: {
+    steps: {
+      dependencies: () => 'steps',
+      stream: () =>
+        Stream.unwrap(
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              widgetEvents.push('acquired')
+            }),
+            () =>
+              Effect.sync(() => {
+                widgetEvents.push('released')
+              }),
+          ).pipe(
+            Effect.as(
+              Port.stream(ports.inbound.stepChanged).pipe(
+                Stream.map(step => Widget.Message.ReceivedStep({ step })),
               ),
             ),
-        },
-      },
-      update: {
-        ReceivedStep: (model, { step }) => {
-          const count = model.count + step
-          return { model: { count }, commands: [ReportCount({ count })] }
-        },
-        CompletedReportCount: model => ({ model }),
-      },
-      commands: {
-        ReportCount: ({ count }) =>
-          Port.emit(ports.outbound.countChanged, count).pipe(
-            Effect.as(Widget.Message.CompletedReportCount()),
           ),
-      },
-      view: (model, h) => h.p([h.Id('widget-count')], [`${model.count}`]),
-    }
-  }),
-)
+        ),
+    },
+  },
+  update: {
+    ReceivedStep: (model, { step }) => {
+      const count = model.count + step
+      return { model: { count }, commands: [ReportCount({ count })] }
+    },
+    CompletedReportCount: model => ({ model }),
+  },
+  commands: {
+    ReportCount: ({ count }) =>
+      Port.emit(ports.outbound.countChanged, count).pipe(
+        Effect.as(Widget.Message.CompletedReportCount()),
+      ),
+  },
+  view: (model, h) => h.p([h.Id('widget-count')], [`${model.count}`]),
+}))
 
 describe('Runtime.embed with a Block program', () => {
   it('connects Ports, releases what Subscriptions hold on dispose, and embeds again', async () => {
@@ -168,26 +164,22 @@ class Counter extends Block<Counter>()('Counter', {
   Message: CounterMessage,
 }) {}
 
-const CounterLive = Counter.layer(
-  Effect.gen(function* () {
-    return {
-      init: (_, { id }) => ({ counterId: id, count: 0 }),
-      update: {
-        ClickedIncrement: model => ({
-          model: { ...model, count: model.count + 1 },
-        }),
-      },
-      view: (model, h) =>
-        h.button(
-          [
-            h.Id(`counter-${model.counterId}`),
-            h.OnClick(Counter.Message.ClickedIncrement()),
-          ],
-          [`${model.count}`],
-        ),
-    }
-  }),
-)
+const CounterLive = Counter.toLayer(() => ({
+  init: (_, { id }) => ({ counterId: id, count: 0 }),
+  update: {
+    ClickedIncrement: model => ({
+      model: { ...model, count: model.count + 1 },
+    }),
+  },
+  view: (model, h) =>
+    h.button(
+      [
+        h.Id(`counter-${model.counterId}`),
+        h.OnClick(Counter.Message.ClickedIncrement()),
+      ],
+      [`${model.count}`],
+    ),
+}))
 
 const BoardMessage = defineMessageUnion({
   ClickedAddRow: {},
@@ -211,62 +203,58 @@ class Board extends Block<Board>()('Board', {
 
 const loadRuns: Array<number> = []
 
-const BoardLive = Board.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        openedAt: new Date('2026-10-29T00:00:00.000Z'),
-        loads: 0,
-        home: new Counter('home'),
-        rows: [],
-        maybeBonus: Option.none(),
-      }),
-      start: () => [Load()],
-      update: {
-        ClickedAddRow: model => ({
-          model: {
-            ...model,
-            rows: [...model.rows, new Counter(`row-${model.rows.length}`)],
-          },
-        }),
-        ClickedShowBonus: model => ({
-          model: { ...model, maybeBonus: Option.some(new Counter('bonus')) },
-        }),
-        CompletedLoad: model => ({
-          model: { ...model, loads: model.loads + 1 },
-        }),
-      },
-      commands: {
-        Load: () =>
-          Effect.sync(() => {
-            loadRuns.push(loadRuns.length)
-            return Board.Message.CompletedLoad()
-          }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.p([h.Id('board-opened')], [model.openedAt.toISOString()]),
-            h.p([h.Id('board-loads')], [`${model.loads}`]),
-            h.button(
-              [h.Id('add-row'), h.OnClick(Board.Message.ClickedAddRow())],
-              ['Add row'],
-            ),
-            h.button(
-              [h.Id('show-bonus'), h.OnClick(Board.Message.ClickedShowBonus())],
-              ['Show bonus'],
-            ),
-            model.home.view(),
-            ...model.rows.map(counter =>
-              h.keyed('div')(counter.id, [], [counter.view()]),
-            ),
-            ...Option.toArray(model.maybeBonus).map(counter => counter.view()),
-          ],
-        ),
-    }
+const BoardLive = Board.toLayer(() => ({
+  init: () => ({
+    openedAt: new Date('2026-10-29T00:00:00.000Z'),
+    loads: 0,
+    home: new Counter('home'),
+    rows: [],
+    maybeBonus: Option.none(),
   }),
-)
+  start: () => [Load()],
+  update: {
+    ClickedAddRow: model => ({
+      model: {
+        ...model,
+        rows: [...model.rows, new Counter(`row-${model.rows.length}`)],
+      },
+    }),
+    ClickedShowBonus: model => ({
+      model: { ...model, maybeBonus: Option.some(new Counter('bonus')) },
+    }),
+    CompletedLoad: model => ({
+      model: { ...model, loads: model.loads + 1 },
+    }),
+  },
+  commands: {
+    Load: () =>
+      Effect.sync(() => {
+        loadRuns.push(loadRuns.length)
+        return Board.Message.CompletedLoad()
+      }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.p([h.Id('board-opened')], [model.openedAt.toISOString()]),
+        h.p([h.Id('board-loads')], [`${model.loads}`]),
+        h.button(
+          [h.Id('add-row'), h.OnClick(Board.Message.ClickedAddRow())],
+          ['Add row'],
+        ),
+        h.button(
+          [h.Id('show-bonus'), h.OnClick(Board.Message.ClickedShowBonus())],
+          ['Show bonus'],
+        ),
+        model.home.view(),
+        ...model.rows.map(counter =>
+          h.keyed('div')(counter.id, [], [counter.view()]),
+        ),
+        ...Option.toArray(model.maybeBonus).map(counter => counter.view()),
+      ],
+    ),
+}))
 
 const BoardLayer = BoardLive.pipe(Layer.provide(CounterLive))
 

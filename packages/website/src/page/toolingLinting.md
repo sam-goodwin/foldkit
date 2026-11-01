@@ -263,7 +263,7 @@ The implementation is the module returned by the `Effect.gen(function* () { ... 
 
 Requires a Block class declaration to carry its literal Block id as its class name and to pass itself as the `Self` type parameter. The Layer returned by `layer`, including through `.pipe(...)`, is named `<BlockId>Live`. The root follows the same rule: `Application` and `ApplicationLive`.
 
-A generic factory that binds the declaration to a const keeps its own local name, and its Layer still uses the Block id: `const TabsLive = TabsClass.layer(...)`. Dynamic Block ids are left for the developer to review. The rule reports without changing the source, because whether the class name or the Block id should change depends on the Block's public identity.
+A generic factory that binds the declaration to a const keeps its own local name, and its Layer still uses the Block id: `const TabsLive = TabsClass.toLayer(...)`. Dynamic Block ids are left for the developer to review. The rule reports without changing the source, because whether the class name or the Block id should change depends on the Block's public identity.
 
 ::Snippet{name="lintBlockNameMatchesVariable" label="Rule: foldkit/block-name-matches-variable"}
 

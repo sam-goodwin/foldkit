@@ -1,4 +1,4 @@
-import { Array, Effect, Schema } from 'effect'
+import { Array, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -32,28 +32,24 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ todos: [], draft: '', filter: 'All' }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ todos: [], draft: '', filter: 'All' }),
 
-      // Every way the Model can change, one handler per Message
-      update: {
-        AddedTodo: (model, { id }) => ({
-          model: modifyFields(model, {
-            todos: Array.append({ id, text: model.draft, done: false }),
-            draft: () => '',
-          }),
-        }),
-        ClearedDoneTodos: model => ({
-          model: modifyFields(model, {
-            todos: Array.filter(todo => !todo.done),
-          }),
-        }),
-        SelectedFilter: (model, { filter }) => ({
-          model: modifyFields(model, { filter: () => filter }),
-        }),
-      },
-    }
-  }),
-)
+  // Every way the Model can change, one handler per Message
+  update: {
+    AddedTodo: (model, { id }) => ({
+      model: modifyFields(model, {
+        todos: Array.append({ id, text: model.draft, done: false }),
+        draft: () => '',
+      }),
+    }),
+    ClearedDoneTodos: model => ({
+      model: modifyFields(model, {
+        todos: Array.filter(todo => !todo.done),
+      }),
+    }),
+    SelectedFilter: (model, { filter }) => ({
+      model: modifyFields(model, { filter: () => filter }),
+    }),
+  },
+}))

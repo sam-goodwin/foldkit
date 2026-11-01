@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Schema } from 'effect'
+import { Array, Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import * as Scene from 'foldkit/scene'
 
@@ -13,40 +13,36 @@ class SliderScene extends Block<SliderScene>()('SliderScene', {
 }) {}
 
 const makeSliderSceneLive = (overrides: Overrides) =>
-  SliderScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          slider: new Slider('slider', {
-            id: 'test',
-            min: 0,
-            max: 10,
-            step: 1,
-          }),
-        }),
-        view: (model, h) =>
-          model.slider.view({
-            value: 5,
-            ...overrides,
-            toView: attributes =>
-              h.div(
-                [...attributes.root],
-                [
-                  h.label([...attributes.label], ['Test']),
-                  h.div(
-                    [...attributes.track],
-                    [h.div([...attributes.filledTrack])],
-                  ),
-                  h.div([...attributes.thumb]),
-                  ...(Array.isReadonlyArrayNonEmpty(attributes.hiddenInput)
-                    ? [h.input(attributes.hiddenInput)]
-                    : []),
-                ],
-              ),
-          }),
-      }
+  SliderScene.toLayer(() => ({
+    init: () => ({
+      slider: new Slider('slider', {
+        id: 'test',
+        min: 0,
+        max: 10,
+        step: 1,
+      }),
     }),
-  ).pipe(Layer.provide(SliderLive))
+    view: (model, h) =>
+      model.slider.view({
+        value: 5,
+        ...overrides,
+        toView: attributes =>
+          h.div(
+            [...attributes.root],
+            [
+              h.label([...attributes.label], ['Test']),
+              h.div(
+                [...attributes.track],
+                [h.div([...attributes.filledTrack])],
+              ),
+              h.div([...attributes.thumb]),
+              ...(Array.isReadonlyArrayNonEmpty(attributes.hiddenInput)
+                ? [h.input(attributes.hiddenInput)]
+                : []),
+            ],
+          ),
+      }),
+  })).pipe(Layer.provide(SliderLive))
 
 const root = Scene.selector('[data-slider-id="test"]')
 const track = Scene.selector('[data-slider-track-id="test"]')

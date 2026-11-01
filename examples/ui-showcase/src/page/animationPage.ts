@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -20,43 +20,39 @@ export class AnimationPage extends Block<AnimationPage>()('AnimationPage', {
   Message,
 }) {}
 
-export const AnimationPageLive = AnimationPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        animationDemo: new Animation.Animation('animationDemo', {
-          id: 'animation-demo',
-        }),
-      }),
-
-      update: {
-        ToggledAnimationDemo: model => ({
-          model,
-          messages: [
-            model.animationDemo.send(
-              model.animationDemo.model.isShowing
-                ? Animation.Animation.Message.RequestedHide()
-                : Animation.Animation.Message.RequestedShow(),
-            ),
-          ],
-        }),
-
-        ...Animation.Animation.on({
-          StartedLeaveAnimating: model => ({
-            model,
-            messages: [
-              model.animationDemo.send(
-                Animation.Animation.Message.RequestedWaitForLeaveSettlement(),
-              ),
-            ],
-          }),
-        }),
-      },
-
-      view,
-    }
+export const AnimationPageLive = AnimationPage.toLayer(() => ({
+  init: () => ({
+    animationDemo: new Animation.Animation('animationDemo', {
+      id: 'animation-demo',
+    }),
   }),
-).pipe(Layer.provide(Animation.AnimationLive))
+
+  update: {
+    ToggledAnimationDemo: model => ({
+      model,
+      messages: [
+        model.animationDemo.send(
+          model.animationDemo.model.isShowing
+            ? Animation.Animation.Message.RequestedHide()
+            : Animation.Animation.Message.RequestedShow(),
+        ),
+      ],
+    }),
+
+    ...Animation.Animation.on({
+      StartedLeaveAnimating: model => ({
+        model,
+        messages: [
+          model.animationDemo.send(
+            Animation.Animation.Message.RequestedWaitForLeaveSettlement(),
+          ),
+        ],
+      }),
+    }),
+  },
+
+  view,
+})).pipe(Layer.provide(Animation.AnimationLive))
 
 const triggerClassName =
   'px-4 py-2 text-base font-normal cursor-pointer transition rounded-lg border border-gray-300 bg-white text-gray-900 hover:bg-gray-200/50 select-none'

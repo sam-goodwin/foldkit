@@ -1,4 +1,4 @@
-import { Effect, Schema, Stream } from 'effect'
+import { Schema, Stream } from 'effect'
 import { Block, Dom } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -20,31 +20,25 @@ const frameTicks = Dom.animationFrameTicks.pipe(
   Stream.map(deltaTime => Message.TickedFrame({ deltaTime })),
 )
 
-export const SpinnerLive = Spinner.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isPlaying: false, angle: 0 }),
+export const SpinnerLive = Spinner.toLayer(() => ({
+  init: () => ({ isPlaying: false, angle: 0 }),
 
-      update: {
-        TickedFrame: (model, { deltaTime }) => ({
-          model: modifyFields(model, {
-            angle: angle =>
-              angle +
-              (DEGREES_PER_SECOND * deltaTime) / MILLISECONDS_PER_SECOND,
-          }),
-        }),
-        ClickedTogglePlay: model => ({
-          model: modifyFields(model, { isPlaying: isPlaying => !isPlaying }),
-        }),
-      },
+  update: {
+    TickedFrame: (model, { deltaTime }) => ({
+      model: modifyFields(model, {
+        angle: angle =>
+          angle + (DEGREES_PER_SECOND * deltaTime) / MILLISECONDS_PER_SECOND,
+      }),
+    }),
+    ClickedTogglePlay: model => ({
+      model: modifyFields(model, { isPlaying: isPlaying => !isPlaying }),
+    }),
+  },
 
-      subscriptions: {
-        animationFrameTicks: {
-          dependencies: model => model.isPlaying,
-          stream: (isPlaying: boolean) =>
-            isPlaying ? frameTicks : Stream.empty,
-        },
-      },
-    }
-  }),
-)
+  subscriptions: {
+    animationFrameTicks: {
+      dependencies: model => model.isPlaying,
+      stream: (isPlaying: boolean) => (isPlaying ? frameTicks : Stream.empty),
+    },
+  },
+}))

@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 
 import { HoverIntent } from '@foldkit/ui'
@@ -14,60 +14,56 @@ export class MoreInformation extends Block<MoreInformation>()(
   },
 ) {}
 
-export const MoreInformationLive = MoreInformation.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        // This behavior primitive owns no DOM id
-        hoverIntent: new HoverIntent.HoverIntent('hoverIntent', {
-          openDelay: 200,
-          closeDelay: 300,
-        }),
-      }),
-
-      // Spread each attribute bundle onto the element it names. HoverIntent
-      // owns the interaction; this view owns the markup, semantics,
-      // positioning, and styles.
-      view: (model, h) => {
-        const hoverIntentView = ({
-          trigger,
-          panel,
-          isVisible,
-        }: HoverIntentRenderInfo) =>
-          h.div(
-            [],
-            [
-              h.button(
-                [
-                  ...trigger,
-                  h.Type('button'),
-                  h.Id(triggerId),
-                  h.AriaControls(panelId),
-                  h.AriaExpanded(isVisible),
-                ],
-                ['More information'],
-              ),
-              ...(isVisible
-                ? [
-                    h.div(
-                      [...panel, h.Id(panelId)],
-                      [
-                        h.p(
-                          [],
-                          ['A short description can provide useful context.'],
-                        ),
-                      ],
-                    ),
-                  ]
-                : []),
-            ],
-          )
-
-        return model.hoverIntent.view({
-          focusTriggerSelector: `#${triggerId}`,
-          toView: hoverIntentView,
-        })
-      },
-    }
+export const MoreInformationLive = MoreInformation.toLayer(() => ({
+  init: () => ({
+    // This behavior primitive owns no DOM id
+    hoverIntent: new HoverIntent.HoverIntent('hoverIntent', {
+      openDelay: 200,
+      closeDelay: 300,
+    }),
   }),
-).pipe(Layer.provide(HoverIntent.HoverIntentLive))
+
+  // Spread each attribute bundle onto the element it names. HoverIntent
+  // owns the interaction; this view owns the markup, semantics,
+  // positioning, and styles.
+  view: (model, h) => {
+    const hoverIntentView = ({
+      trigger,
+      panel,
+      isVisible,
+    }: HoverIntentRenderInfo) =>
+      h.div(
+        [],
+        [
+          h.button(
+            [
+              ...trigger,
+              h.Type('button'),
+              h.Id(triggerId),
+              h.AriaControls(panelId),
+              h.AriaExpanded(isVisible),
+            ],
+            ['More information'],
+          ),
+          ...(isVisible
+            ? [
+                h.div(
+                  [...panel, h.Id(panelId)],
+                  [
+                    h.p(
+                      [],
+                      ['A short description can provide useful context.'],
+                    ),
+                  ],
+                ),
+              ]
+            : []),
+        ],
+      )
+
+    return model.hoverIntent.view({
+      focusTriggerSelector: `#${triggerId}`,
+      toView: hoverIntentView,
+    })
+  },
+})).pipe(Layer.provide(HoverIntent.HoverIntentLive))

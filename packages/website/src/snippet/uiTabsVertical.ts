@@ -30,66 +30,62 @@ export class FrameworkPicker extends Block<FrameworkPicker>()(
   },
 ) {}
 
-export const FrameworkPickerLive = FrameworkPicker.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        tabs: new FrameworkTabs('tabs', { id: 'framework-tabs' }),
-        activeFramework: 'Foldkit',
-      }),
-
-      update: {
-        // Store the selected value so it flows back in as `selectedValue`
-        ...FrameworkTabs.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { activeFramework: () => value }),
-          }),
-        }),
-      },
-
-      // Set orientation to 'Vertical' and use flex + flex-col for layout
-      view: (model, h) => {
-        const tabsView = ({
-          tablist,
-          tabs,
-          activeIndex,
-        }: TabsRenderInfo<Framework>) =>
-          h.div(
-            [h.Class('flex')],
-            [
-              h.div(
-                [...tablist, h.Class('flex flex-col')],
-                tabs.map(tab =>
-                  h.button(
-                    [
-                      ...tab.tab,
-                      h.Class(
-                        'px-4 py-2 text-left rounded-l-lg border mr-[-1px] data-[selected]:bg-white data-[selected]:border-r-0',
-                      ),
-                    ],
-                    [h.span([], [tab.value])],
-                  ),
-                ),
-              ),
-              ...tabs
-                .filter(tab => tab.index === activeIndex)
-                .map(tab =>
-                  h.div(
-                    [...tab.panel, h.Class('flex-1 p-6 border rounded-r-lg')],
-                    [h.p([], [descriptions[tab.value]])],
-                  ),
-                ),
-            ],
-          )
-
-        return model.tabs.view({
-          tabs: frameworks,
-          selectedValue: model.activeFramework,
-          ariaLabel: 'Framework comparison',
-          orientation: 'Vertical',
-          toView: tabsView,
-        })
-      },
-    }
+export const FrameworkPickerLive = FrameworkPicker.toLayer(() => ({
+  init: () => ({
+    tabs: new FrameworkTabs('tabs', { id: 'framework-tabs' }),
+    activeFramework: 'Foldkit',
   }),
-).pipe(Layer.provide(FrameworkTabs.Live))
+
+  update: {
+    // Store the selected value so it flows back in as `selectedValue`
+    ...FrameworkTabs.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { activeFramework: () => value }),
+      }),
+    }),
+  },
+
+  // Set orientation to 'Vertical' and use flex + flex-col for layout
+  view: (model, h) => {
+    const tabsView = ({
+      tablist,
+      tabs,
+      activeIndex,
+    }: TabsRenderInfo<Framework>) =>
+      h.div(
+        [h.Class('flex')],
+        [
+          h.div(
+            [...tablist, h.Class('flex flex-col')],
+            tabs.map(tab =>
+              h.button(
+                [
+                  ...tab.tab,
+                  h.Class(
+                    'px-4 py-2 text-left rounded-l-lg border mr-[-1px] data-[selected]:bg-white data-[selected]:border-r-0',
+                  ),
+                ],
+                [h.span([], [tab.value])],
+              ),
+            ),
+          ),
+          ...tabs
+            .filter(tab => tab.index === activeIndex)
+            .map(tab =>
+              h.div(
+                [...tab.panel, h.Class('flex-1 p-6 border rounded-r-lg')],
+                [h.p([], [descriptions[tab.value]])],
+              ),
+            ),
+        ],
+      )
+
+    return model.tabs.view({
+      tabs: frameworks,
+      selectedValue: model.activeFramework,
+      ariaLabel: 'Framework comparison',
+      orientation: 'Vertical',
+      toView: tabsView,
+    })
+  },
+})).pipe(Layer.provide(FrameworkTabs.Live))

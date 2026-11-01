@@ -101,7 +101,7 @@ export class Application extends Block<Application>()('Application', {
 
 // LIVE
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const github = yield* GitHubApi
     const npm = yield* NpmApi

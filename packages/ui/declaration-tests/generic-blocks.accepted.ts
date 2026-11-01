@@ -108,7 +108,7 @@ export class Shop extends Block<Shop>()('Shop', {
   Message: ShopMessage,
 }) {}
 
-export const ShopLive = Shop.layer(
+export const ShopLive = Shop.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({

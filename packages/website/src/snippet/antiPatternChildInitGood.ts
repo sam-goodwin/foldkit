@@ -26,7 +26,7 @@ export class ThemePreference extends Block<ThemePreference>()(
   },
 ) {}
 
-export const ThemePreferenceLive = ThemePreference.layer(
+export const ThemePreferenceLive = ThemePreference.toLayer(
   Effect.gen(function* () {
     const themeStore = yield* ThemeStore
 

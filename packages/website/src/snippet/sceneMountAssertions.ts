@@ -21,43 +21,39 @@ class SearchPanel extends Block<SearchPanel>()('SearchPanel', {
   Mount: [FocusSearchInput],
 }) {}
 
-const SearchPanelLive = SearchPanel.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isOpen: false }),
+const SearchPanelLive = SearchPanel.toLayer(() => ({
+  init: () => ({ isOpen: false }),
 
-      update: {
-        ClickedOpenSearch: model => ({
-          model: modifyFields(model, { isOpen: () => true }),
-        }),
-        ClickedCloseSearch: model => ({
-          model: modifyFields(model, { isOpen: () => false }),
-        }),
-        CompletedFocusSearchInput: model => ({ model }),
-      },
+  update: {
+    ClickedOpenSearch: model => ({
+      model: modifyFields(model, { isOpen: () => true }),
+    }),
+    ClickedCloseSearch: model => ({
+      model: modifyFields(model, { isOpen: () => false }),
+    }),
+    CompletedFocusSearchInput: model => ({ model }),
+  },
 
-      mounts: {
-        FocusSearchInput: ({ element }) =>
-          Effect.sync(() => {
-            if (element instanceof HTMLElement) {
-              element.focus()
-            }
-          }).pipe(Effect.as(Message.CompletedFocusSearchInput())),
-      },
+  mounts: {
+    FocusSearchInput: ({ element }) =>
+      Effect.sync(() => {
+        if (element instanceof HTMLElement) {
+          element.focus()
+        }
+      }).pipe(Effect.as(Message.CompletedFocusSearchInput())),
+  },
 
-      view: (model, h) =>
-        model.isOpen
-          ? h.div(
-              [],
-              [
-                h.input([h.AriaLabel('Search'), h.OnMount(FocusSearchInput())]),
-                h.button([h.OnClick(Message.ClickedCloseSearch())], ['Close']),
-              ],
-            )
-          : h.button([h.OnClick(Message.ClickedOpenSearch())], ['Search']),
-    }
-  }),
-)
+  view: (model, h) =>
+    model.isOpen
+      ? h.div(
+          [],
+          [
+            h.input([h.AriaLabel('Search'), h.OnMount(FocusSearchInput())]),
+            h.button([h.OnClick(Message.ClickedCloseSearch())], ['Close']),
+          ],
+        )
+      : h.button([h.OnClick(Message.ClickedOpenSearch())], ['Search']),
+}))
 
 it.effect('focuses the search input when the panel opens', () =>
   Scene.scene(

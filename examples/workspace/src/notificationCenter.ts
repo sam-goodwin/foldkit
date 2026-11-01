@@ -72,7 +72,7 @@ export class NotificationCenter extends Block<
   ViewInput
 >()('NotificationCenter', { Model, Message, OutMessage }) {}
 
-export const NotificationCenterLive = NotificationCenter.layer(
+export const NotificationCenterLive = NotificationCenter.toLayer(
   Effect.gen(function* () {
     const clock = yield* Clock.Clock
 

@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -45,44 +45,37 @@ const submitButton = <AllowedMountRequirements>(
   )
 
 /** Implements {@link DisabledButton}. */
-export const DisabledButtonLive = DisabledButton.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ isInDialog }) => ({
-        isInDialog,
-        isEnabled: false,
-        dialog: new Dialog('dialog', { id: 'test-dialog' }),
-      }),
-      update: {
-        ClickedToggle: model => ({
-          model: modifyFields(model, { isEnabled: isEnabled => !isEnabled }),
-        }),
-        ClickedSubmit: model => ({ model }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.button([h.OnClick(Message.ClickedToggle())], ['Toggle']),
-            model.isInDialog
-              ? model.dialog.view({
-                  toView: ({ dialog, backdrop, panel, isVisible }) =>
-                    h.dialog(
-                      [...dialog],
-                      isVisible
-                        ? [
-                            h.div([...backdrop]),
-                            h.div(
-                              [...panel],
-                              [submitButton(model.isEnabled, h)],
-                            ),
-                          ]
-                        : [],
-                    ),
-                })
-              : submitButton(model.isEnabled, h),
-          ],
-        ),
-    }
+export const DisabledButtonLive = DisabledButton.toLayer(() => ({
+  init: ({ isInDialog }) => ({
+    isInDialog,
+    isEnabled: false,
+    dialog: new Dialog('dialog', { id: 'test-dialog' }),
   }),
-).pipe(Layer.provide(DialogLive))
+  update: {
+    ClickedToggle: model => ({
+      model: modifyFields(model, { isEnabled: isEnabled => !isEnabled }),
+    }),
+    ClickedSubmit: model => ({ model }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.button([h.OnClick(Message.ClickedToggle())], ['Toggle']),
+        model.isInDialog
+          ? model.dialog.view({
+              toView: ({ dialog, backdrop, panel, isVisible }) =>
+                h.dialog(
+                  [...dialog],
+                  isVisible
+                    ? [
+                        h.div([...backdrop]),
+                        h.div([...panel], [submitButton(model.isEnabled, h)]),
+                      ]
+                    : [],
+                ),
+            })
+          : submitButton(model.isEnabled, h),
+      ],
+    ),
+})).pipe(Layer.provide(DialogLive))

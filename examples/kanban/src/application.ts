@@ -245,7 +245,7 @@ export class Application extends Block<
 
 // LIVE
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
     const store = yield* KeyValueStore.KeyValueStore

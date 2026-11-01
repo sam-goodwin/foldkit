@@ -1,4 +1,3 @@
-import { Effect } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -11,20 +10,16 @@ export class BlockPage extends Block<BlockPage, void, ViewInput>()(
   { Model, Message },
 ) {}
 
-export const BlockPageLive = BlockPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isMessageRoutingUnderHoodOpen: false }),
+export const BlockPageLive = BlockPage.toLayer(() => ({
+  init: () => ({ isMessageRoutingUnderHoodOpen: false }),
 
-      update: {
-        ToggledMessageRoutingUnderHood: (model, { isOpen }) => ({
-          model: modifyFields(model, {
-            isMessageRoutingUnderHoodOpen: () => isOpen,
-          }),
-        }),
-      },
+  update: {
+    ToggledMessageRoutingUnderHood: (model, { isOpen }) => ({
+      model: modifyFields(model, {
+        isMessageRoutingUnderHoodOpen: () => isOpen,
+      }),
+    }),
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))

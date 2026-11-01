@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -13,28 +13,24 @@ export class DeleteIssue extends Block<DeleteIssue>()('DeleteIssue', {
   Message,
 }) {}
 
-export const DeleteIssueLive = DeleteIssue.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dialog: new Dialog.Dialog('dialog', { id: 'delete-issue' }),
-      }),
-
-      update: {
-        ClickedConfirmDeletion: model => ({
-          model,
-          messages: [model.dialog.send(Dialog.Dialog.Message.RequestedClose())],
-        }),
-      },
-
-      view: (model, h) =>
-        model.dialog.view(
-          confirmDialogInput(h, {
-            title: 'Delete issue',
-            description: 'This removes the issue from the project.',
-            confirmMessage: Message.ClickedConfirmDeletion(),
-          }),
-        ),
-    }
+export const DeleteIssueLive = DeleteIssue.toLayer(() => ({
+  init: () => ({
+    dialog: new Dialog.Dialog('dialog', { id: 'delete-issue' }),
   }),
-)
+
+  update: {
+    ClickedConfirmDeletion: model => ({
+      model,
+      messages: [model.dialog.send(Dialog.Dialog.Message.RequestedClose())],
+    }),
+  },
+
+  view: (model, h) =>
+    model.dialog.view(
+      confirmDialogInput(h, {
+        title: 'Delete issue',
+        description: 'This removes the issue from the project.',
+        confirmMessage: Message.ClickedConfirmDeletion(),
+      }),
+    ),
+}))

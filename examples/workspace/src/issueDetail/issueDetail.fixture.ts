@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Record, Schema } from 'effect'
+import { Layer, Option, Record, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Resolved } from 'foldkit/block'
 import { message, model } from 'foldkit/story'
@@ -25,39 +25,35 @@ export const makeIssueDetailHost = (issue: Issue) => {
     OutMessage,
   }) {}
 
-  const IssueDetailHostLive = IssueDetailHost.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          issueDetails: { [issue.id]: new IssueDetail(issue.id, { issue }) },
-        }),
-        update: {
-          ...IssueDetail.on({
-            Saved: (model, outMessage) => ({ model, outMessage }),
-            AddedComment: (model, outMessage) => ({ model, outMessage }),
-            ReceivedIssue: (model, outMessage) => ({ model, outMessage }),
-            Closed: (model, outMessage) => ({ model, outMessage }),
-          }),
-        },
-        view: (model, h) =>
-          h.div(
-            [],
-            [
-              ...Record.values(
-                Record.map(model.issueDetails, detail =>
-                  detail.view({
-                    issue,
-                    members: initialWorkspace.members,
-                    projects: initialWorkspace.projects,
-                    authorId: 'maya',
-                  }),
-                ),
-              ),
-            ],
-          ),
-      }
+  const IssueDetailHostLive = IssueDetailHost.toLayer(() => ({
+    init: () => ({
+      issueDetails: { [issue.id]: new IssueDetail(issue.id, { issue }) },
     }),
-  ).pipe(Layer.provide(IssueDetailLive))
+    update: {
+      ...IssueDetail.on({
+        Saved: (model, outMessage) => ({ model, outMessage }),
+        AddedComment: (model, outMessage) => ({ model, outMessage }),
+        ReceivedIssue: (model, outMessage) => ({ model, outMessage }),
+        Closed: (model, outMessage) => ({ model, outMessage }),
+      }),
+    },
+    view: (model, h) =>
+      h.div(
+        [],
+        [
+          ...Record.values(
+            Record.map(model.issueDetails, detail =>
+              detail.view({
+                issue,
+                members: initialWorkspace.members,
+                projects: initialWorkspace.projects,
+                authorId: 'maya',
+              }),
+            ),
+          ),
+        ],
+      ),
+  })).pipe(Layer.provide(IssueDetailLive))
 
   const path = [issue.id]
 

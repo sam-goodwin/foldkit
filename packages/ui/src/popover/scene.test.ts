@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Resolved } from 'foldkit/block'
 import * as Scene from 'foldkit/scene'
@@ -32,37 +32,33 @@ const makePopoverSceneLive = ({
   contentFocus = false,
   overrides = {},
 }: PopoverSceneArgs) =>
-  PopoverScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          popover: new Popover('popover', { id: 'test', contentFocus }),
-        }),
-        view: (model, h) =>
-          model.popover.view({
-            anchor: { placement: 'bottom-start' },
-            toView: ({ button, panel, backdrop, arrow, isVisible }) =>
-              h.div(
-                [],
-                [
-                  h.keyed('button')('test-button', [...button]),
-                  ...(isVisible
-                    ? [
-                        h.keyed('div')('test-backdrop', [...backdrop]),
-                        h.keyed('div')(
-                          'test-panel-container',
-                          [...panel],
-                          [h.keyed('div')('test-arrow', [...arrow])],
-                        ),
-                      ]
-                    : []),
-                ],
-              ),
-            ...overrides,
-          }),
-      }
+  PopoverScene.toLayer(() => ({
+    init: () => ({
+      popover: new Popover('popover', { id: 'test', contentFocus }),
     }),
-  ).pipe(Layer.provide(PopoverLive))
+    view: (model, h) =>
+      model.popover.view({
+        anchor: { placement: 'bottom-start' },
+        toView: ({ button, panel, backdrop, arrow, isVisible }) =>
+          h.div(
+            [],
+            [
+              h.keyed('button')('test-button', [...button]),
+              ...(isVisible
+                ? [
+                    h.keyed('div')('test-backdrop', [...backdrop]),
+                    h.keyed('div')(
+                      'test-panel-container',
+                      [...panel],
+                      [h.keyed('div')('test-arrow', [...arrow])],
+                    ),
+                  ]
+                : []),
+            ],
+          ),
+        ...overrides,
+      }),
+  })).pipe(Layer.provide(PopoverLive))
 
 const acknowledgeAnchor = Scene.Mount.resolve(
   AnchorPopover,

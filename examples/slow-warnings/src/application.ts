@@ -1,13 +1,4 @@
-import {
-  Array,
-  Effect,
-  Match,
-  Number,
-  Option,
-  Schema,
-  Stream,
-  pipe,
-} from 'effect'
+import { Array, Match, Number, Option, Schema, Stream, pipe } from 'effect'
 import { Block, Dom, Runtime } from 'foldkit'
 import {
   type Document,
@@ -175,66 +166,62 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        activeWorkload: 'Idle',
-        nextWarningId: 1,
-        warnings: [],
-        patchRows: 0,
-        patchRun: 0,
-      }),
-
-      subscriptions: {
-        slowWarningReports: {
-          dependencies: () => null,
-          stream: () => slowWarningReports,
-        },
-      },
-
-      update: {
-        ClickedRunUpdateWork: model => {
-          burnCpu(UPDATE_WORK_MS)
-          return {
-            model: modifyFields(model, { activeWorkload: () => 'Update' }),
-          }
-        },
-        ClickedRunViewWork: model => ({
-          model: modifyFields(model, { activeWorkload: () => 'View' }),
-        }),
-        ClickedRunPatchWork: model => ({
-          model: modifyFields(model, {
-            activeWorkload: () => 'Patch',
-            patchRows: () => PATCH_ROW_COUNT,
-            patchRun: Number.increment,
-          }),
-        }),
-        ClickedClearWarnings: model => ({
-          model: modifyFields(model, {
-            activeWorkload: () => 'Idle',
-            warnings: () => [],
-          }),
-        }),
-        RecordedSlowWarning: (model, { report }) => {
-          const warning: SlowWarning = {
-            id: model.nextWarningId,
-            ...report,
-          }
-          return {
-            model: modifyFields(model, {
-              activeWorkload: () => 'Idle',
-              nextWarningId: Number.increment,
-              warnings: prependWarning(warning),
-            }),
-          }
-        },
-      },
-
-      view,
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    activeWorkload: 'Idle',
+    nextWarningId: 1,
+    warnings: [],
+    patchRows: 0,
+    patchRun: 0,
   }),
-)
+
+  subscriptions: {
+    slowWarningReports: {
+      dependencies: () => null,
+      stream: () => slowWarningReports,
+    },
+  },
+
+  update: {
+    ClickedRunUpdateWork: model => {
+      burnCpu(UPDATE_WORK_MS)
+      return {
+        model: modifyFields(model, { activeWorkload: () => 'Update' }),
+      }
+    },
+    ClickedRunViewWork: model => ({
+      model: modifyFields(model, { activeWorkload: () => 'View' }),
+    }),
+    ClickedRunPatchWork: model => ({
+      model: modifyFields(model, {
+        activeWorkload: () => 'Patch',
+        patchRows: () => PATCH_ROW_COUNT,
+        patchRun: Number.increment,
+      }),
+    }),
+    ClickedClearWarnings: model => ({
+      model: modifyFields(model, {
+        activeWorkload: () => 'Idle',
+        warnings: () => [],
+      }),
+    }),
+    RecordedSlowWarning: (model, { report }) => {
+      const warning: SlowWarning = {
+        id: model.nextWarningId,
+        ...report,
+      }
+      return {
+        model: modifyFields(model, {
+          activeWorkload: () => 'Idle',
+          nextWarningId: Number.increment,
+          warnings: prependWarning(warning),
+        }),
+      }
+    },
+  },
+
+  view,
+}))
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

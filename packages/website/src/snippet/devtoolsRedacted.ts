@@ -36,36 +36,32 @@ export class Profile extends Block<
   Command: [FetchProfile],
 }) {}
 
-export const ProfileLive = Profile.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ rawAccessToken }) => ({
-        accessToken: makeAccessToken(rawAccessToken),
-      }),
-
-      update: {
-        ClickedLoadProfile: model => ({
-          model,
-          commands: [FetchProfile({ accessToken: model.accessToken })],
-        }),
-        CompletedFetchProfile: model => ({ model }),
-        FailedFetchProfile: model => ({ model }),
-      },
-
-      commands: {
-        FetchProfile: ({ accessToken }) =>
-          Effect.tryPromise(() =>
-            fetch('/api/profile', {
-              headers: {
-                // 4. Recover the raw token only at the request that needs it.
-                Authorization: `Bearer ${Redacted.value(accessToken)}`,
-              },
-            }),
-          ).pipe(
-            Effect.as(Message.CompletedFetchProfile()),
-            Effect.catch(() => Effect.succeed(Message.FailedFetchProfile())),
-          ),
-      },
-    }
+export const ProfileLive = Profile.toLayer(() => ({
+  init: ({ rawAccessToken }) => ({
+    accessToken: makeAccessToken(rawAccessToken),
   }),
-)
+
+  update: {
+    ClickedLoadProfile: model => ({
+      model,
+      commands: [FetchProfile({ accessToken: model.accessToken })],
+    }),
+    CompletedFetchProfile: model => ({ model }),
+    FailedFetchProfile: model => ({ model }),
+  },
+
+  commands: {
+    FetchProfile: ({ accessToken }) =>
+      Effect.tryPromise(() =>
+        fetch('/api/profile', {
+          headers: {
+            // 4. Recover the raw token only at the request that needs it.
+            Authorization: `Bearer ${Redacted.value(accessToken)}`,
+          },
+        }),
+      ).pipe(
+        Effect.as(Message.CompletedFetchProfile()),
+        Effect.catch(() => Effect.succeed(Message.FailedFetchProfile())),
+      ),
+  },
+}))

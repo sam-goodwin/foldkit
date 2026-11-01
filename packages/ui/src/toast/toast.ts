@@ -1,4 +1,4 @@
-import { Effect, Layer, Match, Option, Schema } from 'effect'
+import { Layer, Match, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type * as BlockTypes from 'foldkit/block'
 import { type ChildAttribute, type Html, childAttributes } from 'foldkit/html'
@@ -250,164 +250,156 @@ export const makeBlock = <A, I>(
     contract,
   )
 
-  const ToastLive = ToastClass.layer(
-    Effect.gen(function* () {
-      return {
-        init: runtime.initialModel,
+  const ToastLive = ToastClass.toLayer(() => ({
+    init: runtime.initialModel,
 
-        update: {
-          ...runtime.update,
-          ...Animation.Animation.on(runtime.entryAnimationHandlers),
-        },
+    update: {
+      ...runtime.update,
+      ...Animation.Animation.on(runtime.entryAnimationHandlers),
+    },
 
-        commands: commandHandlers,
+    commands: commandHandlers,
 
-        subscriptions: {
-          swipePointer: {
-            dependencies: swipeDependencies,
-            stream: swipePointerMessages,
-          },
-          swipeEscape: {
-            dependencies: swipeDependencies,
-            stream: swipeEscapeMessages,
-          },
-        },
+    subscriptions: {
+      swipePointer: {
+        dependencies: swipeDependencies,
+        stream: swipePointerMessages,
+      },
+      swipeEscape: {
+        dependencies: swipeDependencies,
+        stream: swipeEscapeMessages,
+      },
+    },
 
-        view: (model, h, viewInputs) => {
-          const { id, entries } = model
-          const {
-            position,
-            entryToView,
-            ariaLabel = DEFAULT_ARIA_LABEL,
-            containerClassName,
-            entryClassName,
-          } = viewInputs
+    view: (model, h, viewInputs) => {
+      const { id, entries } = model
+      const {
+        position,
+        entryToView,
+        ariaLabel = DEFAULT_ARIA_LABEL,
+        containerClassName,
+        entryClassName,
+      } = viewInputs
 
-          const containerAttributes = [
-            h.Id(id),
-            h.Role('region'),
-            h.AriaLabel(ariaLabel),
-            h.AriaLive('polite'),
-            h.Style(positionToContainerStyle(position)),
-            ...(containerClassName ? [h.Class(containerClassName)] : []),
-          ]
+      const containerAttributes = [
+        h.Id(id),
+        h.Role('region'),
+        h.AriaLabel(ariaLabel),
+        h.AriaLive('polite'),
+        h.Style(positionToContainerStyle(position)),
+        ...(containerClassName ? [h.Class(containerClassName)] : []),
+      ]
 
-          const renderEntryItem = (entry: Entry): Html => {
-            const { transitionState } = entry.animation.model
+      const renderEntryItem = (entry: Entry): Html => {
+        const { transitionState } = entry.animation.model
 
-            const entrySwipeOffset = swipeOffset(entry.swipeState)
-            const maybeSwipePhase = SwipeState.match<
-              Option.Option<'move' | 'settling' | 'end'>
-            >(entry.swipeState, {
-              Idle: () => Option.none(),
-              Dragging: () => Option.some('move'),
-              Settling: () => Option.some('settling'),
-              Dismissing: () => Option.some('end'),
-            })
-            const swipeExitTranslate = SwipeState.match<string | undefined>(
-              entry.swipeState,
-              {
-                Idle: () => undefined,
-                Dragging: () => undefined,
-                Settling: () => undefined,
-                Dismissing: ({ direction }) => {
-                  if (transitionState !== 'LeaveAnimating') {
-                    return undefined
-                  }
-
-                  return Match.value(direction).pipe(
-                    Match.when('Right', () => '100vw'),
-                    Match.when('Left', () => '-100vw'),
-                    Match.exhaustive,
-                  )
-                },
-              },
-            )
-            const swipeTranslate =
-              swipeExitTranslate ??
-              (entrySwipeOffset !== 0
-                ? `${String(entrySwipeOffset)}px`
-                : undefined)
-            const swipeAttributes = Option.match(maybeSwipePhase, {
-              onNone: () => [],
-              onSome: phase => [h.DataAttribute('swipe', phase)],
-            })
-
-            const handlePointerDown = (
-              pointerType: string,
-              button: number,
-              _screenX: number,
-              _screenY: number,
-              _timeStamp: number,
-              clientX: number,
-              _clientY: number,
-              pointerId: number,
-              target: EventTarget | null,
-            ): Option.Option<ToastMessage> => {
-              if (
-                (pointerType === 'mouse' && button !== LEFT_MOUSE_BUTTON) ||
-                isSwipeExcludedTarget(pointerType, target)
-              ) {
-                return Option.none()
-              } else {
-                return Option.some(
-                  runtime.Message.PressedEntryPointer({
-                    entryId: entry.id,
-                    pointerId,
-                    clientX,
-                  }),
-                )
+        const entrySwipeOffset = swipeOffset(entry.swipeState)
+        const maybeSwipePhase = SwipeState.match<
+          Option.Option<'move' | 'settling' | 'end'>
+        >(entry.swipeState, {
+          Idle: () => Option.none(),
+          Dragging: () => Option.some('move'),
+          Settling: () => Option.some('settling'),
+          Dismissing: () => Option.some('end'),
+        })
+        const swipeExitTranslate = SwipeState.match<string | undefined>(
+          entry.swipeState,
+          {
+            Idle: () => undefined,
+            Dragging: () => undefined,
+            Settling: () => undefined,
+            Dismissing: ({ direction }) => {
+              if (transitionState !== 'LeaveAnimating') {
+                return undefined
               }
-            }
 
-            const itemAttributes = [
-              h.Role(variantToRole(entry.variant)),
-              h.AriaAtomic(true),
-              h.DataAttribute('variant', entry.variant),
-              h.Style({
-                pointerEvents: 'auto',
-                ...(Option.isSome(model.maybeSwipeConfig)
-                  ? { touchAction: 'pan-y' }
-                  : {}),
-                ...(swipeTranslate !== undefined
-                  ? {
-                      translate: swipeTranslate,
-                      '--toast-swipe-move-x': `${String(entrySwipeOffset)}px`,
-                    }
-                  : {}),
+              return Match.value(direction).pipe(
+                Match.when('Right', () => '100vw'),
+                Match.when('Left', () => '-100vw'),
+                Match.exhaustive,
+              )
+            },
+          },
+        )
+        const swipeTranslate =
+          swipeExitTranslate ??
+          (entrySwipeOffset !== 0 ? `${String(entrySwipeOffset)}px` : undefined)
+        const swipeAttributes = Option.match(maybeSwipePhase, {
+          onNone: () => [],
+          onSome: phase => [h.DataAttribute('swipe', phase)],
+        })
+
+        const handlePointerDown = (
+          pointerType: string,
+          button: number,
+          _screenX: number,
+          _screenY: number,
+          _timeStamp: number,
+          clientX: number,
+          _clientY: number,
+          pointerId: number,
+          target: EventTarget | null,
+        ): Option.Option<ToastMessage> => {
+          if (
+            (pointerType === 'mouse' && button !== LEFT_MOUSE_BUTTON) ||
+            isSwipeExcludedTarget(pointerType, target)
+          ) {
+            return Option.none()
+          } else {
+            return Option.some(
+              runtime.Message.PressedEntryPointer({
+                entryId: entry.id,
+                pointerId,
+                clientX,
               }),
-              h.OnMouseEnter(
-                runtime.Message.HoveredEntry({ entryId: entry.id }),
-              ),
-              h.OnMouseLeave(runtime.Message.LeftEntry({ entryId: entry.id })),
-              ...(Option.isSome(model.maybeSwipeConfig)
-                ? [h.OnPointerDown(handlePointerDown)]
-                : []),
-              ...swipeAttributes,
-              ...(entryClassName ? [h.Class(entryClassName)] : []),
-            ]
-
-            const handlers: EntryHandlers = {
-              dismiss: childAttributes([
-                h.OnClick(runtime.Message.Dismissed({ entryId: entry.id })),
-              ]),
-            }
-
-            return entry.animation.view({
-              toView: () => entryToView(entry, handlers),
-              attributes: childAttributes(itemAttributes),
-            })
+            )
           }
+        }
 
-          return h.keyed('div')(
-            id,
-            containerAttributes,
-            entries.map(renderEntryItem),
-          )
-        },
+        const itemAttributes = [
+          h.Role(variantToRole(entry.variant)),
+          h.AriaAtomic(true),
+          h.DataAttribute('variant', entry.variant),
+          h.Style({
+            pointerEvents: 'auto',
+            ...(Option.isSome(model.maybeSwipeConfig)
+              ? { touchAction: 'pan-y' }
+              : {}),
+            ...(swipeTranslate !== undefined
+              ? {
+                  translate: swipeTranslate,
+                  '--toast-swipe-move-x': `${String(entrySwipeOffset)}px`,
+                }
+              : {}),
+          }),
+          h.OnMouseEnter(runtime.Message.HoveredEntry({ entryId: entry.id })),
+          h.OnMouseLeave(runtime.Message.LeftEntry({ entryId: entry.id })),
+          ...(Option.isSome(model.maybeSwipeConfig)
+            ? [h.OnPointerDown(handlePointerDown)]
+            : []),
+          ...swipeAttributes,
+          ...(entryClassName ? [h.Class(entryClassName)] : []),
+        ]
+
+        const handlers: EntryHandlers = {
+          dismiss: childAttributes([
+            h.OnClick(runtime.Message.Dismissed({ entryId: entry.id })),
+          ]),
+        }
+
+        return entry.animation.view({
+          toView: () => entryToView(entry, handlers),
+          attributes: childAttributes(itemAttributes),
+        })
       }
-    }),
-  ).pipe(Layer.provide(Animation.AnimationLive))
+
+      return h.keyed('div')(
+        id,
+        containerAttributes,
+        entries.map(renderEntryItem),
+      )
+    },
+  })).pipe(Layer.provide(Animation.AnimationLive))
 
   return Object.assign(ToastClass, {
     // NOTE: a Toast's Model holds no Blocks besides its entry Animations, but

@@ -34,19 +34,25 @@ export type Message = typeof Message.Type
 
 export const FetchCount = Command.define('FetchCount', {
   messages: [Message.SucceededFetchCount, Message.FailedFetchCount],
-  handler: function* () {
-    return () => Effect.sync(() => Message.SucceededFetchCount({ count: 0 }))
-  },
 })
+
+export const FetchCountLive = FetchCount.toLayer(
+  Effect.gen(function* () {
+    return () => Effect.sync(() => Message.SucceededFetchCount({ count: 0 }))
+  }),
+)
 
 export const FetchCountById = Command.define('FetchCountById', {
   args: { id: Schema.Number },
   messages: [Message.SucceededFetchCount, Message.FailedFetchCount],
-  handler: function* () {
+})
+
+export const FetchCountByIdLive = FetchCountById.toLayer(
+  Effect.gen(function* () {
     return ({ id }) =>
       Effect.sync(() => Message.SucceededFetchCount({ count: id }))
-  },
-})
+  }),
+)
 
 // INIT
 
@@ -114,7 +120,4 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Html => {
   )
 }
 
-export const EffectsLayer = Layer.mergeAll(
-  FetchCount.layer,
-  FetchCountById.layer,
-)
+export const EffectsLayer = Layer.mergeAll(FetchCountLive, FetchCountByIdLive)

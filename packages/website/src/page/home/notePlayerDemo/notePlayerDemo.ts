@@ -559,7 +559,7 @@ export class NotePlayerDemo extends Block<NotePlayerDemo>()('NotePlayerDemo', {
   Command: [DelayAdvanceNotePlayerPhase, PlayNote, AcquireAudioContext],
 }) {}
 
-export const NotePlayerDemoLive = NotePlayerDemo.layer(
+export const NotePlayerDemoLive = NotePlayerDemo.toLayer(
   Effect.gen(function* () {
     const audioContextRef = yield* Ref.make(Option.none<AudioContext>())
 

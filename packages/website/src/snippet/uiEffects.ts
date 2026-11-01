@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -18,53 +18,49 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        settingsDialog: new Dialog.Dialog('settingsDialog', {
-          id: 'settings',
-        }),
-        accountMenu: new AccountMenu('accountMenu', {
-          id: 'account',
-        }),
-      }),
-
-      update: {
-        ClickedOpenSettings: model => ({
-          model,
-          messages: [
-            model.settingsDialog.send(Dialog.Dialog.Message.RequestedOpen()),
-          ],
-        }),
-      },
-
-      view: (model, h) => ({
-        title: 'Account',
-        body: h.main(
-          [],
-          [
-            model.accountMenu.view({
-              items: ['Profile', 'Sign out'],
-              buttonContent: h.span([], ['Account']),
-              itemToConfig: item => ({ content: h.span([], [item]) }),
-            }),
-            h.button([h.OnClick(Message.ClickedOpenSettings())], ['Settings']),
-            model.settingsDialog.view({
-              toView: ({ dialog, panel, title, isVisible }) =>
-                h.dialog(
-                  [...dialog],
-                  isVisible
-                    ? [h.div([...panel], [h.h2([...title], ['Settings'])])]
-                    : [],
-                ),
-            }),
-          ],
-        ),
-      }),
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    settingsDialog: new Dialog.Dialog('settingsDialog', {
+      id: 'settings',
+    }),
+    accountMenu: new AccountMenu('accountMenu', {
+      id: 'account',
+    }),
   }),
-).pipe(
+
+  update: {
+    ClickedOpenSettings: model => ({
+      model,
+      messages: [
+        model.settingsDialog.send(Dialog.Dialog.Message.RequestedOpen()),
+      ],
+    }),
+  },
+
+  view: (model, h) => ({
+    title: 'Account',
+    body: h.main(
+      [],
+      [
+        model.accountMenu.view({
+          items: ['Profile', 'Sign out'],
+          buttonContent: h.span([], ['Account']),
+          itemToConfig: item => ({ content: h.span([], [item]) }),
+        }),
+        h.button([h.OnClick(Message.ClickedOpenSettings())], ['Settings']),
+        model.settingsDialog.view({
+          toView: ({ dialog, panel, title, isVisible }) =>
+            h.dialog(
+              [...dialog],
+              isVisible
+                ? [h.div([...panel], [h.h2([...title], ['Settings'])])]
+                : [],
+            ),
+        }),
+      ],
+    ),
+  }),
+})).pipe(
   // Each component's Layer carries its Commands, Mounts, and Subscriptions
   Layer.provide(Layer.mergeAll(Dialog.DialogLive, AccountMenu.Live)),
 )

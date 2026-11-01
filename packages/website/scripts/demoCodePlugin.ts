@@ -158,7 +158,7 @@ class Counter extends Block<Counter>()('Counter', {
   Command: [DelayReset],
 }) {}
 
-const CounterLive = Counter.layer(
+const CounterLive = Counter.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ count: 0, isResetting: false, resetDuration: 2 }),
@@ -312,7 +312,7 @@ class NotePlayer extends Block<NotePlayer>()('NotePlayer', {
   Command: [PlayNote],
 }) {}
 
-const NotePlayerLive = NotePlayer.layer(
+const NotePlayerLive = NotePlayer.toLayer(
   Effect.gen(function* () {
     const audioContext = yield* Effect.acquireRelease(
       Effect.sync(() => new AudioContext()),

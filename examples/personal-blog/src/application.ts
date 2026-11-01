@@ -83,48 +83,42 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
   },
 ) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({
-        route: urlToApplicationRoute(url),
-        counter: new Counter('counter'),
-      }),
-
-      update: {
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url: internalUrl }) => ({
-              model,
-              commands: [NavigateInternal({ url: urlToString(internalUrl) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
-        ChangedUrl: (model, { url: nextUrl }) => ({
-          model: modifyFields(model, {
-            route: () => urlToApplicationRoute(nextUrl),
-          }),
-        }),
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url: internalUrl }) =>
-          pushUrl(internalUrl).pipe(
-            Effect.as(Message.CompletedNavigateInternal()),
-          ),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-      },
-
-      view,
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => ({
+    route: urlToApplicationRoute(url),
+    counter: new Counter('counter'),
   }),
-)
+
+  update: {
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url: internalUrl }) => ({
+          model,
+          commands: [NavigateInternal({ url: urlToString(internalUrl) })],
+        }),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
+      }),
+    ChangedUrl: (model, { url: nextUrl }) => ({
+      model: modifyFields(model, {
+        route: () => urlToApplicationRoute(nextUrl),
+      }),
+    }),
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+  },
+
+  commands: {
+    NavigateInternal: ({ url: internalUrl }) =>
+      pushUrl(internalUrl).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
+
+  view,
+}))
 
 // CONTENT
 

@@ -1,5 +1,5 @@
 // ❌ Don't call random directly in update
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -13,18 +13,14 @@ export class Snake extends Block<Snake>()('Snake', {
   Message: defineMessageUnion({ RequestedApple: {} }),
 }) {}
 
-export const SnakeLive = Snake.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ apple: { x: 0, y: 0 } }),
+export const SnakeLive = Snake.toLayer(() => ({
+  init: () => ({ apple: { x: 0, y: 0 } }),
 
-      update: {
-        RequestedApple: model => {
-          const x = Math.floor(Math.random() * GRID_SIZE)
-          const y = Math.floor(Math.random() * GRID_SIZE)
-          return { model: modifyFields(model, { apple: () => ({ x, y }) }) }
-        },
-      },
-    }
-  }),
-)
+  update: {
+    RequestedApple: model => {
+      const x = Math.floor(Math.random() * GRID_SIZE)
+      const y = Math.floor(Math.random() * GRID_SIZE)
+      return { model: modifyFields(model, { apple: () => ({ x, y }) }) }
+    },
+  },
+}))

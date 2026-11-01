@@ -16,7 +16,7 @@ const searchStep = (model: Model) => ({
   commands: [SearchCatalog({ query: model.query, page: model.page })],
 })
 
-export const SearchLive = Search.layer(
+export const SearchLive = Search.toLayer(
   Effect.gen(function* () {
     const catalog = yield* Catalog
 

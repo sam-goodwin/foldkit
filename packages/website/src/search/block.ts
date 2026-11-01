@@ -39,7 +39,7 @@ export class Search extends Block<Search>()('Search', {
   ],
 }) {}
 
-export const SearchLive = Search.layer(
+export const SearchLive = Search.toLayer(
   Effect.gen(function* () {
     const pagefind = yield* PagefindService
 

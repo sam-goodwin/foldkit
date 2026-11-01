@@ -59,7 +59,7 @@ class Application extends Block<Application, Readonly<{ url: Url.Url }>>()(
   { Model, Message, Command: [FetchPeopleFilters] },
 ) {}
 
-const ApplicationLive = Application.layer(
+const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
 

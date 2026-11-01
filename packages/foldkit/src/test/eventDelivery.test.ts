@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { describe, expect, test } from 'vitest'
 
 import * as Command from '../command/index.js'
@@ -28,9 +28,6 @@ type Message = typeof Message.Type
 const Save = Command.define('Save', {
   args: { id: Schema.String },
   messages: [Message.CompletedSave],
-  handler: function* () {
-    return ({ id }) => Effect.succeed(Message.CompletedSave({ id }))
-  },
 })
 
 type UpdateReturn = Update.Return<

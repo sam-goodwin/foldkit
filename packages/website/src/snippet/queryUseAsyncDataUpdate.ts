@@ -28,7 +28,7 @@ export class Application extends Block<Application>()('Application', {
   Command: [SubmitOrder],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const orders = yield* Orders
 

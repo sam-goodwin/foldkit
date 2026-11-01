@@ -55,99 +55,89 @@ export class Application extends Block<
   Command: [PersistCount],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({
-        count: flags.initialCount,
-        renderedAt: flags.renderedAt,
-        renderedOn: flags.renderedOn,
-      }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) => ({
+    count: flags.initialCount,
+    renderedAt: flags.renderedAt,
+    renderedOn: flags.renderedOn,
+  }),
 
-      update: {
-        ClickedDecrement: model => {
-          const nextCount = model.count - 1
-          return {
-            model: modifyFields(model, { count: () => nextCount }),
-            commands: [PersistCount({ count: nextCount })],
-          }
-        },
-        ClickedIncrement: model => {
-          const nextCount = model.count + 1
-          return {
-            model: modifyFields(model, { count: () => nextCount }),
-            commands: [PersistCount({ count: nextCount })],
-          }
-        },
-        CompletedPersistCount: model => ({ model }),
-      },
+  update: {
+    ClickedDecrement: model => {
+      const nextCount = model.count - 1
+      return {
+        model: modifyFields(model, { count: () => nextCount }),
+        commands: [PersistCount({ count: nextCount })],
+      }
+    },
+    ClickedIncrement: model => {
+      const nextCount = model.count + 1
+      return {
+        model: modifyFields(model, { count: () => nextCount }),
+        commands: [PersistCount({ count: nextCount })],
+      }
+    },
+    CompletedPersistCount: model => ({ model }),
+  },
 
-      commands: {
-        PersistCount: ({ count }) => persistCount(count),
-      },
+  commands: {
+    PersistCount: ({ count }) => persistCount(count),
+  },
 
-      view: (model, h) => ({
-        title: `Count ${model.count}`,
-        body: h.div(
+  view: (model, h) => ({
+    title: `Count ${model.count}`,
+    body: h.div(
+      [
+        h.Class(
+          'min-h-screen bg-white flex flex-col items-center justify-center gap-6 p-6',
+        ),
+      ],
+      [
+        h.h1(
+          [h.Class('text-2xl font-semibold text-gray-800')],
+          ['Server-rendered counter'],
+        ),
+        h.p(
+          [h.Id('count'), h.Class('text-6xl font-bold text-gray-800')],
+          [model.count.toString()],
+        ),
+        h.div(
+          [h.Class('flex flex-wrap justify-center gap-4')],
           [
-            h.Class(
-              'min-h-screen bg-white flex flex-col items-center justify-center gap-6 p-6',
+            Button.view(
+              {
+                onClick: Message.ClickedDecrement(),
+                toView: attributes =>
+                  h.button([...attributes.button, h.Class(buttonStyle)], ['-']),
+              },
+              h,
             ),
-          ],
-          [
-            h.h1(
-              [h.Class('text-2xl font-semibold text-gray-800')],
-              ['Server-rendered counter'],
+            Button.view(
+              {
+                onClick: Message.ClickedIncrement(),
+                toView: attributes =>
+                  h.button([...attributes.button, h.Class(buttonStyle)], ['+']),
+              },
+              h,
             ),
-            h.p(
-              [h.Id('count'), h.Class('text-6xl font-bold text-gray-800')],
-              [model.count.toString()],
-            ),
-            h.div(
-              [h.Class('flex flex-wrap justify-center gap-4')],
-              [
-                Button.view(
-                  {
-                    onClick: Message.ClickedDecrement(),
-                    toView: attributes =>
-                      h.button(
-                        [...attributes.button, h.Class(buttonStyle)],
-                        ['-'],
-                      ),
-                  },
-                  h,
-                ),
-                Button.view(
-                  {
-                    onClick: Message.ClickedIncrement(),
-                    toView: attributes =>
-                      h.button(
-                        [...attributes.button, h.Class(buttonStyle)],
-                        ['+'],
-                      ),
-                  },
-                  h,
-                ),
-              ],
-            ),
-            h.p(
-              [h.Id('provenance'), h.Class('text-sm text-gray-500')],
-              [`Rendered on the ${model.renderedOn} at ${model.renderedAt}`],
-            ),
-            h.p(
-              [h.Class('text-sm text-gray-500 max-w-md text-center')],
-              [
-                'The count persists in a cookie. Reload the page and the server ' +
-                  'renders your latest count into the HTML before any JavaScript runs.',
-              ],
-            ),
-            parseEquivalenceView(h),
           ],
         ),
-      }),
-    }
+        h.p(
+          [h.Id('provenance'), h.Class('text-sm text-gray-500')],
+          [`Rendered on the ${model.renderedOn} at ${model.renderedAt}`],
+        ),
+        h.p(
+          [h.Class('text-sm text-gray-500 max-w-md text-center')],
+          [
+            'The count persists in a cookie. Reload the page and the server ' +
+              'renders your latest count into the HTML before any JavaScript runs.',
+          ],
+        ),
+        parseEquivalenceView(h),
+      ],
+    ),
   }),
-)
+}))
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

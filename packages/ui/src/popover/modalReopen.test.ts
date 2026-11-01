@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { afterEach, expect, it, vi } from 'vitest'
 
@@ -14,48 +14,39 @@ class PopoverModalReopenTest extends Block<PopoverModalReopenTest>()(
   },
 ) {}
 
-const PopoverModalReopenTestLive = PopoverModalReopenTest.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        popover: new Popover('popover', {
-          id: POPOVER_ID,
-          isModal: true,
-        }),
-      }),
-      view: (model, h) =>
-        h.main(
-          [h.Id('page')],
-          [
-            model.popover.view({
-              anchor: { placement: 'bottom-start' },
-              toView: ({ button, panel, backdrop, isVisible }) =>
-                h.div(
-                  [],
-                  [
-                    h.button([...button], ['Sort']),
-                    ...(isVisible
-                      ? [
-                          h.div([...backdrop]),
-                          h.div(
-                            [...panel],
-                            [
-                              h.button(
-                                [h.Id('item'), h.Type('button')],
-                                ['Name'],
-                              ),
-                            ],
-                          ),
-                        ]
-                      : []),
-                  ],
-                ),
-            }),
-          ],
-        ),
-    }
+const PopoverModalReopenTestLive = PopoverModalReopenTest.toLayer(() => ({
+  init: () => ({
+    popover: new Popover('popover', {
+      id: POPOVER_ID,
+      isModal: true,
+    }),
   }),
-).pipe(Layer.provide(PopoverLive))
+  view: (model, h) =>
+    h.main(
+      [h.Id('page')],
+      [
+        model.popover.view({
+          anchor: { placement: 'bottom-start' },
+          toView: ({ button, panel, backdrop, isVisible }) =>
+            h.div(
+              [],
+              [
+                h.button([...button], ['Sort']),
+                ...(isVisible
+                  ? [
+                      h.div([...backdrop]),
+                      h.div(
+                        [...panel],
+                        [h.button([h.Id('item'), h.Type('button')], ['Name'])],
+                      ),
+                    ]
+                  : []),
+              ],
+            ),
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(PopoverLive))
 
 const findInertAncestor = (element: Element | null): Option.Option<Element> => {
   for (

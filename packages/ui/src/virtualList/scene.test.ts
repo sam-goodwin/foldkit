@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Schema } from 'effect'
+import { Array, Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Result } from 'foldkit/block'
 import type { HtmlBuilder } from 'foldkit/html'
@@ -51,14 +51,10 @@ class Host extends Block<Host>()('Host', {
 }) {}
 
 const makeHostLive = ({ config, toViewInputs }: HostArgs) =>
-  Host.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ list: new DemoList('list', config) }),
-        view: (model, h) => model.list.view(toViewInputs(h)),
-      }
-    }),
-  ).pipe(Layer.provide(DemoList.Live))
+  Host.toLayer(() => ({
+    init: () => ({ list: new DemoList('list', config) }),
+    view: (model, h) => model.list.view(toViewInputs(h)),
+  })).pipe(Layer.provide(DemoList.Live))
 
 const demoItems: ReadonlyArray<DemoItem> = [
   { id: 0, label: 'Item 0' },

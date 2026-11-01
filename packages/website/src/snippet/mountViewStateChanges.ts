@@ -26,7 +26,7 @@ export class Notes extends Block<Notes>()('Notes', {
   Mount: [MountEditor],
 }) {}
 
-export const NotesLive = Notes.layer(
+export const NotesLive = Notes.toLayer(
   Effect.gen(function* () {
     const editors = yield* RichTextEditors
 

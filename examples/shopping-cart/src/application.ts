@@ -69,101 +69,95 @@ export class Application extends Block<Application, Readonly<{ url: Url }>>()(
 
 // LIVE
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ url }) => ({
-        route: urlToApplicationRoute(url),
-        cart: [],
-        deliveryInstructions: '',
-        orderPlaced: false,
-        productsPage: new Products('productsPage', { products }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ url }) => ({
+    route: urlToApplicationRoute(url),
+    cart: [],
+    deliveryInstructions: '',
+    orderPlaced: false,
+    productsPage: new Products('productsPage', { products }),
+  }),
+
+  update: {
+    CompletedNavigateInternal: model => ({ model }),
+    CompletedLoadExternal: model => ({ model }),
+
+    ClickedLink: (model, { request }) =>
+      UrlRequest.match(request, {
+        Internal: ({ url: internalUrl }) => ({
+          model,
+          commands: [NavigateInternal({ url: urlToString(internalUrl) })],
+        }),
+        External: ({ href }) => ({
+          model,
+          commands: [LoadExternal({ href })],
+        }),
       }),
 
-      update: {
-        CompletedNavigateInternal: model => ({ model }),
-        CompletedLoadExternal: model => ({ model }),
+    ChangedUrl: (model, { url: nextUrl }) => ({
+      model: modifyFields(model, {
+        route: () => urlToApplicationRoute(nextUrl),
+      }),
+    }),
 
-        ClickedLink: (model, { request }) =>
-          UrlRequest.match(request, {
-            Internal: ({ url: internalUrl }) => ({
-              model,
-              commands: [NavigateInternal({ url: urlToString(internalUrl) })],
-            }),
-            External: ({ href }) => ({
-              model,
-              commands: [LoadExternal({ href })],
-            }),
-          }),
+    ClickedIncrementQuantity: (model, { itemId }) => ({
+      model: modifyFields(model, {
+        cart: Cart.incrementQuantity(itemId),
+      }),
+    }),
 
-        ChangedUrl: (model, { url: nextUrl }) => ({
-          model: modifyFields(model, {
-            route: () => urlToApplicationRoute(nextUrl),
-          }),
+    ClickedDecrementQuantity: (model, { itemId }) => ({
+      model: modifyFields(model, {
+        cart: Cart.decrementQuantity(itemId),
+      }),
+    }),
+
+    ClickedRemoveCartItem: (model, { itemId }) => ({
+      model: modifyFields(model, { cart: Cart.removeItem(itemId) }),
+    }),
+
+    ClickedClearCart: model => ({
+      model: modifyFields(model, { cart: () => [] }),
+    }),
+
+    UpdatedDeliveryInstructions: (model, { value }) => ({
+      model: modifyFields(model, { deliveryInstructions: () => value }),
+    }),
+
+    ClickedPlaceOrder: model => ({
+      model: modifyFields(model, {
+        orderPlaced: () => true,
+        cart: () => [],
+        deliveryInstructions: () => '',
+      }),
+    }),
+
+    ...Products.on({
+      AddedToCart: (model, { item }) => ({
+        model: modifyFields(model, { cart: Cart.addItem(item) }),
+      }),
+      IncrementedQuantity: (model, { itemId }) => ({
+        model: modifyFields(model, {
+          cart: Cart.incrementQuantity(itemId),
         }),
-
-        ClickedIncrementQuantity: (model, { itemId }) => ({
-          model: modifyFields(model, {
-            cart: Cart.incrementQuantity(itemId),
-          }),
+      }),
+      DecrementedQuantity: (model, { itemId }) => ({
+        model: modifyFields(model, {
+          cart: Cart.decrementQuantity(itemId),
         }),
+      }),
+    }),
+  },
 
-        ClickedDecrementQuantity: (model, { itemId }) => ({
-          model: modifyFields(model, {
-            cart: Cart.decrementQuantity(itemId),
-          }),
-        }),
+  commands: {
+    NavigateInternal: ({ url: internalUrl }) =>
+      pushUrl(internalUrl).pipe(Effect.as(Message.CompletedNavigateInternal())),
+    LoadExternal: ({ href }) =>
+      load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
+  },
 
-        ClickedRemoveCartItem: (model, { itemId }) => ({
-          model: modifyFields(model, { cart: Cart.removeItem(itemId) }),
-        }),
-
-        ClickedClearCart: model => ({
-          model: modifyFields(model, { cart: () => [] }),
-        }),
-
-        UpdatedDeliveryInstructions: (model, { value }) => ({
-          model: modifyFields(model, { deliveryInstructions: () => value }),
-        }),
-
-        ClickedPlaceOrder: model => ({
-          model: modifyFields(model, {
-            orderPlaced: () => true,
-            cart: () => [],
-            deliveryInstructions: () => '',
-          }),
-        }),
-
-        ...Products.on({
-          AddedToCart: (model, { item }) => ({
-            model: modifyFields(model, { cart: Cart.addItem(item) }),
-          }),
-          IncrementedQuantity: (model, { itemId }) => ({
-            model: modifyFields(model, {
-              cart: Cart.incrementQuantity(itemId),
-            }),
-          }),
-          DecrementedQuantity: (model, { itemId }) => ({
-            model: modifyFields(model, {
-              cart: Cart.decrementQuantity(itemId),
-            }),
-          }),
-        }),
-      },
-
-      commands: {
-        NavigateInternal: ({ url: internalUrl }) =>
-          pushUrl(internalUrl).pipe(
-            Effect.as(Message.CompletedNavigateInternal()),
-          ),
-        LoadExternal: ({ href }) =>
-          load(href).pipe(Effect.as(Message.CompletedLoadExternal())),
-      },
-
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 // VIEW
 

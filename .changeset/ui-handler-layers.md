@@ -43,7 +43,7 @@ export class Toolbar extends Block<Toolbar>()('Toolbar', {
   Model: Schema.Struct({ menu: ActionMenu }),
 }) {}
 
-export const ToolbarLive = Toolbar.layer(
+export const ToolbarLive = Toolbar.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ menu: new ActionMenu('menu', { id: 'actions' }) }),

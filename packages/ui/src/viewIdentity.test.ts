@@ -15,23 +15,19 @@ class IdentityProbe extends Block<IdentityProbe>()('IdentityProbe', {
 }) {}
 
 const makeIdentityProbeLive = ({ onRender }: IdentityProbeArgs) =>
-  IdentityProbe.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({
-          animation: new Animation('animation', {
-            id: 'sanity',
-            isShowing: true,
-          }),
-        }),
-        view: (model, h) => {
-          const vnode = model.animation.view({ toView: () => h.div([]) })
-          onRender(vnode)
-          return vnode
-        },
-      }
+  IdentityProbe.toLayer(() => ({
+    init: () => ({
+      animation: new Animation('animation', {
+        id: 'sanity',
+        isShowing: true,
+      }),
     }),
-  ).pipe(Layer.provide(AnimationLive))
+    view: (model, h) => {
+      const vnode = model.animation.view({ toView: () => h.div([]) })
+      onRender(vnode)
+      return vnode
+    },
+  })).pipe(Layer.provide(AnimationLive))
 
 describe('view identity branding', () => {
   it.effect('stamps a rendered vnode with the owning ui module identity', () =>

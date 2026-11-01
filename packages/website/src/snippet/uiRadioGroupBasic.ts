@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -27,63 +27,53 @@ export class PlanPicker extends Block<PlanPicker>()('PlanPicker', {
   }),
 }) {}
 
-export const PlanPickerLive = PlanPicker.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        planRadioGroup: new PlanRadioGroup('planRadioGroup', {
-          id: 'plan',
-        }),
-        maybePlan: Option.none(),
-      }),
-
-      update: {
-        // `Selected` carries the chosen value, typed as `Plan`, and its index
-        ...PlanRadioGroup.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { maybePlan: () => Option.some(value) }),
-          }),
-        }),
-      },
-
-      view: (model, h) => {
-        const radioGroupView = ({
-          group,
-          options,
-        }: RadioGroupRenderInfo<Plan>) =>
-          h.div(
-            [...group, h.Class('flex flex-col gap-3')],
-            options.map(option => {
-              const plan = option.value
-              return h.div(
-                [
-                  ...option.option,
-                  h.Class(
-                    'rounded-lg border p-4 cursor-pointer data-[checked]:border-blue-600',
-                  ),
-                ],
-                [
-                  h.span(
-                    [...option.label, h.Class('text-sm font-medium')],
-                    [plan],
-                  ),
-                  h.p(
-                    [...option.description, h.Class('text-sm text-gray-500')],
-                    [descriptions[plan]],
-                  ),
-                ],
-              )
-            }),
-          )
-
-        return model.planRadioGroup.view({
-          options: plans,
-          selectedValue: model.maybePlan,
-          ariaLabel: 'Server plan',
-          hasOptionDescription: () => true,
-          toView: radioGroupView,
-        })
-      },
-    }
+export const PlanPickerLive = PlanPicker.toLayer(() => ({
+  init: () => ({
+    planRadioGroup: new PlanRadioGroup('planRadioGroup', {
+      id: 'plan',
+    }),
+    maybePlan: Option.none(),
   }),
-).pipe(Layer.provide(PlanRadioGroup.Live))
+
+  update: {
+    // `Selected` carries the chosen value, typed as `Plan`, and its index
+    ...PlanRadioGroup.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { maybePlan: () => Option.some(value) }),
+      }),
+    }),
+  },
+
+  view: (model, h) => {
+    const radioGroupView = ({ group, options }: RadioGroupRenderInfo<Plan>) =>
+      h.div(
+        [...group, h.Class('flex flex-col gap-3')],
+        options.map(option => {
+          const plan = option.value
+          return h.div(
+            [
+              ...option.option,
+              h.Class(
+                'rounded-lg border p-4 cursor-pointer data-[checked]:border-blue-600',
+              ),
+            ],
+            [
+              h.span([...option.label, h.Class('text-sm font-medium')], [plan]),
+              h.p(
+                [...option.description, h.Class('text-sm text-gray-500')],
+                [descriptions[plan]],
+              ),
+            ],
+          )
+        }),
+      )
+
+    return model.planRadioGroup.view({
+      options: plans,
+      selectedValue: model.maybePlan,
+      ariaLabel: 'Server plan',
+      hasOptionDescription: () => true,
+      toView: radioGroupView,
+    })
+  },
+})).pipe(Layer.provide(PlanRadioGroup.Live))

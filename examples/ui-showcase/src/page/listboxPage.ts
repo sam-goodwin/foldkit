@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Option, Schema } from 'effect'
+import { Array, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { type Html, type HtmlBuilder, childAttributes } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -43,60 +43,56 @@ export class ListboxPage extends Block<ListboxPage>()('ListboxPage', {
   Model,
 }) {}
 
-export const ListboxPageLive = ListboxPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        listboxDemo: new ItemListbox('listboxDemo', {
-          id: 'listbox-demo',
-        }),
-        maybeListboxDemoSelectedItem: Option.none(),
-        listboxMultiDemo: new ItemMultiListbox('listboxMultiDemo', {
-          id: 'listbox-multi-demo',
-        }),
-        listboxMultiDemoSelectedItems: [],
-        listboxGroupedDemo: new CharacterListbox('listboxGroupedDemo', {
-          id: 'listbox-grouped-demo',
-        }),
-        maybeListboxGroupedDemoSelectedItem: Option.none(),
-      }),
-
-      update: {
-        ...ItemListbox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeListboxDemoSelectedItem: () => Option.some(value),
-            }),
-          }),
-        }),
-
-        ...ItemMultiListbox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              listboxMultiDemoSelectedItems: listboxMultiDemoSelectedItems =>
-                Array.contains(listboxMultiDemoSelectedItems, value)
-                  ? Array.filter(
-                      listboxMultiDemoSelectedItems,
-                      item => item !== value,
-                    )
-                  : Array.append(listboxMultiDemoSelectedItems, value),
-            }),
-          }),
-        }),
-
-        ...CharacterListbox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeListboxGroupedDemoSelectedItem: () => Option.some(value),
-            }),
-          }),
-        }),
-      },
-
-      view,
-    }
+export const ListboxPageLive = ListboxPage.toLayer(() => ({
+  init: () => ({
+    listboxDemo: new ItemListbox('listboxDemo', {
+      id: 'listbox-demo',
+    }),
+    maybeListboxDemoSelectedItem: Option.none(),
+    listboxMultiDemo: new ItemMultiListbox('listboxMultiDemo', {
+      id: 'listbox-multi-demo',
+    }),
+    listboxMultiDemoSelectedItems: [],
+    listboxGroupedDemo: new CharacterListbox('listboxGroupedDemo', {
+      id: 'listbox-grouped-demo',
+    }),
+    maybeListboxGroupedDemoSelectedItem: Option.none(),
   }),
-).pipe(
+
+  update: {
+    ...ItemListbox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, {
+          maybeListboxDemoSelectedItem: () => Option.some(value),
+        }),
+      }),
+    }),
+
+    ...ItemMultiListbox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, {
+          listboxMultiDemoSelectedItems: listboxMultiDemoSelectedItems =>
+            Array.contains(listboxMultiDemoSelectedItems, value)
+              ? Array.filter(
+                  listboxMultiDemoSelectedItems,
+                  item => item !== value,
+                )
+              : Array.append(listboxMultiDemoSelectedItems, value),
+        }),
+      }),
+    }),
+
+    ...CharacterListbox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, {
+          maybeListboxGroupedDemoSelectedItem: () => Option.some(value),
+        }),
+      }),
+    }),
+  },
+
+  view,
+})).pipe(
   Layer.provide(
     Layer.mergeAll(
       ItemListbox.Live,

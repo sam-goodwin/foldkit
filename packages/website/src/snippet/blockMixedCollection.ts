@@ -1,4 +1,4 @@
-import { Array, Effect, Number, Schema } from 'effect'
+import { Array, Number, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -31,73 +31,69 @@ const addWidget = (model: Model, widget: Widget): Model =>
     nextWidgetId: Number.increment,
   })
 
-export const DashboardLive = Dashboard.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ widgets: [], nextWidgetId: 0, completedGoalCount: 0 }),
+export const DashboardLive = Dashboard.toLayer(() => ({
+  init: () => ({ widgets: [], nextWidgetId: 0, completedGoalCount: 0 }),
 
-      update: {
-        ClickedAddCounter: model => ({
-          model: addWidget(
-            model,
-            new Counter(`widget-${model.nextWidgetId}`, { max: 10 }),
-          ),
-        }),
-        ClickedAddStopwatch: model => ({
-          model: addWidget(
-            model,
-            new Stopwatch(`widget-${model.nextWidgetId}`, { label: 'Focus' }),
-          ),
-        }),
-        ClickedRemoveWidget: (model, { id }) => ({
-          model: modifyFields(model, {
-            widgets: Array.filter(widget => widget.id !== id),
-          }),
-        }),
+  update: {
+    ClickedAddCounter: model => ({
+      model: addWidget(
+        model,
+        new Counter(`widget-${model.nextWidgetId}`, { max: 10 }),
+      ),
+    }),
+    ClickedAddStopwatch: model => ({
+      model: addWidget(
+        model,
+        new Stopwatch(`widget-${model.nextWidgetId}`, { label: 'Focus' }),
+      ),
+    }),
+    ClickedRemoveWidget: (model, { id }) => ({
+      model: modifyFields(model, {
+        widgets: Array.filter(widget => widget.id !== id),
+      }),
+    }),
 
-        ...Counter.on({
-          ReachedMax: model => ({
-            model: modifyFields(model, {
-              completedGoalCount: Number.increment,
-            }),
-          }),
+    ...Counter.on({
+      ReachedMax: model => ({
+        model: modifyFields(model, {
+          completedGoalCount: Number.increment,
         }),
-      },
+      }),
+    }),
+  },
 
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.p([], [`Goals reached: ${model.completedGoalCount}`]),
-            ...Array.map(model.widgets, widget =>
-              h.keyed('div')(
-                widget.id,
-                [],
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.p([], [`Goals reached: ${model.completedGoalCount}`]),
+        ...Array.map(model.widgets, widget =>
+          h.keyed('div')(
+            widget.id,
+            [],
+            [
+              widget.view(),
+              h.button(
                 [
-                  widget.view(),
-                  h.button(
-                    [
-                      h.OnClick(
-                        Dashboard.Message.ClickedRemoveWidget({
-                          id: widget.id,
-                        }),
-                      ),
-                    ],
-                    ['Remove'],
+                  h.OnClick(
+                    Dashboard.Message.ClickedRemoveWidget({
+                      id: widget.id,
+                    }),
                   ),
                 ],
+                ['Remove'],
               ),
-            ),
-            h.button(
-              [h.OnClick(Dashboard.Message.ClickedAddCounter())],
-              ['Add counter'],
-            ),
-            h.button(
-              [h.OnClick(Dashboard.Message.ClickedAddStopwatch())],
-              ['Add stopwatch'],
-            ),
-          ],
+            ],
+          ),
         ),
-    }
-  }),
-)
+        h.button(
+          [h.OnClick(Dashboard.Message.ClickedAddCounter())],
+          ['Add counter'],
+        ),
+        h.button(
+          [h.OnClick(Dashboard.Message.ClickedAddStopwatch())],
+          ['Add stopwatch'],
+        ),
+      ],
+    ),
+}))

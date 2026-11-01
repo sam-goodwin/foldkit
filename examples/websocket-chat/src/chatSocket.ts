@@ -64,7 +64,7 @@ export class ChatSocket extends Block<ChatSocket>()('ChatSocket', {
   OutMessage,
 }) {}
 
-export const ChatSocketLive = ChatSocket.layer(
+export const ChatSocketLive = ChatSocket.toLayer(
   Effect.gen(function* () {
     const sockets = yield* ChatSockets
 

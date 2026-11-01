@@ -1,4 +1,4 @@
-import { Effect, Number, Schema } from 'effect'
+import { Number, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -8,25 +8,21 @@ class Widget extends Block<Widget>()('Widget', {
   Message: defineMessageUnion({ ClickedLike: {} }),
 }) {}
 
-const WidgetLive = Widget.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ likes: 0 }),
+const WidgetLive = Widget.toLayer(() => ({
+  init: () => ({ likes: 0 }),
 
-      update: {
-        ClickedLike: model => ({
-          model: modifyFields(model, { likes: Number.increment }),
-        }),
-      },
+  update: {
+    ClickedLike: model => ({
+      model: modifyFields(model, { likes: Number.increment }),
+    }),
+  },
 
-      view: (model, h) =>
-        h.button(
-          [h.OnClick(Widget.Message.ClickedLike())],
-          [`Like (${model.likes})`],
-        ),
-    }
-  }),
-)
+  view: (model, h) =>
+    h.button(
+      [h.OnClick(Widget.Message.ClickedLike())],
+      [`Like (${model.likes})`],
+    ),
+}))
 
 const element = Program.makeElement(Widget, {
   layer: WidgetLive,

@@ -389,261 +389,247 @@ export class Popover extends Block<Popover, PopoverArgs, ViewInput>()(
 
 /** Implements {@link Popover}. Provides `AnimationLive` to the Animation
  *  instance it creates. */
-export const PopoverLive = Popover.layer(
-  Effect.gen(function* () {
-    return {
-      init: makeInitialModel,
+export const PopoverLive = Popover.toLayer(() => ({
+  init: makeInitialModel,
 
-      update: {
-        RequestedOpen: openPopover,
-        RequestedClose: model =>
-          closePopover(model, closeWithFocusCommands(model)),
-        BlurredPanel: handleBlurredPanel,
-        PressedPointerOnButton: handlePressedPointerOnButton,
-        ClickedButton: handleClickedButton,
-        IgnoredMouseClick: model => ({
-          model: modifyFields(model, {
-            maybeLastButtonPointerType: () => Option.none(),
-          }),
-        }),
-        CompletedDetectPopoverMovementOrAnimationEnd: (
-          model,
-          { generation },
-        ) => ({
-          model,
-          messages: [
-            model.animation.send(
-              Animation.Animation.Message.RequestedFinish({ generation }),
-            ),
-          ],
-        }),
-        CompletedFocusPopoverPanel: model => ({ model }),
-        CompletedFocusPopoverButton: model => ({ model }),
-        CompletedLockPopoverScroll: model => ({ model }),
-        CompletedUnlockPopoverScroll: model => ({ model }),
-        CompletedInertPopoverOthers: model => ({ model }),
-        CompletedRestorePopoverInert: model => ({ model }),
-        SuppressedSpaceScroll: model => ({ model }),
-        CompletedAnchorPopover: model => ({ model }),
-        CompletedPortalPopoverBackdrop: model => ({ model }),
-        ...Animation.Animation.on({
-          StartedLeaveAnimating: (model, { generation }) => ({
-            model,
-            commands: [
-              DetectPopoverMovementOrAnimationEnd({ id: model.id, generation }),
-            ],
-          }),
-        }),
-      },
+  update: {
+    RequestedOpen: openPopover,
+    RequestedClose: model => closePopover(model, closeWithFocusCommands(model)),
+    BlurredPanel: handleBlurredPanel,
+    PressedPointerOnButton: handlePressedPointerOnButton,
+    ClickedButton: handleClickedButton,
+    IgnoredMouseClick: model => ({
+      model: modifyFields(model, {
+        maybeLastButtonPointerType: () => Option.none(),
+      }),
+    }),
+    CompletedDetectPopoverMovementOrAnimationEnd: (model, { generation }) => ({
+      model,
+      messages: [
+        model.animation.send(
+          Animation.Animation.Message.RequestedFinish({ generation }),
+        ),
+      ],
+    }),
+    CompletedFocusPopoverPanel: model => ({ model }),
+    CompletedFocusPopoverButton: model => ({ model }),
+    CompletedLockPopoverScroll: model => ({ model }),
+    CompletedUnlockPopoverScroll: model => ({ model }),
+    CompletedInertPopoverOthers: model => ({ model }),
+    CompletedRestorePopoverInert: model => ({ model }),
+    SuppressedSpaceScroll: model => ({ model }),
+    CompletedAnchorPopover: model => ({ model }),
+    CompletedPortalPopoverBackdrop: model => ({ model }),
+    ...Animation.Animation.on({
+      StartedLeaveAnimating: (model, { generation }) => ({
+        model,
+        commands: [
+          DetectPopoverMovementOrAnimationEnd({ id: model.id, generation }),
+        ],
+      }),
+    }),
+  },
 
-      commands: {
-        LockPopoverScroll: () =>
-          Dom.lockScroll.pipe(Effect.as(Message.CompletedLockPopoverScroll())),
-        UnlockPopoverScroll: () =>
-          Dom.unlockScroll.pipe(
-            Effect.as(Message.CompletedUnlockPopoverScroll()),
+  commands: {
+    LockPopoverScroll: () =>
+      Dom.lockScroll.pipe(Effect.as(Message.CompletedLockPopoverScroll())),
+    UnlockPopoverScroll: () =>
+      Dom.unlockScroll.pipe(Effect.as(Message.CompletedUnlockPopoverScroll())),
+    InertPopoverOthers: ({ id }) =>
+      Dom.inertOthers(id, [buttonSelector(id), panelSelector(id)]).pipe(
+        Effect.as(Message.CompletedInertPopoverOthers()),
+      ),
+    RestorePopoverInert: ({ id }) =>
+      Dom.restoreInert(id).pipe(
+        Effect.as(Message.CompletedRestorePopoverInert()),
+      ),
+    FocusPopoverPanel: ({ id }) =>
+      Dom.focus(panelSelector(id)).pipe(
+        Effect.ignore,
+        Effect.as(Message.CompletedFocusPopoverPanel()),
+      ),
+    FocusPopoverButton: ({ id }) =>
+      Dom.focus(buttonSelector(id)).pipe(
+        Effect.ignore,
+        Effect.as(Message.CompletedFocusPopoverButton()),
+      ),
+    DetectPopoverMovementOrAnimationEnd: ({ id, generation }) =>
+      Effect.raceFirst(
+        Dom.detectElementMovement(buttonSelector(id)).pipe(
+          Effect.as(
+            Message.CompletedDetectPopoverMovementOrAnimationEnd({
+              generation,
+            }),
           ),
-        InertPopoverOthers: ({ id }) =>
-          Dom.inertOthers(id, [buttonSelector(id), panelSelector(id)]).pipe(
-            Effect.as(Message.CompletedInertPopoverOthers()),
+        ),
+        Dom.waitForAnimationSettled(panelSelector(id)).pipe(
+          Effect.as(
+            Message.CompletedDetectPopoverMovementOrAnimationEnd({
+              generation,
+            }),
           ),
-        RestorePopoverInert: ({ id }) =>
-          Dom.restoreInert(id).pipe(
-            Effect.as(Message.CompletedRestorePopoverInert()),
-          ),
-        FocusPopoverPanel: ({ id }) =>
-          Dom.focus(panelSelector(id)).pipe(
-            Effect.ignore,
-            Effect.as(Message.CompletedFocusPopoverPanel()),
-          ),
-        FocusPopoverButton: ({ id }) =>
-          Dom.focus(buttonSelector(id)).pipe(
-            Effect.ignore,
-            Effect.as(Message.CompletedFocusPopoverButton()),
-          ),
-        DetectPopoverMovementOrAnimationEnd: ({ id, generation }) =>
-          Effect.raceFirst(
-            Dom.detectElementMovement(buttonSelector(id)).pipe(
-              Effect.as(
-                Message.CompletedDetectPopoverMovementOrAnimationEnd({
-                  generation,
-                }),
-              ),
-            ),
-            Dom.waitForAnimationSettled(panelSelector(id)).pipe(
-              Effect.as(
-                Message.CompletedDetectPopoverMovementOrAnimationEnd({
-                  generation,
-                }),
-              ),
-            ),
-          ),
-      },
+        ),
+      ),
+  },
 
-      mounts: {
-        AnchorPopover: ({
-          element,
-          buttonId,
-          anchor,
-          focusSelector,
-          arrowId,
-          arrowPadding,
-        }) =>
-          Effect.gen(function* () {
-            yield* Effect.acquireRelease(
-              Effect.sync(() =>
-                anchorSetup(element, {
-                  buttonId,
-                  anchor,
-                  interceptTab: false,
-                  focusAfterPosition: true,
-                  ...(focusSelector !== undefined && { focusSelector }),
-                  ...(arrowId !== undefined && { arrowId }),
-                  ...(arrowPadding !== undefined && { arrowPadding }),
-                }),
-              ),
-              cleanup => Effect.sync(cleanup),
-            )
-            return Message.CompletedAnchorPopover()
-          }),
-        PortalPopoverBackdrop: ({ element }) =>
-          Effect.gen(function* () {
-            yield* Effect.acquireRelease(
-              Effect.sync(() => portalBackdrop(element)),
-              cleanup => Effect.sync(cleanup),
-            )
-            return Message.CompletedPortalPopoverBackdrop()
-          }),
-      },
-
-      view: (model, h, viewInput) => {
-        const { id, isOpen, contentFocus } = model
-        const { transitionState } = model.animation.model
-        const {
-          anchor,
-          toView,
-          isDisabled,
-          focusSelector,
-          arrowPadding,
-          ariaLabel,
-          ariaLabelledBy,
-        } = viewInput
-
-        const isLeaving = Animation.isLeaving(transitionState)
-        const isVisible = isOpen || isLeaving
-
-        const animationAttributes = Animation.transitionAttributes(
-          h,
-          transitionState,
-        )
-
-        const handleButtonKeyDown = (
-          key: string,
-        ): Option.Option<RequestedOpen | RequestedClose> =>
-          Match.value(key).pipe(
-            Match.whenOr('Enter', ' ', 'ArrowDown', () =>
-              Option.some(
-                isOpen ? Message.RequestedClose() : Message.RequestedOpen(),
-              ),
-            ),
-            Match.when('Escape', () =>
-              OptionExt.when(isOpen, Message.RequestedClose()),
-            ),
-            Match.orElse(() => Option.none()),
-          )
-
-        const handleButtonPointerDown = (
-          pointerType: string,
-          button: number,
-        ): Option.Option<PressedPointerOnButton> =>
-          Option.some(Message.PressedPointerOnButton({ pointerType, button }))
-
-        const handleSpaceKeyUp = (
-          key: string,
-        ): Option.Option<SuppressedSpaceScroll> =>
-          OptionExt.when(key === ' ', Message.SuppressedSpaceScroll())
-
-        const handlePanelKeyDown = (
-          key: string,
-        ): Option.Option<RequestedClose> =>
-          Match.value(key).pipe(
-            Match.when('Escape', () => Option.some(Message.RequestedClose())),
-            Match.orElse(() => Option.none()),
-          )
-
-        const resolveButtonLabel = () => {
-          if (Predicate.isNotUndefined(ariaLabel)) {
-            return [h.AriaLabel(ariaLabel)]
-          } else if (Predicate.isNotUndefined(ariaLabelledBy)) {
-            return [h.AriaLabelledBy(ariaLabelledBy)]
-          } else {
-            return []
-          }
-        }
-
-        const buttonLabelAttributes = resolveButtonLabel()
-
-        const buttonAttributes = [
-          h.Id(buttonId(id)),
-          h.Type('button'),
-          h.AriaExpanded(isVisible),
-          ...(isVisible ? [h.AriaControls(`${id}-panel`)] : []),
-          ...buttonLabelAttributes,
-          ...(isDisabled
-            ? [h.AriaDisabled(true), h.DataAttribute('disabled', '')]
-            : [
-                h.OnPointerDown(handleButtonPointerDown),
-                h.OnKeyDownPreventDefault(handleButtonKeyDown),
-                h.OnKeyUpPreventDefault(handleSpaceKeyUp),
-                h.OnClick(Message.ClickedButton()),
-              ]),
-          ...(isVisible
-            ? [
-                h.DataAttribute('open', ''),
-                h.Style({ position: 'relative', zIndex: '1' }),
-              ]
-            : []),
-        ]
-
-        const panelAttributes = [
-          h.Id(`${id}-panel`),
-          ...(contentFocus ? [] : [h.Tabindex(0)]),
-          h.Style({ position: 'absolute', margin: '0', visibility: 'hidden' }),
-          h.OnMount(
-            AnchorPopover({
-              buttonId: buttonId(id),
+  mounts: {
+    AnchorPopover: ({
+      element,
+      buttonId,
+      anchor,
+      focusSelector,
+      arrowId,
+      arrowPadding,
+    }) =>
+      Effect.gen(function* () {
+        yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            anchorSetup(element, {
+              buttonId,
               anchor,
+              interceptTab: false,
+              focusAfterPosition: true,
               ...(focusSelector !== undefined && { focusSelector }),
-              arrowId: arrowId(id),
+              ...(arrowId !== undefined && { arrowId }),
               ...(arrowPadding !== undefined && { arrowPadding }),
             }),
           ),
-          ...animationAttributes,
-          ...(isLeaving
-            ? []
-            : [
-                h.OnKeyDownPreventDefault(handlePanelKeyDown),
-                ...(contentFocus
-                  ? []
-                  : [h.OnFocusLeave(Message.BlurredPanel())]),
-              ]),
-        ]
+          cleanup => Effect.sync(cleanup),
+        )
+        return Message.CompletedAnchorPopover()
+      }),
+    PortalPopoverBackdrop: ({ element }) =>
+      Effect.gen(function* () {
+        yield* Effect.acquireRelease(
+          Effect.sync(() => portalBackdrop(element)),
+          cleanup => Effect.sync(cleanup),
+        )
+        return Message.CompletedPortalPopoverBackdrop()
+      }),
+  },
 
-        const backdropAttributes = [
-          h.OnMount(PortalPopoverBackdrop()),
-          ...(isLeaving ? [] : [h.OnClick(Message.RequestedClose())]),
-        ]
+  view: (model, h, viewInput) => {
+    const { id, isOpen, contentFocus } = model
+    const { transitionState } = model.animation.model
+    const {
+      anchor,
+      toView,
+      isDisabled,
+      focusSelector,
+      arrowPadding,
+      ariaLabel,
+      ariaLabelledBy,
+    } = viewInput
 
-        const arrowAttributes = [h.Id(arrowId(id)), h.AriaHidden(true)]
+    const isLeaving = Animation.isLeaving(transitionState)
+    const isVisible = isOpen || isLeaving
 
-        return toView({
-          button: childAttributes(buttonAttributes),
-          panel: childAttributes(panelAttributes),
-          backdrop: childAttributes(backdropAttributes),
-          arrow: childAttributes(arrowAttributes),
-          isVisible,
-        })
-      },
+    const animationAttributes = Animation.transitionAttributes(
+      h,
+      transitionState,
+    )
+
+    const handleButtonKeyDown = (
+      key: string,
+    ): Option.Option<RequestedOpen | RequestedClose> =>
+      Match.value(key).pipe(
+        Match.whenOr('Enter', ' ', 'ArrowDown', () =>
+          Option.some(
+            isOpen ? Message.RequestedClose() : Message.RequestedOpen(),
+          ),
+        ),
+        Match.when('Escape', () =>
+          OptionExt.when(isOpen, Message.RequestedClose()),
+        ),
+        Match.orElse(() => Option.none()),
+      )
+
+    const handleButtonPointerDown = (
+      pointerType: string,
+      button: number,
+    ): Option.Option<PressedPointerOnButton> =>
+      Option.some(Message.PressedPointerOnButton({ pointerType, button }))
+
+    const handleSpaceKeyUp = (
+      key: string,
+    ): Option.Option<SuppressedSpaceScroll> =>
+      OptionExt.when(key === ' ', Message.SuppressedSpaceScroll())
+
+    const handlePanelKeyDown = (key: string): Option.Option<RequestedClose> =>
+      Match.value(key).pipe(
+        Match.when('Escape', () => Option.some(Message.RequestedClose())),
+        Match.orElse(() => Option.none()),
+      )
+
+    const resolveButtonLabel = () => {
+      if (Predicate.isNotUndefined(ariaLabel)) {
+        return [h.AriaLabel(ariaLabel)]
+      } else if (Predicate.isNotUndefined(ariaLabelledBy)) {
+        return [h.AriaLabelledBy(ariaLabelledBy)]
+      } else {
+        return []
+      }
     }
-  }),
-).pipe(Layer.provide(Animation.AnimationLive))
+
+    const buttonLabelAttributes = resolveButtonLabel()
+
+    const buttonAttributes = [
+      h.Id(buttonId(id)),
+      h.Type('button'),
+      h.AriaExpanded(isVisible),
+      ...(isVisible ? [h.AriaControls(`${id}-panel`)] : []),
+      ...buttonLabelAttributes,
+      ...(isDisabled
+        ? [h.AriaDisabled(true), h.DataAttribute('disabled', '')]
+        : [
+            h.OnPointerDown(handleButtonPointerDown),
+            h.OnKeyDownPreventDefault(handleButtonKeyDown),
+            h.OnKeyUpPreventDefault(handleSpaceKeyUp),
+            h.OnClick(Message.ClickedButton()),
+          ]),
+      ...(isVisible
+        ? [
+            h.DataAttribute('open', ''),
+            h.Style({ position: 'relative', zIndex: '1' }),
+          ]
+        : []),
+    ]
+
+    const panelAttributes = [
+      h.Id(`${id}-panel`),
+      ...(contentFocus ? [] : [h.Tabindex(0)]),
+      h.Style({ position: 'absolute', margin: '0', visibility: 'hidden' }),
+      h.OnMount(
+        AnchorPopover({
+          buttonId: buttonId(id),
+          anchor,
+          ...(focusSelector !== undefined && { focusSelector }),
+          arrowId: arrowId(id),
+          ...(arrowPadding !== undefined && { arrowPadding }),
+        }),
+      ),
+      ...animationAttributes,
+      ...(isLeaving
+        ? []
+        : [
+            h.OnKeyDownPreventDefault(handlePanelKeyDown),
+            ...(contentFocus ? [] : [h.OnFocusLeave(Message.BlurredPanel())]),
+          ]),
+    ]
+
+    const backdropAttributes = [
+      h.OnMount(PortalPopoverBackdrop()),
+      ...(isLeaving ? [] : [h.OnClick(Message.RequestedClose())]),
+    ]
+
+    const arrowAttributes = [h.Id(arrowId(id)), h.AriaHidden(true)]
+
+    return toView({
+      button: childAttributes(buttonAttributes),
+      panel: childAttributes(panelAttributes),
+      backdrop: childAttributes(backdropAttributes),
+      arrow: childAttributes(arrowAttributes),
+      isVisible,
+    })
+  },
+})).pipe(Layer.provide(Animation.AnimationLive))

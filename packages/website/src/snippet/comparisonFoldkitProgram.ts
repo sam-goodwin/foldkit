@@ -16,33 +16,29 @@ export class Application extends Block<
   Command: [SaveCanvas, ExportPng],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({
-        grid: Option.match(flags.maybeSavedCanvas, {
-          onNone: () => createEmptyGrid(DEFAULT_GRID_SIZE),
-          onSome: savedCanvas => savedCanvas.grid,
-        }),
-        undoStack: [],
-        redoStack: [],
-        tool: 'Brush',
-        mirrorMode: 'None',
-        isDrawing: false,
-        maybeHoveredCell: Option.none(),
-        errorDialog: new Dialog.Dialog('errorDialog', { id: 'error-dialog' }),
-        // remaining fields elided for brevity
-      }),
-      update: {
-        // one handler per Message
-      },
-      commands: {
-        // one handler per Command
-      },
-      view,
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) => ({
+    grid: Option.match(flags.maybeSavedCanvas, {
+      onNone: () => createEmptyGrid(DEFAULT_GRID_SIZE),
+      onSome: savedCanvas => savedCanvas.grid,
+    }),
+    undoStack: [],
+    redoStack: [],
+    tool: 'Brush',
+    mirrorMode: 'None',
+    isDrawing: false,
+    maybeHoveredCell: Option.none(),
+    errorDialog: new Dialog.Dialog('errorDialog', { id: 'error-dialog' }),
+    // remaining fields elided for brevity
   }),
-)
+  update: {
+    // one handler per Message
+  },
+  commands: {
+    // one handler per Command
+  },
+  view,
+}))
 
 // src/entry.ts
 

@@ -28,42 +28,38 @@ class ToastFixtureParent extends Block<ToastFixtureParent>()(
   },
 ) {}
 
-const ToastFixtureParentLive = ToastFixtureParent.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        left: new FirstToast('left', { id: 'toast' }),
-        right: new FirstToast('right', { id: 'toast' }),
-        other: new SecondToast('other', { id: 'toast' }),
-      }),
-      update: {
-        RequestedShowAll: model => ({
-          model,
-          messages: [
-            model.left.send(
-              FirstToast.requestShow({
-                payload: { body: 'Left' },
-                duration: 100,
-              }),
-            ),
-            model.right.send(
-              FirstToast.requestShow({
-                payload: { body: 'Right' },
-                duration: 200,
-              }),
-            ),
-            model.other.send(
-              SecondToast.requestShow({
-                payload: { count: 3 },
-                duration: 300,
-              }),
-            ),
-          ],
-        }),
-      },
-    }
+const ToastFixtureParentLive = ToastFixtureParent.toLayer(() => ({
+  init: () => ({
+    left: new FirstToast('left', { id: 'toast' }),
+    right: new FirstToast('right', { id: 'toast' }),
+    other: new SecondToast('other', { id: 'toast' }),
   }),
-).pipe(Layer.provide(Layer.mergeAll(FirstToast.Live, SecondToast.Live)))
+  update: {
+    RequestedShowAll: model => ({
+      model,
+      messages: [
+        model.left.send(
+          FirstToast.requestShow({
+            payload: { body: 'Left' },
+            duration: 100,
+          }),
+        ),
+        model.right.send(
+          FirstToast.requestShow({
+            payload: { body: 'Right' },
+            duration: 200,
+          }),
+        ),
+        model.other.send(
+          SecondToast.requestShow({
+            payload: { count: 3 },
+            duration: 300,
+          }),
+        ),
+      ],
+    }),
+  },
+})).pipe(Layer.provide(Layer.mergeAll(FirstToast.Live, SecondToast.Live)))
 
 class KeyedToastFixtureParent extends Block<KeyedToastFixtureParent>()(
   'KeyedToastFixtureParent',
@@ -73,27 +69,23 @@ class KeyedToastFixtureParent extends Block<KeyedToastFixtureParent>()(
   },
 ) {}
 
-const KeyedToastFixtureParentLive = KeyedToastFixtureParent.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ slots: [new FirstToast('selected', { id: 'toast' })] }),
-      update: {
-        RequestedShow: model => ({
-          model,
-          messages: Array.map(model.slots, toast =>
-            toast.send(
-              FirstToast.requestShow({
-                payload: { body: 'Keyed' },
-                duration: 100,
-              }),
-            ),
-          ),
-        }),
-        RemovedSlots: () => ({ model: { slots: [] } }),
-      },
-    }
-  }),
-).pipe(Layer.provide(FirstToast.Live))
+const KeyedToastFixtureParentLive = KeyedToastFixtureParent.toLayer(() => ({
+  init: () => ({ slots: [new FirstToast('selected', { id: 'toast' })] }),
+  update: {
+    RequestedShow: model => ({
+      model,
+      messages: Array.map(model.slots, toast =>
+        toast.send(
+          FirstToast.requestShow({
+            payload: { body: 'Keyed' },
+            duration: 100,
+          }),
+        ),
+      ),
+    }),
+    RemovedSlots: () => ({ model: { slots: [] } }),
+  },
+})).pipe(Layer.provide(FirstToast.Live))
 
 const failureOf = <A, E>(exit: Exit.Exit<A, E>): string =>
   Exit.isFailure(exit) ? Cause.pretty(exit.cause) : ''

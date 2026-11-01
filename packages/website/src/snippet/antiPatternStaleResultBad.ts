@@ -27,7 +27,7 @@ export class Suggestions extends Block<Suggestions>()('Suggestions', {
   Command: [Search],
 }) {}
 
-export const SuggestionsLive = Suggestions.layer(
+export const SuggestionsLive = Suggestions.toLayer(
   Effect.gen(function* () {
     const suggestionApi = yield* SuggestionApi
 

@@ -45,7 +45,7 @@ const changeThemeStep = (model: Model, theme: Theme) => ({
   outMessage: OutMessage.ChangedTheme({ theme }),
 })
 
-export const SettingsLive = Settings.layer(
+export const SettingsLive = Settings.toLayer(
   Effect.gen(function* () {
     // The Layer yields services once. Every instance's handlers close over them.
     const settingsStore = yield* SettingsStore

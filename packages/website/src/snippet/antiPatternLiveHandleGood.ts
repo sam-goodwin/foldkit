@@ -27,7 +27,7 @@ export class ChatRoom extends Block<ChatRoom, Readonly<{ roomId: string }>>()(
   },
 ) {}
 
-export const ChatRoomLive = ChatRoom.layer(
+export const ChatRoomLive = ChatRoom.toLayer(
   Effect.gen(function* () {
     const sockets = yield* RcMap.make({
       lookup: (roomId: string) =>

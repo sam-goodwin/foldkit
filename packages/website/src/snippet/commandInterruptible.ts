@@ -23,36 +23,32 @@ export class Application extends Block<Application>()('Application', {
   Command: [WaitBeforeReset],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0 }),
 
-      update: {
-        ClickedResetAfterDelay: model => ({
-          model,
-          commands: [WaitBeforeReset()],
-        }),
-        ClickedCancelReset: model => ({
-          model,
-          commands: [
-            WaitBeforeReset.Interrupt(outcome =>
-              Message.CompletedCancelWaitBeforeReset({ outcome }),
-            ),
-          ],
-        }),
-        CompletedWaitBeforeReset: model => ({
-          model: modifyFields(model, { count: () => 0 }),
-        }),
-        CompletedCancelWaitBeforeReset: model => ({ model }),
-      },
+  update: {
+    ClickedResetAfterDelay: model => ({
+      model,
+      commands: [WaitBeforeReset()],
+    }),
+    ClickedCancelReset: model => ({
+      model,
+      commands: [
+        WaitBeforeReset.Interrupt(outcome =>
+          Message.CompletedCancelWaitBeforeReset({ outcome }),
+        ),
+      ],
+    }),
+    CompletedWaitBeforeReset: model => ({
+      model: modifyFields(model, { count: () => 0 }),
+    }),
+    CompletedCancelWaitBeforeReset: model => ({ model }),
+  },
 
-      commands: {
-        WaitBeforeReset: () =>
-          Effect.sleep('1 second').pipe(
-            Effect.as(Message.CompletedWaitBeforeReset()),
-          ),
-      },
-    }
-  }),
-)
+  commands: {
+    WaitBeforeReset: () =>
+      Effect.sleep('1 second').pipe(
+        Effect.as(Message.CompletedWaitBeforeReset()),
+      ),
+  },
+}))

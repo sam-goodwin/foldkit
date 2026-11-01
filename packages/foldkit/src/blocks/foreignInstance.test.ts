@@ -10,11 +10,9 @@ class Inspected extends Block<Inspected>()('Application', {
   Model: Schema.Struct({ route: Schema.String }),
 }) {}
 
-const InspectedLive = Inspected.layer(
-  Effect.gen(function* () {
-    return { init: () => ({ route: 'home' }) }
-  }),
-)
+const InspectedLive = Inspected.toLayer(() => ({
+  init: () => ({ route: 'home' }),
+}))
 
 const InspectorMessage = defineMessageUnion({
   ReceivedInspectedModel: { inspected: Schema.Unknown },
@@ -27,27 +25,23 @@ class Inspector extends Block<Inspector>()('Application', {
 
 const dependencyInputs: Array<unknown> = []
 
-const InspectorLive = Inspector.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isPaused: false, inspected: undefined }),
-      update: {
-        ReceivedInspectedModel: (model, { inspected }) => ({
-          model: { ...model, inspected },
-        }),
+const InspectorLive = Inspector.toLayer(() => ({
+  init: () => ({ isPaused: false, inspected: undefined }),
+  update: {
+    ReceivedInspectedModel: (model, { inspected }) => ({
+      model: { ...model, inspected },
+    }),
+  },
+  subscriptions: {
+    frames: {
+      dependencies: model => {
+        dependencyInputs.push(model)
+        return model.isPaused
       },
-      subscriptions: {
-        frames: {
-          dependencies: model => {
-            dependencyInputs.push(model)
-            return model.isPaused
-          },
-          stream: () => Stream.empty,
-        },
-      },
-    }
-  }),
-)
+      stream: () => Stream.empty,
+    },
+  },
+}))
 
 const contextOf = <A>(layer: Layer.Layer<A>): Context.Context<never> =>
   /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */

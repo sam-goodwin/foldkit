@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Array, Effect, Layer, Option, Schema } from 'effect'
+import { Array, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -55,39 +55,34 @@ export class CartStep extends Block<CartStep, void, ViewInput>()('CartStep', {
   OutMessage,
 }) {}
 
-export const CartStepLive = CartStep.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        editionRadioGroup: new EditionRadioGroup('editionRadioGroup', {
-          id: EDITION_RADIO_GROUP_ID,
+export const CartStepLive = CartStep.toLayer(() => ({
+  init: () => ({
+    editionRadioGroup: new EditionRadioGroup('editionRadioGroup', {
+      id: EDITION_RADIO_GROUP_ID,
+    }),
+  }),
+
+  update: {
+    ClickedCancel: model => ({
+      model,
+      outMessage: OutMessage.RequestedCancel(),
+    }),
+    ClickedContinue: model => ({
+      model,
+      outMessage: OutMessage.RequestedContinue(),
+    }),
+    ...EditionRadioGroup.on({
+      Selected: (model, { value }) => ({
+        model,
+        outMessage: OutMessage.SelectedEdition({
+          isShippingRequired: value === HARDCOVER_EDITION,
         }),
       }),
+    }),
+  },
 
-      update: {
-        ClickedCancel: model => ({
-          model,
-          outMessage: OutMessage.RequestedCancel(),
-        }),
-        ClickedContinue: model => ({
-          model,
-          outMessage: OutMessage.RequestedContinue(),
-        }),
-        ...EditionRadioGroup.on({
-          Selected: (model, { value }) => ({
-            model,
-            outMessage: OutMessage.SelectedEdition({
-              isShippingRequired: value === HARDCOVER_EDITION,
-            }),
-          }),
-        }),
-      },
-
-      view: (model, h, { state }) =>
-        cartView(state, model.editionRadioGroup, h),
-    }
-  }),
-).pipe(Layer.provide(EditionRadioGroup.Live))
+  view: (model, h, { state }) => cartView(state, model.editionRadioGroup, h),
+})).pipe(Layer.provide(EditionRadioGroup.Live))
 
 type CartStepViewBuilder = HtmlBuilder<Message>
 

@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -9,40 +9,33 @@ export class Faq extends Block<Faq>()('Faq', {
   Message: defineMessageUnion({ ClickedContactSupport: {} }),
 }) {}
 
-export const FaqLive = Faq.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ shipping: new Disclosure('shipping') }),
+export const FaqLive = Faq.toLayer(() => ({
+  init: () => ({ shipping: new Disclosure('shipping') }),
 
-      update: {
-        ClickedContactSupport: model => ({ model }),
-      },
+  update: {
+    ClickedContactSupport: model => ({ model }),
+  },
 
-      view: (model, h) =>
-        model.shipping.view({
-          toView: (attributes, isOpen) =>
-            h.div(
-              [],
-              [
-                h.button(
-                  [...attributes.button],
-                  ['How long does shipping take?'],
-                ),
-                isOpen
-                  ? h.div(
-                      [...attributes.panel],
-                      [
-                        h.p([], ['Most orders arrive within five days.']),
-                        h.button(
-                          [h.OnClick(Faq.Message.ClickedContactSupport())],
-                          ['Contact support'],
-                        ),
-                      ],
-                    )
-                  : h.empty,
-              ],
-            ),
-        }),
-    }
-  }),
-)
+  view: (model, h) =>
+    model.shipping.view({
+      toView: (attributes, isOpen) =>
+        h.div(
+          [],
+          [
+            h.button([...attributes.button], ['How long does shipping take?']),
+            isOpen
+              ? h.div(
+                  [...attributes.panel],
+                  [
+                    h.p([], ['Most orders arrive within five days.']),
+                    h.button(
+                      [h.OnClick(Faq.Message.ClickedContactSupport())],
+                      ['Contact support'],
+                    ),
+                  ],
+                )
+              : h.empty,
+          ],
+        ),
+    }),
+}))

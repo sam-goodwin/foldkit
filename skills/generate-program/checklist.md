@@ -32,7 +32,7 @@ Each hit is either a fix or a `// NOTE:` justification. Silent hits aren't allow
 # Stale Block API. These identifiers belong to earlier Foldkit Block
 # authoring APIs and do not exist in the installed release. Any hit in
 # generated code is a BLOCKER: rewrite it as a class Block (`class X extends
-# Block<...>()('X', {...})` plus `XLive = X.layer(Effect.gen(...))` returning
+# Block<...>()('X', {...})` plus `XLive = X.toLayer(Effect.gen(...))` returning
 # `{ init, start?, update, commands?, mounts?, subscriptions?, view }`),
 # children as `new Child(id, args)` values in the Model, OutMessages via
 # `Child.on`, parent requests via `send`, child views via
@@ -194,7 +194,7 @@ Alongside the greps, eyeball each file's imports. Every symbol you imported shou
 
 - [ ] Each Block is a class named for its feature (`Search`, `Application`) with a matching string id, and its Layer is `SearchLive` / `ApplicationLive`. A generic UI factory's result is named once at module scope and provided through `.Live`.
 - [ ] Messages, OutMessages, Commands, and Mounts are declared at module level, before the class, and listed on it.
-- [ ] Each Layer is `XLive = X.layer(Effect.gen(...))`, directly after the class. Its constructor yields Services and returns the shared module: `init` builds the starting Model synchronously from args, and `start` returns startup Commands. No async work in the constructor or `init`.
+- [ ] Each Layer is `XLive = X.toLayer(Effect.gen(...))`, directly after the class. Its constructor yields Services and returns the shared module: `init` builds the starting Model synchronously from args, and `start` returns startup Commands. No async work in the constructor or `init`.
 - [ ] The constructor holds no per-instance state. Every arg and id the Block needs after `init` is stored in the Model, and Commands receive per-instance values as Command args.
 - [ ] The root's args are `{ url }` with routing, `{ flags }` with Flags, both, or none.
 - [ ] Child instances are created with `new Child(id, args)` and live in the parent Model, with the child class as the field Schema (`search: Search`, `Schema.Option(Dialog)`, `Schema.Array(Row)`, `Schema.Record(Schema.String, Editor)`, or a tagged variant field). Never HashMap, HashSet, or a class instance.
@@ -290,7 +290,7 @@ Foldkit ships these; reaching past them is a finding, not a style choice.
 - [ ] An OutMessage that is already known is included directly in a new result. `Update.withOutMessage` is used for an existing result or a value of type `OutMessage | undefined`.
 - [ ] Two-or-more-Step post-mutation handlers use `Update.combineSteps(model, [...])` and `Update.refresh({ read, revalidate, write, load })` rather than hand-threaded `modifyFields` chains and conditional Command arrays. One Step is not wrapped in `Update.combineSteps`, and an inline Step parameter is named `stepModel`.
 - [ ] A child's Commands are never mapped or re-issued by the parent; the child's own `commands` handle them and their results return to the child.
-- [ ] HTTP uses `HttpClient` from `effect/http`, yielded in the Layer constructor, with `Http.layer` from `foldkit` provided in `ApplicationLayer`.
+- [ ] HTTP uses `HttpClient` from `effect/http`, yielded in the Layer constructor, with `Http.toLayer` from `foldkit` provided in `ApplicationLayer`.
 - [ ] UI components are imported from `@foldkit/ui` by name. There is no `Ui` namespace on `foldkit`.
 
 ## Effect-TS patterns

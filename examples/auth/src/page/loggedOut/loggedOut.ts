@@ -1,4 +1,4 @@
-import { Effect, Match, Schema } from 'effect'
+import { Match, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -26,37 +26,33 @@ export class LoggedOut extends Block<LoggedOut, void, ViewInput>()(
   },
 ) {}
 
-export const LoggedOutLive = LoggedOut.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ login: new Login('login') }),
+export const LoggedOutLive = LoggedOut.toLayer(() => ({
+  init: () => ({ login: new Login('login') }),
 
-      update: {
-        ...Login.on({
-          SucceededLogin: (model, { session }) => ({
-            model,
-            outMessage: OutMessage.SucceededLogin({ session }),
+  update: {
+    ...Login.on({
+      SucceededLogin: (model, { session }) => ({
+        model,
+        outMessage: OutMessage.SucceededLogin({ session }),
+      }),
+    }),
+  },
+
+  view: (model, h, { route }) =>
+    h.div(
+      [h.Class('py-8')],
+      [
+        Match.value(route).pipe(
+          Match.tagsExhaustive({
+            Home: () => homeView(h),
+            Login: () => model.login.view(),
+            NotFound: ({ path }) =>
+              notFoundView(path, homeRouter(), 'Go Home', h),
           }),
-        }),
-      },
-
-      view: (model, h, { route }) =>
-        h.div(
-          [h.Class('py-8')],
-          [
-            Match.value(route).pipe(
-              Match.tagsExhaustive({
-                Home: () => homeView(h),
-                Login: () => model.login.view(),
-                NotFound: ({ path }) =>
-                  notFoundView(path, homeRouter(), 'Go Home', h),
-              }),
-            ),
-          ],
         ),
-    }
-  }),
-)
+      ],
+    ),
+}))
 
 type LoggedOutViewBuilder = HtmlBuilder<never>
 

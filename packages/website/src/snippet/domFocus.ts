@@ -17,26 +17,22 @@ export class SignUp extends Block<SignUp>()('SignUp', {
   Command: [FocusEmailInput],
 }) {}
 
-export const SignUpLive = SignUp.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isFormVisible: false }),
+export const SignUpLive = SignUp.toLayer(() => ({
+  init: () => ({ isFormVisible: false }),
 
-      update: {
-        ClickedSignUp: () => ({
-          model: { isFormVisible: true },
-          commands: [FocusEmailInput()],
-        }),
-        CompletedFocusEmailInput: model => ({ model }),
-      },
+  update: {
+    ClickedSignUp: () => ({
+      model: { isFormVisible: true },
+      commands: [FocusEmailInput()],
+    }),
+    CompletedFocusEmailInput: model => ({ model }),
+  },
 
-      commands: {
-        FocusEmailInput: () =>
-          Dom.focus('#email-input').pipe(
-            Effect.ignore,
-            Effect.as(Message.CompletedFocusEmailInput()),
-          ),
-      },
-    }
-  }),
-)
+  commands: {
+    FocusEmailInput: () =>
+      Dom.focus('#email-input').pipe(
+        Effect.ignore,
+        Effect.as(Message.CompletedFocusEmailInput()),
+      ),
+  },
+}))

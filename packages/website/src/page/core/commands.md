@@ -90,7 +90,7 @@ A Command handler must convert its expected failures into declared result Messag
 
 ## Services for Handlers {#handler-layers}
 
-Because `ApplicationLive` yields `HttpClient.HttpClient`, the Layer it returns requires that service. The entry provides it with `Http.layer`, Foldkit's Fetch-backed client:
+Because `ApplicationLive` yields `HttpClient.HttpClient`, the Layer it returns requires that service. The entry provides it with `Http.toLayer`, Foldkit's Fetch-backed client:
 
 ::Snippet{name="counterHttpEntry" label="Providing the HTTP client"}
 

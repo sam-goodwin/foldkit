@@ -108,7 +108,7 @@ export class Application extends Block<
   Command: [GenerateTodo, SaveTodos],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const clock = yield* Clock.Clock
     const store = yield* KeyValueStore.KeyValueStore

@@ -47,7 +47,7 @@ export class Application extends Block<Application>()('Application', {
   Command: [Compute],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const engines = yield* ComputeEngines
 

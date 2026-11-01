@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -26,52 +26,48 @@ export class ActivityFeed extends Block<
   Message,
 }) {}
 
-export const ActivityFeedLive = ActivityFeed.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ activities }) => ({
-        activities,
-        // The window scrolls, not the list
-        activityList: new ActivityList('activityList', {
-          id: 'activity-feed',
-          rowHeightPx: 88,
-          scrollContainer: VirtualList.ScrollContainer.Window(),
-        }),
-      }),
-
-      update: {
-        ClickedJumpToLatestActivity: model => ({
-          model,
-          messages: [model.activityList.send(VirtualList.requestScrollToEnd())],
-        }),
-      },
-
-      view: (model, h) =>
-        h.section(
-          [],
-          [
-            h.h2([], ['Activity']),
-            h.button(
-              [h.OnClick(Message.ClickedJumpToLatestActivity())],
-              ['Latest activity'],
-            ),
-            model.activityList.view({
-              items: model.activities,
-              itemToKey: activity => activity.id,
-              containerElement: 'div',
-              rowElement: 'div',
-              rowLayout: 'Absolute',
-              itemToView: activity =>
-                h.article(
-                  [h.Class('h-full border-b px-4 py-3')],
-                  [
-                    h.h3([], [activity.title]),
-                    h.p([h.Class('truncate')], [activity.summary]),
-                  ],
-                ),
-            }),
-          ],
-        ),
-    }
+export const ActivityFeedLive = ActivityFeed.toLayer(() => ({
+  init: ({ activities }) => ({
+    activities,
+    // The window scrolls, not the list
+    activityList: new ActivityList('activityList', {
+      id: 'activity-feed',
+      rowHeightPx: 88,
+      scrollContainer: VirtualList.ScrollContainer.Window(),
+    }),
   }),
-).pipe(Layer.provide(ActivityList.Live))
+
+  update: {
+    ClickedJumpToLatestActivity: model => ({
+      model,
+      messages: [model.activityList.send(VirtualList.requestScrollToEnd())],
+    }),
+  },
+
+  view: (model, h) =>
+    h.section(
+      [],
+      [
+        h.h2([], ['Activity']),
+        h.button(
+          [h.OnClick(Message.ClickedJumpToLatestActivity())],
+          ['Latest activity'],
+        ),
+        model.activityList.view({
+          items: model.activities,
+          itemToKey: activity => activity.id,
+          containerElement: 'div',
+          rowElement: 'div',
+          rowLayout: 'Absolute',
+          itemToView: activity =>
+            h.article(
+              [h.Class('h-full border-b px-4 py-3')],
+              [
+                h.h3([], [activity.title]),
+                h.p([h.Class('truncate')], [activity.summary]),
+              ],
+            ),
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(ActivityList.Live))

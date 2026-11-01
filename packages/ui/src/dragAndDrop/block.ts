@@ -713,255 +713,251 @@ export class DragAndDrop extends Block<DragAndDrop, InitConfig, ViewInputs>()(
 
 /** Implements {@link DragAndDrop}. Provide it to every parent Layer that
  *  creates a DragAndDrop instance. */
-export const DragAndDropLive = DragAndDrop.layer(
-  Effect.gen(function* () {
-    return {
-      init: (config, { id }) => ({
-        id: config.id ?? id,
-        orientation: config.orientation ?? 'Vertical',
-        activationThreshold:
-          config.activationThreshold ?? DEFAULT_ACTIVATION_THRESHOLD_PIXELS,
-        keyboardDragGeneration: 0,
-        dragState: DragState.Idle(),
-      }),
-      update: {
-        PressedDraggable: (
-          model,
-          { itemId, containerId, index, screenX, screenY },
-        ) => ({
-          model: modifyFields(model, {
-            dragState: () =>
-              DragState.Pending({
-                itemId,
-                containerId,
-                index,
-                origin: { screenX, screenY },
-              }),
-          }),
-        }),
-        MovedPointer: (
-          model,
-          { screenX, screenY, clientX, clientY, maybeDropTarget },
-        ) =>
-          Match.value(model.dragState).pipe(
-            Match.tag('Pending', pending => {
-              const deltaX = screenX - pending.origin.screenX
-              const deltaY = screenY - pending.origin.screenY
-              const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-              if (distance < model.activationThreshold) {
-                return { model }
-              }
-              return {
-                model: modifyFields(model, {
-                  dragState: () =>
-                    DragState.Dragging({
-                      itemId: pending.itemId,
-                      sourceContainerId: pending.containerId,
-                      sourceIndex: pending.index,
-                      origin: pending.origin,
-                      current: { clientX, clientY },
-                      maybeDropTarget,
-                    }),
-                }),
-              }
-            }),
-            Match.tag('Dragging', dragging => ({
-              model: modifyFields(model, {
-                dragState: () =>
-                  DragState.Dragging({
-                    ...dragging,
-                    current: { clientX, clientY },
-                    maybeDropTarget,
-                  }),
-              }),
-            })),
-            Match.orElse(() => ({ model })),
-          ),
-        ReleasedPointer: model =>
-          Match.value(model.dragState).pipe(
-            Match.tag('Pending', () => ({
-              model: modifyFields(model, { dragState: () => DragState.Idle() }),
-            })),
-            Match.tag('Dragging', dragging =>
-              Option.match(dragging.maybeDropTarget, {
-                onNone: () => ({
-                  model: modifyFields(model, {
-                    dragState: () => DragState.Idle(),
-                  }),
-                  outMessage: OutMessage.Cancelled({ itemId: dragging.itemId }),
-                }),
-                onSome: dropTarget => ({
-                  model: modifyFields(model, {
-                    dragState: () => DragState.Idle(),
-                  }),
-                  outMessage: OutMessage.Reordered({
-                    itemId: dragging.itemId,
-                    fromContainerId: dragging.sourceContainerId,
-                    fromIndex: dragging.sourceIndex,
-                    toContainerId: dropTarget.containerId,
-                    toIndex: dropTarget.index,
-                  }),
-                }),
-              }),
-            ),
-            Match.orElse(() => ({ model })),
-          ),
-        CancelledDrag: model => {
-          const commands = pipe(
-            [model.dragState],
-            Array.filter(DragState.guards.KeyboardDragging),
-            Array.map(({ itemId }) => FocusItem({ itemId })),
-          )
-          const maybeOutMessage = pipe(
-            model.dragState,
-            Option.liftPredicate(
-              DragState.isAnyOf(['Dragging', 'KeyboardDragging']),
-            ),
-            Option.map(({ itemId }) => OutMessage.Cancelled({ itemId })),
-          )
-          const dragCancellation = {
-            model: modifyFields(model, { dragState: () => DragState.Idle() }),
-            commands,
-          }
-
-          return pipe(
-            dragCancellation,
-            Update.withOutMessage(Option.getOrUndefined(maybeOutMessage)),
-          )
-        },
-        ActivatedKeyboardDrag: (model, { itemId, containerId, index }) => ({
-          model: modifyFields(model, {
-            keyboardDragGeneration: generation => generation + 1,
-            dragState: () =>
-              DragState.KeyboardDragging({
-                itemId,
-                sourceContainerId: containerId,
-                sourceIndex: index,
-                targetContainerId: containerId,
-                targetIndex: index,
-              }),
-          }),
-          outMessage: OutMessage.StartedKeyboardDrag({
+export const DragAndDropLive = DragAndDrop.toLayer(() => ({
+  init: (config, { id }) => ({
+    id: config.id ?? id,
+    orientation: config.orientation ?? 'Vertical',
+    activationThreshold:
+      config.activationThreshold ?? DEFAULT_ACTIVATION_THRESHOLD_PIXELS,
+    keyboardDragGeneration: 0,
+    dragState: DragState.Idle(),
+  }),
+  update: {
+    PressedDraggable: (
+      model,
+      { itemId, containerId, index, screenX, screenY },
+    ) => ({
+      model: modifyFields(model, {
+        dragState: () =>
+          DragState.Pending({
             itemId,
             containerId,
             index,
+            origin: { screenX, screenY },
           }),
-        }),
-        CompletedResolveKeyboardMove: (
-          model,
-          { keyboardDragGeneration, targetContainerId, targetIndex },
-        ) => {
-          if (keyboardDragGeneration !== model.keyboardDragGeneration) {
+      }),
+    }),
+    MovedPointer: (
+      model,
+      { screenX, screenY, clientX, clientY, maybeDropTarget },
+    ) =>
+      Match.value(model.dragState).pipe(
+        Match.tag('Pending', pending => {
+          const deltaX = screenX - pending.origin.screenX
+          const deltaY = screenY - pending.origin.screenY
+          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+          if (distance < model.activationThreshold) {
             return { model }
           }
-
-          return Match.value(model.dragState).pipe(
-            Match.tag('KeyboardDragging', keyboardDragging => {
-              const keyboardMove = {
-                model: modifyFields(model, {
-                  dragState: () =>
-                    DragState.KeyboardDragging({
-                      ...keyboardDragging,
-                      targetContainerId,
-                      targetIndex,
-                    }),
+          return {
+            model: modifyFields(model, {
+              dragState: () =>
+                DragState.Dragging({
+                  itemId: pending.itemId,
+                  sourceContainerId: pending.containerId,
+                  sourceIndex: pending.index,
+                  origin: pending.origin,
+                  current: { clientX, clientY },
+                  maybeDropTarget,
                 }),
-                commands: [FocusItem({ itemId: keyboardDragging.itemId })],
-              }
-              if (
-                keyboardDragging.targetContainerId === targetContainerId &&
-                keyboardDragging.targetIndex === targetIndex
-              ) {
-                return keyboardMove
-              }
-              return Update.withOutMessage(
-                keyboardMove,
-                OutMessage.ChangedKeyboardTarget({
-                  itemId: keyboardDragging.itemId,
-                  fromContainerId: keyboardDragging.targetContainerId,
-                  fromIndex: keyboardDragging.targetIndex,
-                  toContainerId: targetContainerId,
-                  toIndex: targetIndex,
-                }),
-              )
             }),
-            Match.orElse(() => ({ model })),
-          )
-        },
-        ConfirmedKeyboardDrop: model =>
-          Match.value(model.dragState).pipe(
-            Match.tag('KeyboardDragging', keyboardDragging => ({
-              model: modifyFields(model, { dragState: () => DragState.Idle() }),
-              commands: [FocusItem({ itemId: keyboardDragging.itemId })],
-              outMessage: OutMessage.Reordered({
-                itemId: keyboardDragging.itemId,
-                fromContainerId: keyboardDragging.sourceContainerId,
-                fromIndex: keyboardDragging.sourceIndex,
-                toContainerId: keyboardDragging.targetContainerId,
-                toIndex: keyboardDragging.targetIndex,
-              }),
-            })),
-            Match.orElse(() => ({ model })),
-          ),
-        PressedArrowKey: (model, { direction }) =>
-          Match.value(model.dragState).pipe(
-            Match.tag('KeyboardDragging', keyboardDragging => ({
-              model,
-              commands: [
-                ResolveKeyboardMove({
-                  itemId: keyboardDragging.itemId,
-                  currentContainerId: keyboardDragging.targetContainerId,
-                  currentIndex: keyboardDragging.targetIndex,
-                  direction,
-                  keyboardDragGeneration: model.keyboardDragGeneration,
-                }),
-              ],
-            })),
-            Match.orElse(() => ({ model })),
-          ),
-        AdvancedAutoScrollFrame: model => ({ model }),
-        CompletedFocusItem: model => ({ model }),
-      },
-      commands: {
-        FocusItem: ({ itemId }) =>
-          Dom.focus(attributeSelector('data-draggable-id', itemId)).pipe(
-            Effect.ignore,
-            Effect.as(Message.CompletedFocusItem()),
-          ),
-        ResolveKeyboardMove: resolveKeyboardMoveTarget,
-      },
-      subscriptions: {
-        documentPointer: {
-          dependencies: model => ({
-            dragActivity: pointerDragActivityFromModel(model),
-            orientation: model.orientation,
-          }),
-          stream: streamDocumentPointer,
-        },
-        documentEscape: {
-          dependencies: dragActivityFromModel,
-          stream: streamDocumentEscape,
-        },
-        documentKeyboard: {
-          dependencies: keyboardDragActivityFromModel,
-          stream: streamDocumentKeyboard,
-        },
-        autoScroll: {
-          dependencies: maybeDraggingClientY,
-          stream: streamAutoScroll,
-          keepAliveEquivalence: (
-            previous: Option.Option<number>,
-            next: Option.Option<number>,
-          ) => Option.isSome(previous) && Option.isSome(next),
-        },
-      },
-      view: (model, h, { toView }) =>
-        toView({
-          draggable: input => childAttributes(draggable(model, input, h)),
-          droppable: (containerId, label) =>
-            childAttributes(droppable(containerId, label)),
-          sortable: itemId => childAttributes(sortable(itemId)),
+          }
         }),
-    }
-  }),
-)
+        Match.tag('Dragging', dragging => ({
+          model: modifyFields(model, {
+            dragState: () =>
+              DragState.Dragging({
+                ...dragging,
+                current: { clientX, clientY },
+                maybeDropTarget,
+              }),
+          }),
+        })),
+        Match.orElse(() => ({ model })),
+      ),
+    ReleasedPointer: model =>
+      Match.value(model.dragState).pipe(
+        Match.tag('Pending', () => ({
+          model: modifyFields(model, { dragState: () => DragState.Idle() }),
+        })),
+        Match.tag('Dragging', dragging =>
+          Option.match(dragging.maybeDropTarget, {
+            onNone: () => ({
+              model: modifyFields(model, {
+                dragState: () => DragState.Idle(),
+              }),
+              outMessage: OutMessage.Cancelled({ itemId: dragging.itemId }),
+            }),
+            onSome: dropTarget => ({
+              model: modifyFields(model, {
+                dragState: () => DragState.Idle(),
+              }),
+              outMessage: OutMessage.Reordered({
+                itemId: dragging.itemId,
+                fromContainerId: dragging.sourceContainerId,
+                fromIndex: dragging.sourceIndex,
+                toContainerId: dropTarget.containerId,
+                toIndex: dropTarget.index,
+              }),
+            }),
+          }),
+        ),
+        Match.orElse(() => ({ model })),
+      ),
+    CancelledDrag: model => {
+      const commands = pipe(
+        [model.dragState],
+        Array.filter(DragState.guards.KeyboardDragging),
+        Array.map(({ itemId }) => FocusItem({ itemId })),
+      )
+      const maybeOutMessage = pipe(
+        model.dragState,
+        Option.liftPredicate(
+          DragState.isAnyOf(['Dragging', 'KeyboardDragging']),
+        ),
+        Option.map(({ itemId }) => OutMessage.Cancelled({ itemId })),
+      )
+      const dragCancellation = {
+        model: modifyFields(model, { dragState: () => DragState.Idle() }),
+        commands,
+      }
+
+      return pipe(
+        dragCancellation,
+        Update.withOutMessage(Option.getOrUndefined(maybeOutMessage)),
+      )
+    },
+    ActivatedKeyboardDrag: (model, { itemId, containerId, index }) => ({
+      model: modifyFields(model, {
+        keyboardDragGeneration: generation => generation + 1,
+        dragState: () =>
+          DragState.KeyboardDragging({
+            itemId,
+            sourceContainerId: containerId,
+            sourceIndex: index,
+            targetContainerId: containerId,
+            targetIndex: index,
+          }),
+      }),
+      outMessage: OutMessage.StartedKeyboardDrag({
+        itemId,
+        containerId,
+        index,
+      }),
+    }),
+    CompletedResolveKeyboardMove: (
+      model,
+      { keyboardDragGeneration, targetContainerId, targetIndex },
+    ) => {
+      if (keyboardDragGeneration !== model.keyboardDragGeneration) {
+        return { model }
+      }
+
+      return Match.value(model.dragState).pipe(
+        Match.tag('KeyboardDragging', keyboardDragging => {
+          const keyboardMove = {
+            model: modifyFields(model, {
+              dragState: () =>
+                DragState.KeyboardDragging({
+                  ...keyboardDragging,
+                  targetContainerId,
+                  targetIndex,
+                }),
+            }),
+            commands: [FocusItem({ itemId: keyboardDragging.itemId })],
+          }
+          if (
+            keyboardDragging.targetContainerId === targetContainerId &&
+            keyboardDragging.targetIndex === targetIndex
+          ) {
+            return keyboardMove
+          }
+          return Update.withOutMessage(
+            keyboardMove,
+            OutMessage.ChangedKeyboardTarget({
+              itemId: keyboardDragging.itemId,
+              fromContainerId: keyboardDragging.targetContainerId,
+              fromIndex: keyboardDragging.targetIndex,
+              toContainerId: targetContainerId,
+              toIndex: targetIndex,
+            }),
+          )
+        }),
+        Match.orElse(() => ({ model })),
+      )
+    },
+    ConfirmedKeyboardDrop: model =>
+      Match.value(model.dragState).pipe(
+        Match.tag('KeyboardDragging', keyboardDragging => ({
+          model: modifyFields(model, { dragState: () => DragState.Idle() }),
+          commands: [FocusItem({ itemId: keyboardDragging.itemId })],
+          outMessage: OutMessage.Reordered({
+            itemId: keyboardDragging.itemId,
+            fromContainerId: keyboardDragging.sourceContainerId,
+            fromIndex: keyboardDragging.sourceIndex,
+            toContainerId: keyboardDragging.targetContainerId,
+            toIndex: keyboardDragging.targetIndex,
+          }),
+        })),
+        Match.orElse(() => ({ model })),
+      ),
+    PressedArrowKey: (model, { direction }) =>
+      Match.value(model.dragState).pipe(
+        Match.tag('KeyboardDragging', keyboardDragging => ({
+          model,
+          commands: [
+            ResolveKeyboardMove({
+              itemId: keyboardDragging.itemId,
+              currentContainerId: keyboardDragging.targetContainerId,
+              currentIndex: keyboardDragging.targetIndex,
+              direction,
+              keyboardDragGeneration: model.keyboardDragGeneration,
+            }),
+          ],
+        })),
+        Match.orElse(() => ({ model })),
+      ),
+    AdvancedAutoScrollFrame: model => ({ model }),
+    CompletedFocusItem: model => ({ model }),
+  },
+  commands: {
+    FocusItem: ({ itemId }) =>
+      Dom.focus(attributeSelector('data-draggable-id', itemId)).pipe(
+        Effect.ignore,
+        Effect.as(Message.CompletedFocusItem()),
+      ),
+    ResolveKeyboardMove: resolveKeyboardMoveTarget,
+  },
+  subscriptions: {
+    documentPointer: {
+      dependencies: model => ({
+        dragActivity: pointerDragActivityFromModel(model),
+        orientation: model.orientation,
+      }),
+      stream: streamDocumentPointer,
+    },
+    documentEscape: {
+      dependencies: dragActivityFromModel,
+      stream: streamDocumentEscape,
+    },
+    documentKeyboard: {
+      dependencies: keyboardDragActivityFromModel,
+      stream: streamDocumentKeyboard,
+    },
+    autoScroll: {
+      dependencies: maybeDraggingClientY,
+      stream: streamAutoScroll,
+      keepAliveEquivalence: (
+        previous: Option.Option<number>,
+        next: Option.Option<number>,
+      ) => Option.isSome(previous) && Option.isSome(next),
+    },
+  },
+  view: (model, h, { toView }) =>
+    toView({
+      draggable: input => childAttributes(draggable(model, input, h)),
+      droppable: (containerId, label) =>
+        childAttributes(droppable(containerId, label)),
+      sortable: itemId => childAttributes(sortable(itemId)),
+    }),
+}))

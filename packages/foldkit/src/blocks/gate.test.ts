@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Schema } from 'effect'
+import { Array, Layer, Schema } from 'effect'
 
 import { describe, expect, it } from '@effect/vitest'
 
@@ -17,18 +17,14 @@ class Reader extends Block<Reader>()('Reader', {
   Message: ReaderMessage,
 }) {}
 
-const ReaderLive = Reader.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ page: 1, isLoaded: false }),
-      update: {
-        ClickedNext: model => ({ model: { ...model, page: model.page + 1 } }),
-        CompletedRead: model => ({ model: { ...model, isLoaded: true } }),
-      },
-      view: (_, h) => h.div([]),
-    }
-  }),
-)
+const ReaderLive = Reader.toLayer(() => ({
+  init: () => ({ page: 1, isLoaded: false }),
+  update: {
+    ClickedNext: model => ({ model: { ...model, page: model.page + 1 } }),
+    CompletedRead: model => ({ model: { ...model, isLoaded: true } }),
+  },
+  view: (_, h) => h.div([]),
+}))
 
 const Authority = Schema.Literals(['Checking', 'Confirmed'])
 
@@ -50,36 +46,32 @@ const isAllowed = (
   { _tag }: typeof ReaderMessage.Type,
 ): boolean => authority === 'Confirmed' || _tag === 'CompletedRead'
 
-const PageLive = Page.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        authority: 'Checking',
-        reader: new Reader('reader'),
-        readers: [],
-      }),
-      update: {
-        ...Reader.when((model, readerMessage) =>
-          isAllowed(model.authority, readerMessage),
-        ),
-        SucceededConfirmIdentity: model => ({
-          model: { ...model, authority: 'Confirmed' },
-        }),
-        ClickedAdvance: model => ({
-          model,
-          messages: [model.reader.send(Reader.Message.ClickedNext())],
-        }),
-        ClickedAddReader: model => ({
-          model: {
-            ...model,
-            readers: Array.append(model.readers, new Reader('a')),
-          },
-        }),
-      },
-      view: (_, h) => h.div([]),
-    }
+const PageLive = Page.toLayer(() => ({
+  init: () => ({
+    authority: 'Checking',
+    reader: new Reader('reader'),
+    readers: [],
   }),
-).pipe(Layer.provide(ReaderLive))
+  update: {
+    ...Reader.when((model, readerMessage) =>
+      isAllowed(model.authority, readerMessage),
+    ),
+    SucceededConfirmIdentity: model => ({
+      model: { ...model, authority: 'Confirmed' },
+    }),
+    ClickedAdvance: model => ({
+      model,
+      messages: [model.reader.send(Reader.Message.ClickedNext())],
+    }),
+    ClickedAddReader: model => ({
+      model: {
+        ...model,
+        readers: Array.append(model.readers, new Reader('a')),
+      },
+    }),
+  },
+  view: (_, h) => h.div([]),
+})).pipe(Layer.provide(ReaderLive))
 
 describe('Block when', () => {
   it.effect('drops the Messages the predicate refuses', () =>

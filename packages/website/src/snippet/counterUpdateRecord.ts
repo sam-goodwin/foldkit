@@ -1,4 +1,4 @@
-import { Effect, Number } from 'effect'
+import { Number } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -9,22 +9,18 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0 }),
 
-      update: {
-        ClickedDecrement: model => ({
-          model: modifyFields(model, { count: Number.decrement }),
-        }),
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: Number.increment }),
-        }),
-        ClickedReset: model => ({
-          model: modifyFields(model, { count: () => 0 }),
-        }),
-      },
-    }
-  }),
-)
+  update: {
+    ClickedDecrement: model => ({
+      model: modifyFields(model, { count: Number.decrement }),
+    }),
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+    ClickedReset: model => ({
+      model: modifyFields(model, { count: () => 0 }),
+    }),
+  },
+}))

@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 
@@ -21,29 +21,25 @@ export class PopoverPage extends Block<PopoverPage>()('PopoverPage', {
   Model,
 }) {}
 
-export const PopoverPageLive = PopoverPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        popoverBasicDemo: new Popover.Popover('popoverBasicDemo', {
-          id: 'popover-basic-demo',
-        }),
-        popoverAnimatedDemo: new Popover.Popover('popoverAnimatedDemo', {
-          id: 'popover-animated-demo',
-          isAnimated: true,
-        }),
-        popoverNestedParentDemo: new Popover.Popover(
-          'popoverNestedParentDemo',
-          { id: 'popover-nested-parent-demo', contentFocus: true },
-        ),
-        popoverNestedChildDemo: new Popover.Popover('popoverNestedChildDemo', {
-          id: 'popover-nested-child-demo',
-        }),
-      }),
-      view,
-    }
+export const PopoverPageLive = PopoverPage.toLayer(() => ({
+  init: () => ({
+    popoverBasicDemo: new Popover.Popover('popoverBasicDemo', {
+      id: 'popover-basic-demo',
+    }),
+    popoverAnimatedDemo: new Popover.Popover('popoverAnimatedDemo', {
+      id: 'popover-animated-demo',
+      isAnimated: true,
+    }),
+    popoverNestedParentDemo: new Popover.Popover('popoverNestedParentDemo', {
+      id: 'popover-nested-parent-demo',
+      contentFocus: true,
+    }),
+    popoverNestedChildDemo: new Popover.Popover('popoverNestedChildDemo', {
+      id: 'popover-nested-child-demo',
+    }),
   }),
-).pipe(Layer.provide(Popover.PopoverLive))
+  view,
+})).pipe(Layer.provide(Popover.PopoverLive))
 
 type PopoverModel = Model['popoverBasicDemo']
 

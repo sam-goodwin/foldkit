@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -35,88 +35,78 @@ export class DialogPage extends Block<DialogPage>()('DialogPage', {
   Message,
 }) {}
 
-export const DialogPageLive = DialogPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dialogDemo: new Dialog.Dialog('dialogDemo', {
-          id: 'dialog-demo',
-        }),
-        dialogAnimatedDemo: new Dialog.Dialog('dialogAnimatedDemo', {
-          id: 'dialog-animated-demo',
-          isAnimated: true,
-        }),
-        overlayDialogDemo: new Dialog.Dialog('overlayDialogDemo', {
-          id: 'overlay-dialog-demo',
-        }),
-        overlayComboboxDemo: new CityCombobox('overlayComboboxDemo', {
-          id: 'overlay-combobox-demo',
-        }),
-        maybeOverlayComboboxDemoSelectedCity: Option.none(),
-        nestedDialogParentDemo: new Dialog.Dialog('nestedDialogParentDemo', {
-          id: 'nested-dialog-parent-demo',
-        }),
-        nestedDialogChildDemo: new Dialog.Dialog('nestedDialogChildDemo', {
-          id: 'nested-dialog-child-demo',
+export const DialogPageLive = DialogPage.toLayer(() => ({
+  init: () => ({
+    dialogDemo: new Dialog.Dialog('dialogDemo', {
+      id: 'dialog-demo',
+    }),
+    dialogAnimatedDemo: new Dialog.Dialog('dialogAnimatedDemo', {
+      id: 'dialog-animated-demo',
+      isAnimated: true,
+    }),
+    overlayDialogDemo: new Dialog.Dialog('overlayDialogDemo', {
+      id: 'overlay-dialog-demo',
+    }),
+    overlayComboboxDemo: new CityCombobox('overlayComboboxDemo', {
+      id: 'overlay-combobox-demo',
+    }),
+    maybeOverlayComboboxDemoSelectedCity: Option.none(),
+    nestedDialogParentDemo: new Dialog.Dialog('nestedDialogParentDemo', {
+      id: 'nested-dialog-parent-demo',
+    }),
+    nestedDialogChildDemo: new Dialog.Dialog('nestedDialogChildDemo', {
+      id: 'nested-dialog-child-demo',
+    }),
+  }),
+
+  update: {
+    ClickedDeleteProject: model => ({
+      model,
+      messages: [
+        model.nestedDialogChildDemo.send(Dialog.Dialog.Message.RequestedOpen()),
+      ],
+    }),
+
+    ClickedOpenDialog: model => ({
+      model,
+      messages: [model.dialogDemo.send(Dialog.Dialog.Message.RequestedOpen())],
+    }),
+
+    ClickedOpenAnimatedDialog: model => ({
+      model,
+      messages: [
+        model.dialogAnimatedDemo.send(Dialog.Dialog.Message.RequestedOpen()),
+      ],
+    }),
+
+    ClickedEditFilters: model => ({
+      model,
+      messages: [
+        model.overlayDialogDemo.send(Dialog.Dialog.Message.RequestedOpen()),
+      ],
+    }),
+
+    ClickedOpenProjectSettings: model => ({
+      model,
+      messages: [
+        model.nestedDialogParentDemo.send(
+          Dialog.Dialog.Message.RequestedOpen(),
+        ),
+      ],
+    }),
+
+    ...CityCombobox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, {
+          maybeOverlayComboboxDemoSelectedCity: () => Option.some(value),
         }),
       }),
+      ClearedSelection: model => ({ model }),
+    }),
+  },
 
-      update: {
-        ClickedDeleteProject: model => ({
-          model,
-          messages: [
-            model.nestedDialogChildDemo.send(
-              Dialog.Dialog.Message.RequestedOpen(),
-            ),
-          ],
-        }),
-
-        ClickedOpenDialog: model => ({
-          model,
-          messages: [
-            model.dialogDemo.send(Dialog.Dialog.Message.RequestedOpen()),
-          ],
-        }),
-
-        ClickedOpenAnimatedDialog: model => ({
-          model,
-          messages: [
-            model.dialogAnimatedDemo.send(
-              Dialog.Dialog.Message.RequestedOpen(),
-            ),
-          ],
-        }),
-
-        ClickedEditFilters: model => ({
-          model,
-          messages: [
-            model.overlayDialogDemo.send(Dialog.Dialog.Message.RequestedOpen()),
-          ],
-        }),
-
-        ClickedOpenProjectSettings: model => ({
-          model,
-          messages: [
-            model.nestedDialogParentDemo.send(
-              Dialog.Dialog.Message.RequestedOpen(),
-            ),
-          ],
-        }),
-
-        ...CityCombobox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeOverlayComboboxDemoSelectedCity: () => Option.some(value),
-            }),
-          }),
-          ClearedSelection: model => ({ model }),
-        }),
-      },
-
-      view,
-    }
-  }),
-).pipe(Layer.provide(Layer.mergeAll(Dialog.DialogLive, CityCombobox.Live)))
+  view,
+})).pipe(Layer.provide(Layer.mergeAll(Dialog.DialogLive, CityCombobox.Live)))
 
 type CityComboboxModel = Model['overlayComboboxDemo']
 type DialogModel = Model['dialogDemo']

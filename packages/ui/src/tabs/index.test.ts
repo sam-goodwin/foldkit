@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Option, Schema, pipe } from 'effect'
+import { Array, Layer, Option, Schema, pipe } from 'effect'
 import { Block, Scene, Story } from 'foldkit'
 import { expect } from 'vitest'
 
@@ -34,47 +34,43 @@ class TabsHarness extends Block<TabsHarness>()('TabsHarness', {
 }) {}
 
 const makeTabsHarnessLive = ({ config, panelMount }: TabsHarnessArgs) =>
-  TabsHarness.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ tabs: new TestTabs('tabs', config) }),
-        update: {
-          ...TestTabs.on({
-            Selected: (model, outMessage) => ({ model, outMessage }),
-          }),
-        },
-        view: (model, h) =>
-          model.tabs.view({
-            tabs: ['First', 'Second'],
-            selectedValue: 'First',
-            ariaLabel: 'Test tabs',
-            panelMount,
-            toView: ({ tablist, tabs: tabInfos, activeIndex }) =>
+  TabsHarness.toLayer(() => ({
+    init: () => ({ tabs: new TestTabs('tabs', config) }),
+    update: {
+      ...TestTabs.on({
+        Selected: (model, outMessage) => ({ model, outMessage }),
+      }),
+    },
+    view: (model, h) =>
+      model.tabs.view({
+        tabs: ['First', 'Second'],
+        selectedValue: 'First',
+        ariaLabel: 'Test tabs',
+        panelMount,
+        toView: ({ tablist, tabs: tabInfos, activeIndex }) =>
+          h.div(
+            [],
+            [
               h.div(
-                [],
-                [
-                  h.div(
-                    tablist,
-                    Array.map(tabInfos, tab => h.button(tab.tab, [tab.value])),
-                  ),
-                  ...(panelMount === 'All'
-                    ? Array.map(tabInfos, tab => h.div(tab.panel))
-                    : [
-                        pipe(
-                          tabInfos,
-                          Array.get(activeIndex),
-                          Option.match({
-                            onNone: () => h.empty,
-                            onSome: tab => h.div(tab.panel),
-                          }),
-                        ),
-                      ]),
-                ],
+                tablist,
+                Array.map(tabInfos, tab => h.button(tab.tab, [tab.value])),
               ),
-          }),
-      }
-    }),
-  ).pipe(Layer.provide(TestTabs.Live))
+              ...(panelMount === 'All'
+                ? Array.map(tabInfos, tab => h.div(tab.panel))
+                : [
+                    pipe(
+                      tabInfos,
+                      Array.get(activeIndex),
+                      Option.match({
+                        onNone: () => h.empty,
+                        onSome: tab => h.div(tab.panel),
+                      }),
+                    ),
+                  ]),
+            ],
+          ),
+      }),
+  })).pipe(Layer.provide(TestTabs.Live))
 
 const automatic: TabsHarnessArgs = {
   config: { id: 'test' },

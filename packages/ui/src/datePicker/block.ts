@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Predicate, Schema } from 'effect'
+import { Layer, Option, Predicate, Schema } from 'effect'
 import { Block } from 'foldkit'
 import * as Calendar from 'foldkit/calendar'
 import type { CalendarDate } from 'foldkit/calendar'
@@ -212,227 +212,217 @@ export class DatePicker extends Block<DatePicker, InitConfig, ViewInputs>()(
 /** Implements {@link DatePicker}. Provides `CalendarLive` and `PopoverLive`
  *  to the instances it creates. The Popover opens in `contentFocus` mode so
  *  focus lands on the calendar grid instead of the panel. */
-export const DatePickerLive = DatePicker.layer(
-  Effect.gen(function* () {
-    return {
-      init: config => ({
-        id: config.id,
-        calendar: new UiCalendar.Calendar('calendar', toCalendarConfig(config)),
-        popover: new Popover.Popover('popover', toPopoverArgs(config)),
-      }),
-
-      update: {
-        RequestedOpen: openDatePicker,
-        RequestedClose: closeDatePicker,
-        RequestedClear: clearDatePicker,
-        Opened: openDatePicker,
-        Closed: closeDatePicker,
-        Cleared: clearDatePicker,
-
-        RequestedSelectDate: (model, { date }) =>
-          sendToCalendar(
-            model,
-            UiCalendar.Calendar.Message.RequestedSelectDate({ date }),
-          ),
-
-        RequestedFocusDate: (model, { date }) =>
-          sendToCalendar(
-            model,
-            UiCalendar.Calendar.Message.RequestedFocusDate({ date }),
-          ),
-
-        InformedOfMinDateChange: (model, { maybeMinDate }) =>
-          sendToCalendar(
-            model,
-            UiCalendar.Calendar.Message.InformedOfMinDateChange({
-              maybeMinDate,
-            }),
-          ),
-
-        InformedOfMaxDateChange: (model, { maybeMaxDate }) =>
-          sendToCalendar(
-            model,
-            UiCalendar.Calendar.Message.InformedOfMaxDateChange({
-              maybeMaxDate,
-            }),
-          ),
-
-        InformedOfDisabledDatesChange: (model, { disabledDates }) =>
-          sendToCalendar(
-            model,
-            UiCalendar.Calendar.Message.InformedOfDisabledDatesChange({
-              disabledDates,
-            }),
-          ),
-
-        InformedOfDisabledDaysOfWeekChange: (model, { disabledDaysOfWeek }) =>
-          sendToCalendar(
-            model,
-            UiCalendar.Calendar.Message.InformedOfDisabledDaysOfWeekChange({
-              disabledDaysOfWeek,
-            }),
-          ),
-
-        ...Popover.Popover.on({
-          Opened: model => ({ model, messages: [dropCalendarToDays(model)] }),
-          Closed: model => ({ model, messages: [dropCalendarToDays(model)] }),
-        }),
-
-        ...UiCalendar.Calendar.on({
-          ChangedViewMonth: (model, { year, month }) => ({
-            model,
-            outMessage: OutMessage.ChangedViewMonth({ year, month }),
-          }),
-          SelectedDate: (model, { date }) => ({
-            model,
-            outMessage: OutMessage.SelectedDate({ date }),
-            messages: [
-              model.popover.send(Popover.Popover.Message.RequestedClose()),
-            ],
-          }),
-        }),
-      },
-
-      view: (model, h, viewInputs) => {
-        const {
-          anchor,
-          maybeSelectedDate,
-          triggerContent,
-          toCalendarView,
-          isDisabled,
-          name,
-          className,
-          attributes = [],
-          triggerClassName,
-          triggerAttributes = [],
-          ariaLabel,
-          ariaLabelledBy,
-          panelClassName,
-          panelAttributes = [],
-          backdropClassName,
-          backdropAttributes = [],
-        } = viewInputs
-
-        const resolveTriggerLabel = () => {
-          if (Predicate.isNotUndefined(ariaLabel)) {
-            return [h.AriaLabel(ariaLabel)]
-          } else if (Predicate.isNotUndefined(ariaLabelledBy)) {
-            return [h.AriaLabelledBy(ariaLabelledBy)]
-          } else {
-            return []
-          }
-        }
-
-        const triggerLabelAttributes = resolveTriggerLabel()
-
-        const calendarViewLabels: UiCalendar.ViewLabels = {
-          ...(viewInputs.previousMonthLabel !== undefined && {
-            previousMonthLabel: viewInputs.previousMonthLabel,
-          }),
-          ...(viewInputs.nextMonthLabel !== undefined && {
-            nextMonthLabel: viewInputs.nextMonthLabel,
-          }),
-          ...(viewInputs.previousYearsPageLabel !== undefined && {
-            previousYearsPageLabel: viewInputs.previousYearsPageLabel,
-          }),
-          ...(viewInputs.nextYearsPageLabel !== undefined && {
-            nextYearsPageLabel: viewInputs.nextYearsPageLabel,
-          }),
-          ...(viewInputs.daysHeadingButtonLabel !== undefined && {
-            daysHeadingButtonLabel: viewInputs.daysHeadingButtonLabel,
-          }),
-          ...(viewInputs.monthsHeadingButtonLabel !== undefined && {
-            monthsHeadingButtonLabel: viewInputs.monthsHeadingButtonLabel,
-          }),
-          ...(viewInputs.toDaysGridLabel !== undefined && {
-            toDaysGridLabel: viewInputs.toDaysGridLabel,
-          }),
-          ...(viewInputs.toWeekLabel !== undefined && {
-            toWeekLabel: viewInputs.toWeekLabel,
-          }),
-          ...(viewInputs.toMonthsGridLabel !== undefined && {
-            toMonthsGridLabel: viewInputs.toMonthsGridLabel,
-          }),
-          ...(viewInputs.toYearsGridLabel !== undefined && {
-            toYearsGridLabel: viewInputs.toYearsGridLabel,
-          }),
-        }
-
-        const calendarVNode = model.calendar.view({
-          maybeSelectedDate,
-          toView: toCalendarView,
-          ...calendarViewLabels,
-        })
-
-        const popoverVNode = model.popover.view({
-          anchor,
-          ...(isDisabled !== undefined && { isDisabled }),
-          focusSelector: idSelector(`${model.calendar.model.id}-grid`),
-          toView: ({ button, panel, backdrop, isVisible }) =>
-            h.div(
-              [],
-              [
-                h.button(
-                  [
-                    ...button,
-                    ...triggerLabelAttributes,
-                    ...(triggerClassName !== undefined
-                      ? [h.Class(triggerClassName)]
-                      : []),
-                    ...triggerAttributes,
-                  ],
-                  [triggerContent(maybeSelectedDate)],
-                ),
-                ...(isVisible
-                  ? [
-                      h.div([
-                        ...backdrop,
-                        ...(backdropClassName !== undefined
-                          ? [h.Class(backdropClassName)]
-                          : []),
-                        ...backdropAttributes,
-                      ]),
-                      h.div(
-                        [
-                          ...panel,
-                          ...(panelClassName !== undefined
-                            ? [h.Class(panelClassName)]
-                            : []),
-                          ...panelAttributes,
-                        ],
-                        [calendarVNode],
-                      ),
-                    ]
-                  : []),
-              ],
-            ),
-        })
-
-        const hiddenInputValue = Option.match(maybeSelectedDate, {
-          onNone: () => '',
-          onSome: encodeIsoDate,
-        })
-
-        const maybeHiddenInput: ReadonlyArray<Html> =
-          name !== undefined
-            ? [
-                h.input([
-                  h.Type('hidden'),
-                  h.Name(name),
-                  h.Value(hiddenInputValue),
-                ]),
-              ]
-            : []
-
-        const wrapperAttributes = [
-          ...(className !== undefined ? [h.Class(className)] : []),
-          ...attributes,
-        ]
-
-        return h.div(wrapperAttributes, [popoverVNode, ...maybeHiddenInput])
-      },
-    }
+export const DatePickerLive = DatePicker.toLayer(() => ({
+  init: config => ({
+    id: config.id,
+    calendar: new UiCalendar.Calendar('calendar', toCalendarConfig(config)),
+    popover: new Popover.Popover('popover', toPopoverArgs(config)),
   }),
-).pipe(
+
+  update: {
+    RequestedOpen: openDatePicker,
+    RequestedClose: closeDatePicker,
+    RequestedClear: clearDatePicker,
+    Opened: openDatePicker,
+    Closed: closeDatePicker,
+    Cleared: clearDatePicker,
+
+    RequestedSelectDate: (model, { date }) =>
+      sendToCalendar(
+        model,
+        UiCalendar.Calendar.Message.RequestedSelectDate({ date }),
+      ),
+
+    RequestedFocusDate: (model, { date }) =>
+      sendToCalendar(
+        model,
+        UiCalendar.Calendar.Message.RequestedFocusDate({ date }),
+      ),
+
+    InformedOfMinDateChange: (model, { maybeMinDate }) =>
+      sendToCalendar(
+        model,
+        UiCalendar.Calendar.Message.InformedOfMinDateChange({
+          maybeMinDate,
+        }),
+      ),
+
+    InformedOfMaxDateChange: (model, { maybeMaxDate }) =>
+      sendToCalendar(
+        model,
+        UiCalendar.Calendar.Message.InformedOfMaxDateChange({
+          maybeMaxDate,
+        }),
+      ),
+
+    InformedOfDisabledDatesChange: (model, { disabledDates }) =>
+      sendToCalendar(
+        model,
+        UiCalendar.Calendar.Message.InformedOfDisabledDatesChange({
+          disabledDates,
+        }),
+      ),
+
+    InformedOfDisabledDaysOfWeekChange: (model, { disabledDaysOfWeek }) =>
+      sendToCalendar(
+        model,
+        UiCalendar.Calendar.Message.InformedOfDisabledDaysOfWeekChange({
+          disabledDaysOfWeek,
+        }),
+      ),
+
+    ...Popover.Popover.on({
+      Opened: model => ({ model, messages: [dropCalendarToDays(model)] }),
+      Closed: model => ({ model, messages: [dropCalendarToDays(model)] }),
+    }),
+
+    ...UiCalendar.Calendar.on({
+      ChangedViewMonth: (model, { year, month }) => ({
+        model,
+        outMessage: OutMessage.ChangedViewMonth({ year, month }),
+      }),
+      SelectedDate: (model, { date }) => ({
+        model,
+        outMessage: OutMessage.SelectedDate({ date }),
+        messages: [
+          model.popover.send(Popover.Popover.Message.RequestedClose()),
+        ],
+      }),
+    }),
+  },
+
+  view: (model, h, viewInputs) => {
+    const {
+      anchor,
+      maybeSelectedDate,
+      triggerContent,
+      toCalendarView,
+      isDisabled,
+      name,
+      className,
+      attributes = [],
+      triggerClassName,
+      triggerAttributes = [],
+      ariaLabel,
+      ariaLabelledBy,
+      panelClassName,
+      panelAttributes = [],
+      backdropClassName,
+      backdropAttributes = [],
+    } = viewInputs
+
+    const resolveTriggerLabel = () => {
+      if (Predicate.isNotUndefined(ariaLabel)) {
+        return [h.AriaLabel(ariaLabel)]
+      } else if (Predicate.isNotUndefined(ariaLabelledBy)) {
+        return [h.AriaLabelledBy(ariaLabelledBy)]
+      } else {
+        return []
+      }
+    }
+
+    const triggerLabelAttributes = resolveTriggerLabel()
+
+    const calendarViewLabels: UiCalendar.ViewLabels = {
+      ...(viewInputs.previousMonthLabel !== undefined && {
+        previousMonthLabel: viewInputs.previousMonthLabel,
+      }),
+      ...(viewInputs.nextMonthLabel !== undefined && {
+        nextMonthLabel: viewInputs.nextMonthLabel,
+      }),
+      ...(viewInputs.previousYearsPageLabel !== undefined && {
+        previousYearsPageLabel: viewInputs.previousYearsPageLabel,
+      }),
+      ...(viewInputs.nextYearsPageLabel !== undefined && {
+        nextYearsPageLabel: viewInputs.nextYearsPageLabel,
+      }),
+      ...(viewInputs.daysHeadingButtonLabel !== undefined && {
+        daysHeadingButtonLabel: viewInputs.daysHeadingButtonLabel,
+      }),
+      ...(viewInputs.monthsHeadingButtonLabel !== undefined && {
+        monthsHeadingButtonLabel: viewInputs.monthsHeadingButtonLabel,
+      }),
+      ...(viewInputs.toDaysGridLabel !== undefined && {
+        toDaysGridLabel: viewInputs.toDaysGridLabel,
+      }),
+      ...(viewInputs.toWeekLabel !== undefined && {
+        toWeekLabel: viewInputs.toWeekLabel,
+      }),
+      ...(viewInputs.toMonthsGridLabel !== undefined && {
+        toMonthsGridLabel: viewInputs.toMonthsGridLabel,
+      }),
+      ...(viewInputs.toYearsGridLabel !== undefined && {
+        toYearsGridLabel: viewInputs.toYearsGridLabel,
+      }),
+    }
+
+    const calendarVNode = model.calendar.view({
+      maybeSelectedDate,
+      toView: toCalendarView,
+      ...calendarViewLabels,
+    })
+
+    const popoverVNode = model.popover.view({
+      anchor,
+      ...(isDisabled !== undefined && { isDisabled }),
+      focusSelector: idSelector(`${model.calendar.model.id}-grid`),
+      toView: ({ button, panel, backdrop, isVisible }) =>
+        h.div(
+          [],
+          [
+            h.button(
+              [
+                ...button,
+                ...triggerLabelAttributes,
+                ...(triggerClassName !== undefined
+                  ? [h.Class(triggerClassName)]
+                  : []),
+                ...triggerAttributes,
+              ],
+              [triggerContent(maybeSelectedDate)],
+            ),
+            ...(isVisible
+              ? [
+                  h.div([
+                    ...backdrop,
+                    ...(backdropClassName !== undefined
+                      ? [h.Class(backdropClassName)]
+                      : []),
+                    ...backdropAttributes,
+                  ]),
+                  h.div(
+                    [
+                      ...panel,
+                      ...(panelClassName !== undefined
+                        ? [h.Class(panelClassName)]
+                        : []),
+                      ...panelAttributes,
+                    ],
+                    [calendarVNode],
+                  ),
+                ]
+              : []),
+          ],
+        ),
+    })
+
+    const hiddenInputValue = Option.match(maybeSelectedDate, {
+      onNone: () => '',
+      onSome: encodeIsoDate,
+    })
+
+    const maybeHiddenInput: ReadonlyArray<Html> =
+      name !== undefined
+        ? [h.input([h.Type('hidden'), h.Name(name), h.Value(hiddenInputValue)])]
+        : []
+
+    const wrapperAttributes = [
+      ...(className !== undefined ? [h.Class(className)] : []),
+      ...attributes,
+    ]
+
+    return h.div(wrapperAttributes, [popoverVNode, ...maybeHiddenInput])
+  },
+})).pipe(
   Layer.provide(Layer.mergeAll(UiCalendar.CalendarLive, Popover.PopoverLive)),
 )

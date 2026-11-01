@@ -70,7 +70,7 @@ Each `Layer.provide` satisfies what the previous step still requires. `Dashboard
 
 A reusable Block whose children are an implementation detail can provide them inside its own Layer, so consumers provide only the Block they use:
 
-- Define `DialogLive` as `Dialog.layer(...).pipe(Layer.provide(AnimationLive))`.
+- Define `DialogLive` as `Dialog.toLayer(...).pipe(Layer.provide(AnimationLive))`.
 - A parent that creates a Dialog provides `DialogLive` and never mentions Animation.
 
 Name Block Layers with a `Live` suffix, such as `CounterLive` and `ApplicationLive`. Name the root's ordinary services `ApplicationLayer` in `services.ts`, and their test alternative `ApplicationTestLayer`.
@@ -145,7 +145,7 @@ Use a private provider only when the operation deliberately owns that provider a
 
 When an application needs localStorage and sessionStorage at the same time, define distinct service tags such as `LocalStorage` and `SessionStorage`, and bind each to its platform `KeyValueStore` Layer in `ApplicationLayer`. The tags keep both identities visible.
 
-Foldkit's `Http.layer` uses Effect's Fetch-backed client with trace-header propagation disabled. Browser `traceparent` headers can turn otherwise CORS-simple requests into preflighted requests against plain APIs and development proxies. The [Http guide](/core/http) covers customization.
+Foldkit's `Http.toLayer` uses Effect's Fetch-backed client with trace-header propagation disabled. Browser `traceparent` headers can turn otherwise CORS-simple requests into preflighted requests against plain APIs and development proxies. The [Http guide](/core/http) covers customization.
 
 ## Services in Flags
 

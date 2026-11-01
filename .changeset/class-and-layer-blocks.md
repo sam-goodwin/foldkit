@@ -13,7 +13,7 @@ The architecture does not change. The Model is the source of truth, Messages rec
 
 Declare a Block with `class X extends Block<X>()('X', { Model, Message, OutMessage?, Command?: [...], Mount?: [...] }) {}`. The class contains no implementation. Declare the Message union and the Block's Commands at module level before the class, so Commands can name their result Messages. Optional type parameters after the class declare the args a parent passes to `new X(id, args)` and the view input a parent passes to `view`: `Block<X, Args, ViewInput>()`.
 
-Implement it with `XLive = X.layer(Effect.gen(function* () { ... }))`. The Effect runs once, when the program's Layer is built. It yields services and returns `{ init, start?, update, commands?, mounts?, subscriptions?, view? }`:
+Implement it with `XLive = X.toLayer(...)`, passing `() => ({ ... })` when the Block uses no services or `Effect.gen(function* () { ... })` when its handlers need services. Either runs once, when the program's Layer is built. The Effect form yields services and returns `{ init, start?, update, commands?, mounts?, subscriptions?, view? }`:
 
 - `init(args, { id, path })` returns an instance's starting Model. Foldkit calls it when the instance first appears in a Model. Omit it only for a Block without a Model.
 - `start(model, args)` lists Commands the Runtime performs when the instance appears. Load data here, never with asynchronous work in `init`.
@@ -56,7 +56,7 @@ export class Application extends Block<Application>()('Application', {
   Command: [WaitBeforeReset],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ count: 0 }),
@@ -79,7 +79,7 @@ export const ApplicationLive = Application.layer(
 )
 ```
 
-`Command.define` no longer accepts `execute`. It declares the Command's name, `args`, result `messages`, and optional `interrupt`. A handler must convert expected failures into result Messages, and the services it uses come from the Layer's Effect. `Mount.define` and `Mount.defineStream` move the same way: remove `execute`, list the Mount under `Mount: [...]`, and implement it under `mounts`. The view attaches it with `h.OnMount(...)` as before, and attaching a Mount the class does not list is a type error. `Command.define` also accepts a `handler` generator for a Command that carries its own implementation, exposed as `.layer`, and every definition has `toLayer` for building an implementation Layer outside the definition.
+`Command.define` no longer accepts `execute`. It declares the Command's name, `args`, result `messages`, and optional `interrupt`. A handler must convert expected failures into result Messages, and the services it uses come from the Layer's Effect. `Mount.define` and `Mount.defineStream` move the same way: remove `execute`, list the Mount under `Mount: [...]`, and implement it under `mounts`. The view attaches it with `h.OnMount(...)` as before, and attaching a Mount the class does not list is a type error. A Command or Mount definition is a declaration only. Outside a Block, implement one with its `toLayer` method, which takes the handler, or an Effect that yields services and returns the handler, and returns a Layer that requires what the handler or Effect requires: `SaveCountLive = SaveCount.toLayer(Effect.gen(function* () { const store = yield* CountStore; return ({ count }) => ... }))`.
 
 A Submodel becomes a child Block. The parent's Model Schema names the child class itself, the parent's `init` puts `new Child('id', args)` in its Model, and the parent's Layer provides the child's Layer:
 
@@ -108,7 +108,7 @@ export class Application extends Block<Application>()('Application', {
   Message: defineMessageUnion({ ClickedResetSettings: {} }),
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({
@@ -151,7 +151,7 @@ export class Table extends Block<Table>()('Table', {
   Message: defineMessageUnion({ ClickedAddRow: {} }),
 }) {}
 
-export const TableLive = Table.layer(
+export const TableLive = Table.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ rows: [], nextRowId: 0 }),
@@ -212,7 +212,7 @@ subscriptions: {
 `ManagedResource` and the `foldkit/managedResource` entry point are removed. A handle that should exist only while part of the Model exists is held by a Subscription. When only the Subscription's Stream reads the handle, acquire it inside the Stream with `Effect.acquireRelease`. When Commands also use it, the Block's Layer creates an Effect `RcMap` once. The Subscription holds the entry for a key stored in the instance's Model, and Command handlers borrow the same handle by that key, which update passes in the Command's args. The `onAcquired`, `onReleased`, and `onAcquireError` Messages become ordinary facts: update knows when it changes the Model, and events from the handle arrive as Messages from the Subscription.
 
 ```ts
-export const SocketLive = Socket.layer(
+export const SocketLive = Socket.toLayer(
   Effect.gen(function* () {
     const connections = yield* RcMap.make({
       lookup: (roomId: string) =>
@@ -295,7 +295,7 @@ export class Application extends Block<
   Readonly<{ flags: Flags; url: Url.Url }>
 >()('Application', { Model, Message }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     return {
       init: ({ flags, url }) => ({

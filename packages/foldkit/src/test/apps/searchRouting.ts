@@ -39,26 +39,35 @@ export type OutMessage = typeof OutMessage.Type
 
 export const CancelSearch = Command.define('CancelSearch', {
   messages: [Message.CompletedCancelSearch],
-  handler: function* () {
-    return () => Effect.succeed(Message.CompletedCancelSearch())
-  },
 })
+
+export const CancelSearchLive = CancelSearch.toLayer(
+  Effect.gen(function* () {
+    return () => Effect.succeed(Message.CompletedCancelSearch())
+  }),
+)
 
 export const ReplaceSearchUrl = Command.define('ReplaceSearchUrl', {
   args: { query: Schema.String },
   messages: [Message.CompletedReplaceSearchUrl],
-  handler: function* () {
+})
+
+export const ReplaceSearchUrlLive = ReplaceSearchUrl.toLayer(
+  Effect.gen(function* () {
     return ({ query }) =>
       Navigation.replaceUrl(`/?q=${encodeURIComponent(query)}`).pipe(
         Effect.as(Message.CompletedReplaceSearchUrl()),
       )
-  },
-})
+  }),
+)
 
 export const FetchSearch = Command.define('FetchSearch', {
   args: { searchId: Schema.Number, query: Schema.String },
   messages: [Message.CompletedFetchSearch],
-  handler: function* () {
+})
+
+export const FetchSearchLive = FetchSearch.toLayer(
+  Effect.gen(function* () {
     return ({ searchId, query }) =>
       Effect.succeed(
         Message.CompletedFetchSearch({
@@ -66,15 +75,18 @@ export const FetchSearch = Command.define('FetchSearch', {
           results: [`Result for ${query}`],
         }),
       )
-  },
-})
+  }),
+)
 
 export const ObserveResults = Mount.define('ObserveResults', {
   messages: [Message.CompletedObserveResults],
-  handler: function* () {
-    return () => Effect.succeed(Message.CompletedObserveResults())
-  },
 })
+
+export const ObserveResultsLive = ObserveResults.toLayer(
+  Effect.gen(function* () {
+    return () => Effect.succeed(Message.CompletedObserveResults())
+  }),
+)
 
 type UpdateReturn = Update.ReturnWithOutMessage<
   Model,

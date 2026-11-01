@@ -34,18 +34,24 @@ export type ChildOutMessage = typeof ChildOutMessage.Type
 
 export const SubmitForm = Command.define('SubmitForm', {
   messages: [ChildMessage.SucceededSubmitForm],
-  handler: function* () {
+})
+
+export const SubmitFormLive = SubmitForm.toLayer(
+  Effect.gen(function* () {
     return () =>
       Effect.sync(() => ChildMessage.SucceededSubmitForm({ id: 'abc' }))
-  },
-})
+  }),
+)
 
 export const ResetForm = Command.define('ResetForm', {
   messages: [ChildMessage.CompletedResetForm],
-  handler: function* () {
-    return () => Effect.sync(() => ChildMessage.CompletedResetForm())
-  },
 })
+
+export const ResetFormLive = ResetForm.toLayer(
+  Effect.gen(function* () {
+    return () => Effect.sync(() => ChildMessage.CompletedResetForm())
+  }),
+)
 
 // CHILD INIT
 
@@ -150,4 +156,4 @@ export const parentUpdate = (
     CompletedParentReset: () => ({ model: parentModel }),
   })
 
-export const EffectsLayer = Layer.mergeAll(SubmitForm.layer, ResetForm.layer)
+export const EffectsLayer = Layer.mergeAll(SubmitFormLive, ResetFormLive)

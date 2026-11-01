@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Option, Schema } from 'effect'
+import { Array, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import {
@@ -34,28 +34,24 @@ class IssueListScene extends Block<IssueListScene>()('IssueListScene', {
 }) {}
 
 const makeIssueListSceneLive = (viewInputs: ViewInputs) =>
-  IssueListScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ issueList: new IssueList('issueList') }),
-        update: {
-          ...IssueList.on({
-            ChangedQuery: (model, outMessage) => ({ model, outMessage }),
-            ChangedStatusFilter: (model, outMessage) => ({ model, outMessage }),
-            ChangedSort: (model, outMessage) => ({ model, outMessage }),
-            ChangedGrouping: (model, outMessage) => ({ model, outMessage }),
-            RequestedClearFilters: (model, outMessage) => ({
-              model,
-              outMessage,
-            }),
-            RequestedCreation: (model, outMessage) => ({ model, outMessage }),
-            SavedFilter: (model, outMessage) => ({ model, outMessage }),
-          }),
-        },
-        view: model => model.issueList.view(viewInputs),
-      }
-    }),
-  ).pipe(Layer.provide(IssueListLive))
+  IssueListScene.toLayer(() => ({
+    init: () => ({ issueList: new IssueList('issueList') }),
+    update: {
+      ...IssueList.on({
+        ChangedQuery: (model, outMessage) => ({ model, outMessage }),
+        ChangedStatusFilter: (model, outMessage) => ({ model, outMessage }),
+        ChangedSort: (model, outMessage) => ({ model, outMessage }),
+        ChangedGrouping: (model, outMessage) => ({ model, outMessage }),
+        RequestedClearFilters: (model, outMessage) => ({
+          model,
+          outMessage,
+        }),
+        RequestedCreation: (model, outMessage) => ({ model, outMessage }),
+        SavedFilter: (model, outMessage) => ({ model, outMessage }),
+      }),
+    },
+    view: model => model.issueList.view(viewInputs),
+  })).pipe(Layer.provide(IssueListLive))
 
 const initialFilters = IssueFilters.make({
   query: '',

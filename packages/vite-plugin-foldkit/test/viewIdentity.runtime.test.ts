@@ -163,7 +163,7 @@ const withRunningApp = async (
   view: View,
   run: () => Promise<void>,
 ): Promise<void> => {
-  const ApplicationLive = Application.layer(
+  const ApplicationLive = Application.toLayer(
     Effect.gen(function* () {
       return {
         init: () => Model.make({ mode: 'Viewing' }),

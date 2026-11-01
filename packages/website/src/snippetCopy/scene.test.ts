@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { Command, click, expect, role, scene, text } from 'foldkit/scene'
 
@@ -14,21 +14,17 @@ class SnippetCopyHost extends Block<SnippetCopyHost>()('SnippetCopyHost', {
   Model: Schema.Struct({ snippetCopy: SnippetCopy }),
 }) {}
 
-const SnippetCopyHostLive = SnippetCopyHost.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ snippetCopy: new SnippetCopy('snippetCopy') }),
-      view: model =>
-        model.snippetCopy.view({
-          snippetId,
-          text: 'const count = 0',
-          ariaLabel: 'Copy counter state',
-          positionClass: 'top-2 right-2',
-          variant: 'Header',
-        }),
-    }
-  }),
-).pipe(Layer.provide(SnippetCopyLive))
+const SnippetCopyHostLive = SnippetCopyHost.toLayer(() => ({
+  init: () => ({ snippetCopy: new SnippetCopy('snippetCopy') }),
+  view: model =>
+    model.snippetCopy.view({
+      snippetId,
+      text: 'const count = 0',
+      ariaLabel: 'Copy counter state',
+      positionClass: 'top-2 right-2',
+      variant: 'Header',
+    }),
+})).pipe(Layer.provide(SnippetCopyLive))
 
 describe('snippet copy', () => {
   it.effect(

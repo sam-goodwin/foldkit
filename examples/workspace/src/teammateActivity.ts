@@ -69,7 +69,7 @@ export class TeammateActivity extends Block<TeammateActivity>()(
   },
 ) {}
 
-export const TeammateActivityLive = TeammateActivity.layer(
+export const TeammateActivityLive = TeammateActivity.toLayer(
   Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 

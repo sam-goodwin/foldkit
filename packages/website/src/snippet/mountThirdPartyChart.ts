@@ -34,7 +34,7 @@ export class Sales extends Block<Sales>()('Sales', {
   Mount: [MountChart],
 }) {}
 
-export const SalesLive = Sales.layer(
+export const SalesLive = Sales.toLayer(
   Effect.gen(function* () {
     const chartLibrary = yield* ChartLibrary
 

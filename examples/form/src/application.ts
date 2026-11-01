@@ -133,90 +133,86 @@ export class Application extends Block<Application>()('Application', {
   Command: [ValidateEmail, SubmitForm],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => initialModel,
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => initialModel,
 
-      update: {
-        UpdatedName: (model, { value }) => ({
-          model: modifyFields(model, { name: () => validateName(value) }),
-        }),
-        UpdatedEmail: (model, { value }) => {
-          const validateEmailResult = validateEmail(value)
-          if (validateEmailResult._tag === 'Valid') {
-            return {
-              model: modifyFields(model, {
-                email: () => Validating({ value }),
-              }),
-              commands: [ValidateEmail({ email: value })],
-            }
-          } else {
-            return {
-              model: modifyFields(model, { email: () => validateEmailResult }),
-            }
-          }
-        },
-        CompletedValidateEmail: (model, { field }) => {
-          if (field.value === model.email.value) {
-            return { model: modifyFields(model, { email: () => field }) }
-          } else {
-            return { model }
-          }
-        },
-        UpdatedMessageText: (model, { value }) => ({
-          model: modifyFields(model, { messageText: () => Valid({ value }) }),
-        }),
-        ClickedFormSubmit: model => {
-          if (model.submission._tag === 'Submitting') {
-            return { model }
-          }
-
-          if (!isFormValid(model)) {
-            return { model }
-          }
-
-          return {
-            model: modifyFields(model, {
-              submission: () => Submission.Submitting(),
-            }),
-            commands: [
-              SubmitForm({
-                name: model.name.value,
-                email: model.email.value,
-                messageText: model.messageText.value,
-              }),
-            ],
-          }
-        },
-        SucceededSubmitForm: (model, { name }) => ({
+  update: {
+    UpdatedName: (model, { value }) => ({
+      model: modifyFields(model, { name: () => validateName(value) }),
+    }),
+    UpdatedEmail: (model, { value }) => {
+      const validateEmailResult = validateEmail(value)
+      if (validateEmailResult._tag === 'Valid') {
+        return {
           model: modifyFields(model, {
-            submission: () =>
-              Submission.SubmitSuccess({
-                confirmationText: `Welcome to the waitlist, ${name}! We'll be in touch soon.`,
-              }),
+            email: () => Validating({ value }),
           }),
+          commands: [ValidateEmail({ email: value })],
+        }
+      } else {
+        return {
+          model: modifyFields(model, { email: () => validateEmailResult }),
+        }
+      }
+    },
+    CompletedValidateEmail: (model, { field }) => {
+      if (field.value === model.email.value) {
+        return { model: modifyFields(model, { email: () => field }) }
+      } else {
+        return { model }
+      }
+    },
+    UpdatedMessageText: (model, { value }) => ({
+      model: modifyFields(model, { messageText: () => Valid({ value }) }),
+    }),
+    ClickedFormSubmit: model => {
+      if (model.submission._tag === 'Submitting') {
+        return { model }
+      }
+
+      if (!isFormValid(model)) {
+        return { model }
+      }
+
+      return {
+        model: modifyFields(model, {
+          submission: () => Submission.Submitting(),
         }),
-        FailedSubmitForm: model => ({
-          model: modifyFields(model, {
-            submission: () =>
-              Submission.SubmitError({
-                error:
-                  'Sorry, there was an error adding you to the waitlist. Please try again.',
-              }),
+        commands: [
+          SubmitForm({
+            name: model.name.value,
+            email: model.email.value,
+            messageText: model.messageText.value,
           }),
-        }),
-      },
+        ],
+      }
+    },
+    SucceededSubmitForm: (model, { name }) => ({
+      model: modifyFields(model, {
+        submission: () =>
+          Submission.SubmitSuccess({
+            confirmationText: `Welcome to the waitlist, ${name}! We'll be in touch soon.`,
+          }),
+      }),
+    }),
+    FailedSubmitForm: model => ({
+      model: modifyFields(model, {
+        submission: () =>
+          Submission.SubmitError({
+            error:
+              'Sorry, there was an error adding you to the waitlist. Please try again.',
+          }),
+      }),
+    }),
+  },
 
-      commands: {
-        ValidateEmail: validateEmailOnServer,
-        SubmitForm: submitForm,
-      },
+  commands: {
+    ValidateEmail: validateEmailOnServer,
+    SubmitForm: submitForm,
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

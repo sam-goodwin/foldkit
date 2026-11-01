@@ -32,11 +32,14 @@ export type Message = typeof Message.Type
 
 export const Authenticate = Command.define('Authenticate', {
   messages: [Message.SucceededAuthenticate, Message.FailedAuthenticate],
-  handler: function* () {
+})
+
+export const AuthenticateLive = Authenticate.toLayer(
+  Effect.gen(function* () {
     return () =>
       Effect.sync(() => Message.SucceededAuthenticate({ username: 'alice' }))
-  },
-})
+  }),
+)
 
 // INIT
 
@@ -163,4 +166,4 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Html => {
   )
 }
 
-export const EffectsLayer = Layer.mergeAll(Authenticate.layer)
+export const EffectsLayer = Layer.mergeAll(AuthenticateLive)

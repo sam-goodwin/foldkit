@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block, Dom } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { defineTaggedUnion } from 'foldkit/schema'
@@ -43,29 +43,25 @@ export class Search extends Block<Search>()('Search', {
   Message,
 }) {}
 
-export const SearchLive = Search.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ searchState: SearchState.Closed() }),
+export const SearchLive = Search.toLayer(() => ({
+  init: () => ({ searchState: SearchState.Closed() }),
 
-      update: {
-        PressedSearchShortcut: model => ({
-          model: modifyFields(model, { searchState: () => SearchState.Open() }),
-        }),
-        PressedEscape: model => ({
-          model: modifyFields(model, {
-            searchState: () => SearchState.Closed(),
-          }),
-        }),
-        PressedHomeShortcut: model => ({ model }),
-      },
+  update: {
+    PressedSearchShortcut: model => ({
+      model: modifyFields(model, { searchState: () => SearchState.Open() }),
+    }),
+    PressedEscape: model => ({
+      model: modifyFields(model, {
+        searchState: () => SearchState.Closed(),
+      }),
+    }),
+    PressedHomeShortcut: model => ({ model }),
+  },
 
-      subscriptions: {
-        keyBindings: {
-          dependencies: model => model.searchState,
-          stream: keyBindings,
-        },
-      },
-    }
-  }),
-)
+  subscriptions: {
+    keyBindings: {
+      dependencies: model => model.searchState,
+      stream: keyBindings,
+    },
+  },
+}))

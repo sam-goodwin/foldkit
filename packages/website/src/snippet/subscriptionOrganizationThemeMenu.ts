@@ -1,5 +1,5 @@
 // themeMenu.ts
-import { Effect, Schema, Stream } from 'effect'
+import { Schema, Stream } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -23,40 +23,36 @@ const escapePresses = (isOpen: boolean) =>
       )
     : Stream.empty
 
-export const ThemeMenuLive = ThemeMenu.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ isOpen: false }),
+export const ThemeMenuLive = ThemeMenu.toLayer(() => ({
+  init: () => ({ isOpen: false }),
 
-      update: {
-        ClickedToggle: model => ({
-          model: modifyFields(model, { isOpen: isOpen => !isOpen }),
-        }),
-        PressedEscape: model => ({
-          model: modifyFields(model, { isOpen: () => false }),
-        }),
-      },
+  update: {
+    ClickedToggle: model => ({
+      model: modifyFields(model, { isOpen: isOpen => !isOpen }),
+    }),
+    PressedEscape: model => ({
+      model: modifyFields(model, { isOpen: () => false }),
+    }),
+  },
 
-      subscriptions: {
-        escapePresses: {
-          dependencies: model => model.isOpen,
-          stream: escapePresses,
-        },
-      },
+  subscriptions: {
+    escapePresses: {
+      dependencies: model => model.isOpen,
+      stream: escapePresses,
+    },
+  },
 
-      view: (model, h) =>
-        h.div(
-          [],
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.button(
           [
-            h.button(
-              [
-                h.AriaExpanded(model.isOpen),
-                h.OnClick(ThemeMenu.Message.ClickedToggle()),
-              ],
-              ['Theme'],
-            ),
+            h.AriaExpanded(model.isOpen),
+            h.OnClick(ThemeMenu.Message.ClickedToggle()),
           ],
+          ['Theme'],
         ),
-    }
-  }),
-)
+      ],
+    ),
+}))

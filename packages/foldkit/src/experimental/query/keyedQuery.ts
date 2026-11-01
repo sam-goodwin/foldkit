@@ -21,6 +21,7 @@ import { Block } from '../../blocks/block.js'
 import type * as BlockTypes from '../../blocks/public.js'
 import * as Command from '../../command/index.js'
 import { __CurrentRegistry } from '../../command/interruptible/interruptible.js'
+import type { HandlerRequirements } from '../../definitionIdentity.js'
 import { defineMessageUnion } from '../../message/index.js'
 import { modifyFields } from '../../struct/index.js'
 import {
@@ -30,6 +31,7 @@ import {
   makeFetcher,
   makeFetcherLayer,
   runWhileHoldingKey,
+  withQueryStatics,
   withoutChildBlocks,
 } from './internal.js'
 import { cancelData, isFresh, resolveStaleTime } from './policy.js'
@@ -705,18 +707,13 @@ type KeyedQueryPolicy<
   Fields extends SyncFields,
 > = ReturnType<typeof makeKeyedQueryPolicy<Name, A, AI, E, EI, Fields>>
 
-type KeyedFetchBuild<
-  A,
-  E,
-  Fields extends SyncFields,
-  R,
-  BuildE,
-  BuildR,
-> = Effect.Effect<
-  (args: KeyedArgs<Fields>) => Effect.Effect<A, E, R>,
-  BuildE,
-  BuildR
->
+type KeyedFetchBuild<A, E, Fields extends SyncFields, R, BuildE, BuildR> =
+  | Effect.Effect<
+      (args: KeyedArgs<Fields>) => Effect.Effect<A, E, R>,
+      BuildE,
+      BuildR
+    >
+  | ((args: KeyedArgs<Fields>) => Effect.Effect<A, E, R>)
 
 type KeyedMessageType<
   A,
@@ -862,15 +859,18 @@ export type KeyedQueryStatics<
   run: (
     args: KeyedArgs<Fields>,
   ) => Effect.Effect<AsyncData.AsyncData<A, E>, never, QueryFetcher<Name>>
-  /** Builds the KeyedQuery's Layer from an Effect that constructs its fetch
-   *  function. The fetch function is constructed once when the Layer is
-   *  built and runs for every Fetch Command. */
+  /** Implements the KeyedQuery. Pass an Effect that yields the services the
+   *  fetch function uses and returns it. The Effect runs once when the Layer
+   *  is built; the fetch function receives the declared args and runs for
+   *  every Fetch Command. The returned Layer provides the Query Block and its
+   *  fetcher, and requires only what the Effect and the fetch function
+   *  require. */
   toLayer: <R, BuildE = never, BuildR = never>(
     build: KeyedFetchBuild<A, E, Fields, R, BuildE, BuildR>,
   ) => Layer.Layer<
     KeyedQuery<Name, A, AI, E, EI, Fields, Notify> | QueryFetcher<Name>,
     BuildE,
-    Exclude<R | BuildR, Scope.Scope>
+    Exclude<HandlerRequirements<R> | BuildR, Scope.Scope>
   >
 }>
 
@@ -888,7 +888,7 @@ export type KeyedQueryClass<
   EI,
   Fields extends SyncFields,
   Notify extends boolean = false,
-> = BlockTypes.BlockClass<
+> = BlockTypes.BlockClassDeclaration<
   KeyedQuery<Name, A, AI, E, EI, Fields, Notify>,
   Name,
   KeyedQueryArgs<Fields>,
@@ -896,28 +896,6 @@ export type KeyedQueryClass<
   KeyedQueryContract<Name, A, AI, E, EI, Fields, Notify>
 > &
   KeyedQueryStatics<Name, A, AI, E, EI, Fields, Notify>
-
-/** A KeyedQuery class whose definition included a `handler`, with its Layer
- *  attached as `Live`. */
-export type KeyedQueryWithLive<
-  Name extends string,
-  A,
-  AI,
-  E,
-  EI,
-  Fields extends SyncFields,
-  Notify extends boolean,
-  BuildE,
-  R,
-> = KeyedQueryClass<Name, A, AI, E, EI, Fields, Notify> &
-  Readonly<{
-    /** The KeyedQuery's Layer, built from its `handler`. */
-    Live: Layer.Layer<
-      KeyedQuery<Name, A, AI, E, EI, Fields, Notify> | QueryFetcher<Name>,
-      BuildE,
-      Exclude<R, Scope.Scope>
-    >
-  }>
 
 const makeImplementation = <
   Name extends string,
@@ -969,24 +947,25 @@ const makePlainKeyedQuery = <
     KeyedQuery<Name, A, AI, E, EI, Fields, false>,
     KeyedQueryArgs<Fields>
   >()(policy.name, contract)
-  const toLayer = <R, BuildE = never, BuildR = never>(
+  const implementBlock = QueryBlock.toLayer
+  const layer = <R, BuildE = never, BuildR = never>(
     build: KeyedFetchBuild<A, E, Fields, R, BuildE, BuildR>,
   ) =>
     withoutChildBlocks<
       KeyedQuery<Name, A, AI, E, EI, Fields, false>,
       QueryFetcher<Name>
-    >(QueryBlock.layer(makeImplementation(policy, policy.updateHandlers))).pipe(
+    >(implementBlock(makeImplementation(policy, policy.updateHandlers))).pipe(
       Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)),
     )
 
-  return Object.assign(QueryBlock, {
+  return withQueryStatics(QueryBlock, {
     Fetch: policy.Fetch,
     CancelFetch: policy.CancelFetch,
     read: policy.read,
     isFresh: policy.isFresh,
     pendingArgs: policy.pendingArgs,
     run: policy.run,
-    toLayer,
+    toLayer: layer,
   })
 }
 
@@ -1010,31 +989,31 @@ const makeNotifyingKeyedQuery = <
     KeyedQuery<Name, A, AI, E, EI, Fields, true>,
     KeyedQueryArgs<Fields>
   >()(policy.name, contract)
-  const toLayer = <R, BuildE = never, BuildR = never>(
+  const implementBlock = QueryBlock.toLayer
+  const layer = <R, BuildE = never, BuildR = never>(
     build: KeyedFetchBuild<A, E, Fields, R, BuildE, BuildR>,
   ) =>
     withoutChildBlocks<
       KeyedQuery<Name, A, AI, E, EI, Fields, true>,
       QueryFetcher<Name>
     >(
-      QueryBlock.layer(
+      implementBlock(
         makeImplementation(policy, policy.notifyingUpdateHandlers),
       ),
     ).pipe(Layer.provideMerge(makeFetcherLayer(policy.Fetcher, build)))
 
-  return Object.assign(QueryBlock, {
+  return withQueryStatics(QueryBlock, {
     Fetch: policy.Fetch,
     CancelFetch: policy.CancelFetch,
     read: policy.read,
     isFresh: policy.isFresh,
     pendingArgs: policy.pendingArgs,
     run: policy.run,
-    toLayer,
+    toLayer: layer,
   })
 }
 
-/** @internal Defines a KeyedQuery class, attaching `Live` when a fetch
- *  constructor is given. */
+/** @internal Defines a KeyedQuery class. */
 export const defineKeyedQuery = <
   Name extends string,
   A,
@@ -1044,17 +1023,12 @@ export const defineKeyedQuery = <
   Fields extends SyncFields,
 >(
   config: KeyedQueryConfig<Name, A, AI, E, EI, Fields, boolean>,
-  build?: KeyedFetchBuild<A, E, Fields, never, never, never>,
 ): unknown => {
   const policy = makeKeyedQueryPolicy(config)
-  const query =
-    config.notifyOnCompletion === true
-      ? makeNotifyingKeyedQuery(policy)
-      : makePlainKeyedQuery(policy)
 
-  if (build === undefined) {
-    return query
+  if (config.notifyOnCompletion === true) {
+    return makeNotifyingKeyedQuery(policy)
   } else {
-    return Object.assign(query, { Live: query.toLayer(build) })
+    return makePlainKeyedQuery(policy)
   }
 }

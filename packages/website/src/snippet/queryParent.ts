@@ -1,8 +1,8 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
-import { PostsQuery } from './queryDefine'
+import { PostsQuery, PostsQueryLive } from './queryDefine'
 
 const Model = Schema.Struct({
   posts: PostsQuery,
@@ -19,22 +19,18 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      // The Query starts loading when its instance enters the Model.
-      init: () => ({
-        posts: new PostsQuery('posts', { isLoadingOnStart: true }),
-      }),
-      update: {
-        // The Query loads or refreshes depending on its current AsyncData.
-        ClickedRefreshPosts: model => ({
-          model,
-          messages: [
-            model.posts.send(PostsQuery.Message.RequestedRevalidationOrLoad()),
-          ],
-        }),
-      },
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  // The Query starts loading when its instance enters the Model.
+  init: () => ({
+    posts: new PostsQuery('posts', { isLoadingOnStart: true }),
   }),
-).pipe(Layer.provide(PostsQuery.Live))
+  update: {
+    // The Query loads or refreshes depending on its current AsyncData.
+    ClickedRefreshPosts: model => ({
+      model,
+      messages: [
+        model.posts.send(PostsQuery.Message.RequestedRevalidationOrLoad()),
+      ],
+    }),
+  },
+})).pipe(Layer.provide(PostsQueryLive))

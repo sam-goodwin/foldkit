@@ -93,7 +93,7 @@ export class CreateIssue extends Block<CreateIssue, void, ViewInput>()(
   { Model, Message, OutMessage, Command: [CreateNewIssue] },
 ) {}
 
-export const CreateIssueLive = CreateIssue.layer(
+export const CreateIssueLive = CreateIssue.toLayer(
   Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 

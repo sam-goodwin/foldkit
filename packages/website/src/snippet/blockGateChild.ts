@@ -1,4 +1,4 @@
-import { Boolean, Effect, Schema } from 'effect'
+import { Boolean, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -10,33 +10,29 @@ export class SharedDevice extends Block<SharedDevice>()('SharedDevice', {
   Message: defineMessageUnion({ ClickedLockToggle: {} }),
 }) {}
 
-export const SharedDeviceLive = SharedDevice.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        isLocked: true,
-        settings: new Settings('settings', { initialTheme: 'System' }),
-      }),
-
-      update: {
-        ClickedLockToggle: model => ({
-          model: modifyFields(model, { isLocked: Boolean.not }),
-        }),
-
-        ...Settings.when(model => !model.isLocked),
-      },
-
-      view: (model, h) =>
-        h.div(
-          [h.AriaDisabled(model.isLocked)],
-          [
-            model.settings.view(),
-            h.button(
-              [h.OnClick(SharedDevice.Message.ClickedLockToggle())],
-              [model.isLocked ? 'Unlock settings' : 'Lock settings'],
-            ),
-          ],
-        ),
-    }
+export const SharedDeviceLive = SharedDevice.toLayer(() => ({
+  init: () => ({
+    isLocked: true,
+    settings: new Settings('settings', { initialTheme: 'System' }),
   }),
-)
+
+  update: {
+    ClickedLockToggle: model => ({
+      model: modifyFields(model, { isLocked: Boolean.not }),
+    }),
+
+    ...Settings.when(model => !model.isLocked),
+  },
+
+  view: (model, h) =>
+    h.div(
+      [h.AriaDisabled(model.isLocked)],
+      [
+        model.settings.view(),
+        h.button(
+          [h.OnClick(SharedDevice.Message.ClickedLockToggle())],
+          [model.isLocked ? 'Unlock settings' : 'Lock settings'],
+        ),
+      ],
+    ),
+}))

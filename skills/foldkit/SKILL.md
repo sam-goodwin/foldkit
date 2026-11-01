@@ -58,7 +58,7 @@ of a release tag. After an upgrade, use the same command with `pull` in place of
   libraries. Check `create-foldkit-app` and current examples first.
 - Every feature with state is a Block class. The class declares the contract
   (`class Search extends Block<Search, Args>()('Search', { Model, Message })`),
-  and `SearchLive = Search.layer(Effect.gen(...))` implements it. The Layer
+  and `SearchLive = Search.toLayer(Effect.gen(...))` implements it. The Layer
   constructor runs once per Block and returns a module every instance shares.
   An instance is plain data created with `new Search('search', args)`;
   Foldkit runs its `start` Commands and Subscriptions while a Model holds it.

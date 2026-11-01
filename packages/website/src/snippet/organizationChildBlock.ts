@@ -1,4 +1,4 @@
-import { Effect, Layer, Number, Schema } from 'effect'
+import { Layer, Number, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -22,35 +22,31 @@ export class Counter extends Block<Counter, Readonly<{ max: number }>>()(
   },
 ) {}
 
-export const CounterLive = Counter.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ max }) => ({ count: 0, max }),
-      update: {
-        ClickedIncrement: model => {
-          const nextCount = model.count + 1
+export const CounterLive = Counter.toLayer(() => ({
+  init: ({ max }) => ({ count: 0, max }),
+  update: {
+    ClickedIncrement: model => {
+      const nextCount = model.count + 1
 
-          if (nextCount === model.max) {
-            return {
-              model: modifyFields(model, { count: () => nextCount }),
-              outMessage: CounterOutMessage.ReachedMax(),
-            }
-          }
+      if (nextCount === model.max) {
+        return {
+          model: modifyFields(model, { count: () => nextCount }),
+          outMessage: CounterOutMessage.ReachedMax(),
+        }
+      }
 
-          return { model: modifyFields(model, { count: () => nextCount }) }
-        },
-        RequestedReset: model => ({
-          model: modifyFields(model, { count: () => 0 }),
-        }),
-      },
-      view: (model, h) =>
-        h.button(
-          [h.OnClick(CounterMessage.ClickedIncrement())],
-          [`Count: ${model.count}`],
-        ),
-    }
-  }),
-)
+      return { model: modifyFields(model, { count: () => nextCount }) }
+    },
+    RequestedReset: model => ({
+      model: modifyFields(model, { count: () => 0 }),
+    }),
+  },
+  view: (model, h) =>
+    h.button(
+      [h.OnClick(CounterMessage.ClickedIncrement())],
+      [`Count: ${model.count}`],
+    ),
+}))
 
 // dashboard.ts
 const Model = Schema.Struct({
@@ -64,34 +60,30 @@ export class Dashboard extends Block<Dashboard>()('Dashboard', {
   Message: defineMessageUnion({ ClickedReset: {} }),
 }) {}
 
-export const DashboardLive = Dashboard.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        counter: new Counter('counter', { max: 10 }),
-        completedRounds: 0,
-      }),
-      update: {
-        ClickedReset: model => ({
-          model,
-          messages: [model.counter.send(Counter.Message.RequestedReset())],
-        }),
-        ...Counter.on({
-          ReachedMax: model => ({
-            model: modifyFields(model, { completedRounds: Number.increment }),
-            messages: [model.counter.send(Counter.Message.RequestedReset())],
-          }),
-        }),
-      },
-      view: (model, h) =>
-        h.section(
-          [],
-          [
-            model.counter.view(),
-            h.p([], [`Rounds: ${model.completedRounds}`]),
-            h.button([h.OnClick(Dashboard.Message.ClickedReset())], ['Reset']),
-          ],
-        ),
-    }
+export const DashboardLive = Dashboard.toLayer(() => ({
+  init: () => ({
+    counter: new Counter('counter', { max: 10 }),
+    completedRounds: 0,
   }),
-).pipe(Layer.provide(CounterLive))
+  update: {
+    ClickedReset: model => ({
+      model,
+      messages: [model.counter.send(Counter.Message.RequestedReset())],
+    }),
+    ...Counter.on({
+      ReachedMax: model => ({
+        model: modifyFields(model, { completedRounds: Number.increment }),
+        messages: [model.counter.send(Counter.Message.RequestedReset())],
+      }),
+    }),
+  },
+  view: (model, h) =>
+    h.section(
+      [],
+      [
+        model.counter.view(),
+        h.p([], [`Rounds: ${model.completedRounds}`]),
+        h.button([h.OnClick(Dashboard.Message.ClickedReset())], ['Reset']),
+      ],
+    ),
+})).pipe(Layer.provide(CounterLive))

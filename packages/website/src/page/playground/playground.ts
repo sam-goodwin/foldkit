@@ -1,14 +1,5 @@
 import { clsx } from 'clsx'
-import {
-  Array,
-  Effect,
-  Layer,
-  Match,
-  Option,
-  Order,
-  Record,
-  pipe,
-} from 'effect'
+import { Array, Layer, Match, Option, Order, Record, pipe } from 'effect'
 import { Block, type Mount } from 'foldkit'
 import { Html, type HtmlBuilder, inertHtml as ih } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -503,110 +494,106 @@ export class Playground extends Block<Playground, PlaygroundArgs, ViewInputs>()(
   },
 ) {}
 
-export const PlaygroundLive = Playground.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ maybeIsSupported }, { id }) => {
-        const files = filesForSlug(id)
+export const PlaygroundLive = Playground.toLayer(() => ({
+  init: ({ maybeIsSupported }, { id }) => {
+    const files = filesForSlug(id)
 
-        return syncContainer({
-          slug: id,
-          state: PlaygroundState.Booting(),
-          files,
-          fileTabs: new PlaygroundFileTabs('fileTabs', {
-            id: 'playground-files',
-          }),
-          activeFilePath: initialActiveFile(files),
-          dirtyPaths: [],
-          lastWriteError: Option.none(),
-          maybeIsSupported,
-          maybeContainer: Option.none(),
-        })
-      },
+    return syncContainer({
+      slug: id,
+      state: PlaygroundState.Booting(),
+      files,
+      fileTabs: new PlaygroundFileTabs('fileTabs', {
+        id: 'playground-files',
+      }),
+      activeFilePath: initialActiveFile(files),
+      dirtyPaths: [],
+      lastWriteError: Option.none(),
+      maybeIsSupported,
+      maybeContainer: Option.none(),
+    })
+  },
 
-      update: {
-        InformedOfSupport: (model, { isSupported }) => ({
-          model: syncContainer(
-            modifyFields(model, {
-              maybeIsSupported: () => Option.some(isSupported),
+  update: {
+    InformedOfSupport: (model, { isSupported }) => ({
+      model: syncContainer(
+        modifyFields(model, {
+          maybeIsSupported: () => Option.some(isSupported),
+        }),
+      ),
+    }),
+    LoadedPlaygroundPreview: (model, { previewUrl }) => ({
+      model: modifyFields(model, {
+        state: state => markPreviewLoaded(state, previewUrl),
+      }),
+    }),
+    EditedPlaygroundFile: (model, { path, content }) => {
+      const isBooted = model.state._tag === 'Booted'
+      const nextModel = modifyFields(model, {
+        files: Record.set(path, content),
+        dirtyPaths: existing =>
+          isBooted ? existing : appendDeduped(existing, path),
+      })
+
+      if (isBooted) {
+        return {
+          model: nextModel,
+          messages: requestFileWrite(model, path, content),
+        }
+      } else {
+        return { model: nextModel }
+      }
+    },
+    FailedMountPlaygroundEditor: (model, { reason }) =>
+      failPlayground(model, reason),
+    SucceededMountPlaygroundEditor: model => ({ model }),
+    ...PlaygroundContainer.on({
+      Booted: (model, { previewUrl }) => ({
+        model: modifyFields(model, {
+          state: () =>
+            PlaygroundState.Booted({
+              preview: PlaygroundPreview.start(previewUrl),
             }),
-          ),
+          dirtyPaths: () => [],
+          lastWriteError: () => Option.none(),
         }),
-        LoadedPlaygroundPreview: (model, { previewUrl }) => ({
-          model: modifyFields(model, {
-            state: state => markPreviewLoaded(state, previewUrl),
-          }),
+        messages: flushDirtyPaths(model),
+      }),
+      Failed: (model, { reason }) => failPlayground(model, reason),
+      ScheduledFileWrite: model => ({
+        model: modifyFields(model, { lastWriteError: () => Option.none() }),
+      }),
+      FailedFileWrite: (model, { reason }) => ({
+        model: modifyFields(model, {
+          lastWriteError: () => Option.some(reason),
         }),
-        EditedPlaygroundFile: (model, { path, content }) => {
-          const isBooted = model.state._tag === 'Booted'
-          const nextModel = modifyFields(model, {
-            files: Record.set(path, content),
-            dirtyPaths: existing =>
-              isBooted ? existing : appendDeduped(existing, path),
-          })
+      }),
+    }),
+    ...PlaygroundFileTabs.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, { activeFilePath: () => value }),
+      }),
+    }),
+  },
 
-          if (isBooted) {
-            return {
-              model: nextModel,
-              messages: requestFileWrite(model, path, content),
-            }
-          } else {
-            return { model: nextModel }
-          }
-        },
-        FailedMountPlaygroundEditor: (model, { reason }) =>
-          failPlayground(model, reason),
-        SucceededMountPlaygroundEditor: model => ({ model }),
-        ...PlaygroundContainer.on({
-          Booted: (model, { previewUrl }) => ({
-            model: modifyFields(model, {
-              state: () =>
-                PlaygroundState.Booted({
-                  preview: PlaygroundPreview.start(previewUrl),
-                }),
-              dirtyPaths: () => [],
-              lastWriteError: () => Option.none(),
-            }),
-            messages: flushDirtyPaths(model),
-          }),
-          Failed: (model, { reason }) => failPlayground(model, reason),
-          ScheduledFileWrite: model => ({
-            model: modifyFields(model, { lastWriteError: () => Option.none() }),
-          }),
-          FailedFileWrite: (model, { reason }) => ({
-            model: modifyFields(model, {
-              lastWriteError: () => Option.some(reason),
-            }),
-          }),
-        }),
-        ...PlaygroundFileTabs.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, { activeFilePath: () => value }),
-          }),
-        }),
-      },
+  mounts: {
+    MountPlaygroundEditor: ({
+      element,
+      path,
+      initialContent,
+      files,
+      viewStateChanges,
+    }) =>
+      streamPlaygroundEditorMessages(
+        element,
+        path,
+        initialContent,
+        files,
+        viewStateChanges,
+      ),
+  },
 
-      mounts: {
-        MountPlaygroundEditor: ({
-          element,
-          path,
-          initialContent,
-          files,
-          viewStateChanges,
-        }) =>
-          streamPlaygroundEditorMessages(
-            element,
-            path,
-            initialContent,
-            files,
-            viewStateChanges,
-          ),
-      },
-
-      view,
-    }
-  }),
-).pipe(
+  view,
+})).pipe(
   Layer.provide(
     Layer.mergeAll(PlaygroundFileTabs.Live, PlaygroundContainerLive),
   ),

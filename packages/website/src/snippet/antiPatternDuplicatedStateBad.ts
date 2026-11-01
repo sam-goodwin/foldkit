@@ -1,6 +1,6 @@
 // ❌ Bad: visibleItems can stop matching items and query.
 
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -16,16 +16,12 @@ export class Catalog extends Block<Catalog>()('Catalog', {
   Message: defineMessageUnion({ UpdatedQuery: { query: Schema.String } }),
 }) {}
 
-export const CatalogLive = Catalog.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ items: [], query: '', visibleItems: [] }),
+export const CatalogLive = Catalog.toLayer(() => ({
+  init: () => ({ items: [], query: '', visibleItems: [] }),
 
-      update: {
-        UpdatedQuery: (model, { query }) => ({
-          model: modifyFields(model, { query: () => query }),
-        }),
-      },
-    }
-  }),
-)
+  update: {
+    UpdatedQuery: (model, { query }) => ({
+      model: modifyFields(model, { query: () => query }),
+    }),
+  },
+}))

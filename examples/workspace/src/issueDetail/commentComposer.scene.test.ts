@@ -35,33 +35,29 @@ class CommentComposerScene extends Block<CommentComposerScene>()(
   },
 ) {}
 
-const CommentComposerSceneLive = CommentComposerScene.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        commentComposer: new CommentComposer('commentComposer', {
-          issueId: issue.id,
-        }),
-      }),
-      update: {
-        ...CommentComposer.on({
-          AddedComment: (model, outMessage) => ({ model, outMessage }),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.commentComposer.view({
-              members: initialWorkspace.members,
-              comments: issue.comments,
-              authorId: 'maya',
-            }),
-          ],
-        ),
-    }
+const CommentComposerSceneLive = CommentComposerScene.toLayer(() => ({
+  init: () => ({
+    commentComposer: new CommentComposer('commentComposer', {
+      issueId: issue.id,
+    }),
   }),
-).pipe(Layer.provide(CommentComposerLive))
+  update: {
+    ...CommentComposer.on({
+      AddedComment: (model, outMessage) => ({ model, outMessage }),
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.commentComposer.view({
+          members: initialWorkspace.members,
+          comments: issue.comments,
+          authorId: 'maya',
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(CommentComposerLive))
 
 describe('Comment Composer view', () => {
   it.effect('shows and discards a retained comment draft', () => {

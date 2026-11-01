@@ -31,7 +31,10 @@ export type Message = typeof Message.Type
 
 export const SelectResume = Command.define('SelectResume', {
   messages: [Message.CompletedSelectResume, Message.CancelledSelectResume],
-  handler: function* () {
+})
+
+export const SelectResumeLive = SelectResume.toLayer(
+  Effect.gen(function* () {
     return () =>
       File.select(['application/pdf']).pipe(
         Effect.map(
@@ -41,20 +44,23 @@ export const SelectResume = Command.define('SelectResume', {
           }),
         ),
       )
-  },
-})
+  }),
+)
 
 export const ReadResumePreview = Command.define('ReadResumePreview', {
   args: { file: File.File },
   messages: [Message.SucceededReadPreview, Message.FailedReadPreview],
-  handler: function* () {
+})
+
+export const ReadResumePreviewLive = ReadResumePreview.toLayer(
+  Effect.gen(function* () {
     return ({ file }) =>
       File.readAsDataUrl(file).pipe(
         Effect.map(dataUrl => Message.SucceededReadPreview({ dataUrl })),
         Effect.catch(() => Effect.succeed(Message.FailedReadPreview())),
       )
-  },
-})
+  }),
+)
 
 // INIT
 
@@ -141,6 +147,6 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Html => {
 }
 
 export const EffectsLayer = Layer.mergeAll(
-  SelectResume.layer,
-  ReadResumePreview.layer,
+  SelectResumeLive,
+  ReadResumePreviewLive,
 )

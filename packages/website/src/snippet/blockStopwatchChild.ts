@@ -1,4 +1,4 @@
-import { Boolean, Duration, Effect, Number, Schema, Stream } from 'effect'
+import { Boolean, Duration, Number, Schema, Stream } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -15,44 +15,40 @@ export class Stopwatch extends Block<Stopwatch, Readonly<{ label: string }>>()(
   },
 ) {}
 
-export const StopwatchLive = Stopwatch.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ label }) => ({ label, elapsedSeconds: 0, isRunning: true }),
+export const StopwatchLive = Stopwatch.toLayer(() => ({
+  init: ({ label }) => ({ label, elapsedSeconds: 0, isRunning: true }),
 
-      update: {
-        ClickedToggle: model => ({
-          model: modifyFields(model, { isRunning: Boolean.not }),
-        }),
-        TickedSecond: model => ({
-          model: modifyFields(model, { elapsedSeconds: Number.increment }),
-        }),
-      },
+  update: {
+    ClickedToggle: model => ({
+      model: modifyFields(model, { isRunning: Boolean.not }),
+    }),
+    TickedSecond: model => ({
+      model: modifyFields(model, { elapsedSeconds: Number.increment }),
+    }),
+  },
 
-      subscriptions: {
-        ticks: {
-          dependencies: model => model.isRunning,
-          stream: (isRunning: boolean) =>
-            isRunning
-              ? Stream.tick(Duration.seconds(1)).pipe(
-                  Stream.drop(1),
-                  Stream.as(Stopwatch.Message.TickedSecond()),
-                )
-              : Stream.empty,
-        },
-      },
+  subscriptions: {
+    ticks: {
+      dependencies: model => model.isRunning,
+      stream: (isRunning: boolean) =>
+        isRunning
+          ? Stream.tick(Duration.seconds(1)).pipe(
+              Stream.drop(1),
+              Stream.as(Stopwatch.Message.TickedSecond()),
+            )
+          : Stream.empty,
+    },
+  },
 
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.span([], [`${model.label}: ${model.elapsedSeconds}s`]),
-            h.button(
-              [h.OnClick(Stopwatch.Message.ClickedToggle())],
-              [model.isRunning ? 'Pause' : 'Resume'],
-            ),
-          ],
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.span([], [`${model.label}: ${model.elapsedSeconds}s`]),
+        h.button(
+          [h.OnClick(Stopwatch.Message.ClickedToggle())],
+          [model.isRunning ? 'Pause' : 'Resume'],
         ),
-    }
-  }),
-)
+      ],
+    ),
+}))

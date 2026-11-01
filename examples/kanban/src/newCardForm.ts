@@ -37,131 +37,124 @@ export class NewCardForm extends Block<NewCardForm>()('NewCardForm', {
   Command: [FocusAddCardInput],
 }) {}
 
-export const NewCardFormLive = NewCardForm.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => closedModel,
+export const NewCardFormLive = NewCardForm.toLayer(() => ({
+  init: () => closedModel,
 
-      update: {
-        RequestedOpen: (_model, { columnId }) => ({
-          model: {
-            maybeColumnId: Option.some(columnId),
-            title: '',
+  update: {
+    RequestedOpen: (_model, { columnId }) => ({
+      model: {
+        maybeColumnId: Option.some(columnId),
+        title: '',
+      },
+      commands: [FocusAddCardInput()],
+    }),
+
+    RequestedClose: () => ({ model: closedModel }),
+
+    ChangedNewCardTitle: (model, { value }) => ({
+      model: modifyFields(model, { title: () => value }),
+    }),
+
+    SubmittedNewCard: model =>
+      Option.match(model.maybeColumnId, {
+        onNone: () => ({ model }),
+        onSome: columnId => {
+          const title = String.trim(model.title)
+
+          if (String.isEmpty(title)) {
+            return { model }
+          }
+
+          return {
+            model,
+            outMessage: OutMessage.SubmittedCard({ columnId, title }),
+          }
+        },
+      }),
+
+    CancelledNewCard: () => ({ model: closedModel }),
+
+    CompletedFocusAddCardInput: model => ({ model }),
+  },
+
+  commands: {
+    FocusAddCardInput: () =>
+      Dom.focus(`#${ADD_CARD_INPUT_ID}`).pipe(
+        Effect.ignore,
+        Effect.as(Message.CompletedFocusAddCardInput()),
+      ),
+  },
+
+  view: (model, h) =>
+    h.form(
+      [h.Class('flex flex-col gap-2'), h.OnSubmit(Message.SubmittedNewCard())],
+      [
+        h.label(
+          [h.For(ADD_CARD_INPUT_ID), h.Class('sr-only')],
+          ['New card title'],
+        ),
+        Input.view(
+          {
+            id: ADD_CARD_INPUT_ID,
+            onInput: value => Message.ChangedNewCardTitle({ value }),
+            value: model.title,
+            placeholder: 'Card title...',
+            toView: attributes =>
+              h.input([
+                ...attributes.input,
+                h.Class(
+                  'rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none',
+                ),
+                h.OnKeyDownPreventDefault(
+                  flow(
+                    Option.liftPredicate(Equal.equals('Escape')),
+                    Option.map(() => Message.CancelledNewCard()),
+                  ),
+                ),
+              ]),
           },
-          commands: [FocusAddCardInput()],
-        }),
-
-        RequestedClose: () => ({ model: closedModel }),
-
-        ChangedNewCardTitle: (model, { value }) => ({
-          model: modifyFields(model, { title: () => value }),
-        }),
-
-        SubmittedNewCard: model =>
-          Option.match(model.maybeColumnId, {
-            onNone: () => ({ model }),
-            onSome: columnId => {
-              const title = String.trim(model.title)
-
-              if (String.isEmpty(title)) {
-                return { model }
-              }
-
-              return {
-                model,
-                outMessage: OutMessage.SubmittedCard({ columnId, title }),
-              }
-            },
-          }),
-
-        CancelledNewCard: () => ({ model: closedModel }),
-
-        CompletedFocusAddCardInput: model => ({ model }),
-      },
-
-      commands: {
-        FocusAddCardInput: () =>
-          Dom.focus(`#${ADD_CARD_INPUT_ID}`).pipe(
-            Effect.ignore,
-            Effect.as(Message.CompletedFocusAddCardInput()),
-          ),
-      },
-
-      view: (model, h) =>
-        h.form(
+          h,
+        ),
+        h.div(
+          [h.Class('flex gap-2 justify-end')],
           [
-            h.Class('flex flex-col gap-2'),
-            h.OnSubmit(Message.SubmittedNewCard()),
-          ],
-          [
-            h.label(
-              [h.For(ADD_CARD_INPUT_ID), h.Class('sr-only')],
-              ['New card title'],
-            ),
-            Input.view(
+            Button.view(
               {
-                id: ADD_CARD_INPUT_ID,
-                onInput: value => Message.ChangedNewCardTitle({ value }),
-                value: model.title,
-                placeholder: 'Card title...',
+                onClick: Message.CancelledNewCard(),
                 toView: attributes =>
-                  h.input([
-                    ...attributes.input,
-                    h.Class(
-                      'rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none',
-                    ),
-                    h.OnKeyDownPreventDefault(
-                      flow(
-                        Option.liftPredicate(Equal.equals('Escape')),
-                        Option.map(() => Message.CancelledNewCard()),
+                  h.button(
+                    [
+                      ...attributes.button,
+                      h.Class(
+                        'rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer',
                       ),
-                    ),
-                  ]),
+                    ],
+                    ['Cancel'],
+                  ),
               },
               h,
             ),
-            h.div(
-              [h.Class('flex gap-2 justify-end')],
-              [
-                Button.view(
-                  {
-                    onClick: Message.CancelledNewCard(),
-                    toView: attributes =>
-                      h.button(
-                        [
-                          ...attributes.button,
-                          h.Class(
-                            'rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer',
-                          ),
-                        ],
-                        ['Cancel'],
+            Button.view(
+              {
+                type: 'submit',
+                toView: attributes =>
+                  h.button(
+                    [
+                      ...attributes.button,
+                      h.Class(
+                        'rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600 transition-colors cursor-pointer',
                       ),
-                  },
-                  h,
-                ),
-                Button.view(
-                  {
-                    type: 'submit',
-                    toView: attributes =>
-                      h.button(
-                        [
-                          ...attributes.button,
-                          h.Class(
-                            'rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600 transition-colors cursor-pointer',
-                          ),
-                        ],
-                        ['Add'],
-                      ),
-                  },
-                  h,
-                ),
-              ],
+                    ],
+                    ['Add'],
+                  ),
+              },
+              h,
             ),
           ],
         ),
-    }
-  }),
-)
+      ],
+    ),
+}))
 
 const closedModel: Model = {
   maybeColumnId: Option.none(),

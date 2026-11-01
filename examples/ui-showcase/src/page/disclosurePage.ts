@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -28,39 +28,35 @@ export class DisclosurePage extends Block<DisclosurePage>()('DisclosurePage', {
   Message,
 }) {}
 
-export const DisclosurePageLive = DisclosurePage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        isDisclosureBasicDemoOpen: false,
-        isDisclosureAnimatedDemoOpen: false,
-        isDisclosureCollapsedPreviewDemoOpen: false,
-      }),
-
-      update: {
-        ToggledDisclosureBasicDemo: (model, { isOpen }) => ({
-          model: modifyFields(model, {
-            isDisclosureBasicDemoOpen: () => isOpen,
-          }),
-        }),
-
-        ToggledDisclosureAnimatedDemo: (model, { isOpen }) => ({
-          model: modifyFields(model, {
-            isDisclosureAnimatedDemoOpen: () => isOpen,
-          }),
-        }),
-
-        ToggledDisclosureCollapsedPreviewDemo: (model, { isOpen }) => ({
-          model: modifyFields(model, {
-            isDisclosureCollapsedPreviewDemoOpen: () => isOpen,
-          }),
-        }),
-      },
-
-      view,
-    }
+export const DisclosurePageLive = DisclosurePage.toLayer(() => ({
+  init: () => ({
+    isDisclosureBasicDemoOpen: false,
+    isDisclosureAnimatedDemoOpen: false,
+    isDisclosureCollapsedPreviewDemoOpen: false,
   }),
-)
+
+  update: {
+    ToggledDisclosureBasicDemo: (model, { isOpen }) => ({
+      model: modifyFields(model, {
+        isDisclosureBasicDemoOpen: () => isOpen,
+      }),
+    }),
+
+    ToggledDisclosureAnimatedDemo: (model, { isOpen }) => ({
+      model: modifyFields(model, {
+        isDisclosureAnimatedDemoOpen: () => isOpen,
+      }),
+    }),
+
+    ToggledDisclosureCollapsedPreviewDemo: (model, { isOpen }) => ({
+      model: modifyFields(model, {
+        isDisclosureCollapsedPreviewDemoOpen: () => isOpen,
+      }),
+    }),
+  },
+
+  view,
+}))
 
 const DISCLOSURE_BASIC_DEMO_ID = 'disclosure-basic-demo'
 const DISCLOSURE_ANIMATED_DEMO_ID = 'disclosure-animated-demo'

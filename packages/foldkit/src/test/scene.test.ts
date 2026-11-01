@@ -5108,37 +5108,29 @@ describe('scene mounts', () => {
       Mount: [Focus],
     }) {}
 
-    const FieldLive = Field.layer(
-      Effect.gen(function* () {
-        return {
-          init: () => ({ isFocused: false }),
-          update: {
-            CompletedFocus: () => ({ model: { isFocused: true } }),
-          },
-          mounts: {
-            ChildFocus: () => Effect.succeed(Field.Message.CompletedFocus()),
-          },
-          view: (model, h) =>
-            h.button(
-              [h.OnMount(Focus())],
-              [model.isFocused ? 'Focused' : 'Waiting'],
-            ),
-        }
-      }),
-    )
+    const FieldLive = Field.toLayer(() => ({
+      init: () => ({ isFocused: false }),
+      update: {
+        CompletedFocus: () => ({ model: { isFocused: true } }),
+      },
+      mounts: {
+        ChildFocus: () => Effect.succeed(Field.Message.CompletedFocus()),
+      },
+      view: (model, h) =>
+        h.button(
+          [h.OnMount(Focus())],
+          [model.isFocused ? 'Focused' : 'Waiting'],
+        ),
+    }))
 
     class Form extends Block<Form>()('Form', {
       Model: Schema.Struct({ field: Field }),
     }) {}
 
-    const FormLive = Form.layer(
-      Effect.gen(function* () {
-        return {
-          init: () => ({ field: new Field('field') }),
-          view: (model, h) => h.div([], [model.field.view()]),
-        }
-      }),
-    )
+    const FormLive = Form.toLayer(() => ({
+      init: () => ({ field: new Field('field') }),
+      view: (model, h) => h.div([], [model.field.view()]),
+    }))
 
     return scene(
       FormLive.pipe(Layer.provide(FieldLive)),

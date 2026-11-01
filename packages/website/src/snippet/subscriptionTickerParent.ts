@@ -1,4 +1,4 @@
-import { Duration, Effect, Number, Option, Schema } from 'effect'
+import { Duration, Number, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -13,41 +13,35 @@ export class AutoCounter extends Block<AutoCounter>()('AutoCounter', {
   Message: defineMessageUnion({ ClickedToggleAutoCount: {} }),
 }) {}
 
-export const AutoCounterLive = AutoCounter.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0, maybeTicker: Option.none() }),
+export const AutoCounterLive = AutoCounter.toLayer(() => ({
+  init: () => ({ count: 0, maybeTicker: Option.none() }),
 
-      update: {
-        ClickedToggleAutoCount: model => ({
-          model: modifyFields(model, {
-            maybeTicker: maybeTicker =>
-              Option.isSome(maybeTicker)
-                ? Option.none()
-                : Option.some(
-                    new Ticker('ticker', { every: Duration.seconds(1) }),
-                  ),
-          }),
-        }),
+  update: {
+    ClickedToggleAutoCount: model => ({
+      model: modifyFields(model, {
+        maybeTicker: maybeTicker =>
+          Option.isSome(maybeTicker)
+            ? Option.none()
+            : Option.some(new Ticker('ticker', { every: Duration.seconds(1) })),
+      }),
+    }),
 
-        ...Ticker.on({
-          Ticked: model => ({
-            model: modifyFields(model, { count: Number.increment }),
-          }),
-        }),
-      },
+    ...Ticker.on({
+      Ticked: model => ({
+        model: modifyFields(model, { count: Number.increment }),
+      }),
+    }),
+  },
 
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            h.span([], [`${model.count}`]),
-            h.button(
-              [h.OnClick(AutoCounter.Message.ClickedToggleAutoCount())],
-              [Option.isSome(model.maybeTicker) ? 'Stop' : 'Start'],
-            ),
-          ],
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        h.span([], [`${model.count}`]),
+        h.button(
+          [h.OnClick(AutoCounter.Message.ClickedToggleAutoCount())],
+          [Option.isSome(model.maybeTicker) ? 'Stop' : 'Start'],
         ),
-    }
-  }),
-)
+      ],
+    ),
+}))

@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block, Dom, Mount } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -17,34 +17,30 @@ export class Panel extends Block<Panel>()('Panel', {
   Mount: [TrackPointer],
 }) {}
 
-export const PanelLive = Panel.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ clientX: 0, clientY: 0 }),
+export const PanelLive = Panel.toLayer(() => ({
+  init: () => ({ clientX: 0, clientY: 0 }),
 
-      update: {
-        MovedPointer: (model, { clientX, clientY }) => ({
-          model: modifyFields(model, {
-            clientX: () => clientX,
-            clientY: () => clientY,
+  update: {
+    MovedPointer: (model, { clientX, clientY }) => ({
+      model: modifyFields(model, {
+        clientX: () => clientX,
+        clientY: () => clientY,
+      }),
+    }),
+  },
+
+  mounts: {
+    TrackPointer: ({ element }) =>
+      Dom.streamFromEvent({
+        target: element,
+        type: 'pointermove',
+        mapEvent: event =>
+          Message.MovedPointer({
+            clientX: event.clientX,
+            clientY: event.clientY,
           }),
-        }),
-      },
+      }),
+  },
 
-      mounts: {
-        TrackPointer: ({ element }) =>
-          Dom.streamFromEvent({
-            target: element,
-            type: 'pointermove',
-            mapEvent: event =>
-              Message.MovedPointer({
-                clientX: event.clientX,
-                clientY: event.clientY,
-              }),
-          }),
-      },
-
-      view: (_model, h) => h.div([h.Class('h-48'), h.OnMount(TrackPointer())]),
-    }
-  }),
-)
+  view: (_model, h) => h.div([h.Class('h-48'), h.OnMount(TrackPointer())]),
+}))

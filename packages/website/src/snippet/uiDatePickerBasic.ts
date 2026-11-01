@@ -209,76 +209,72 @@ const yearsView = (
     ],
   )
 
-export const DatePickerExampleLive = DatePickerExample.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ today }) => ({
-        // DatePicker holds its own Calendar and Popover instances
-        datePickerDemo: new DatePicker.DatePicker('datePickerDemo', {
-          id: 'date-picker-demo',
-          today,
-          minDate: today,
-          maxDate: Calendar.addMonths(today, 3),
-        }),
-        maybeSelectedDate: Option.none(),
-      }),
-
-      update: {
-        // `SelectedDate` carries the committed date; the popover has already
-        // closed. `ClearedDate` fires when the user clears the selection.
-        ...DatePicker.DatePicker.on({
-          SelectedDate: (model, { date }) => ({
-            model: modifyFields(model, {
-              maybeSelectedDate: () => Option.some(date),
-            }),
-          }),
-          ClearedDate: model => ({
-            model: modifyFields(model, {
-              maybeSelectedDate: () => Option.none(),
-            }),
-          }),
-        }),
-      },
-
-      // `toCalendarView` receives a discriminated `CalendarAttributes` whose
-      // variant matches the calendar's current `viewMode`. The trigger is a
-      // form field, so name it with a visible label: target the trigger id
-      // with `triggerId('date-picker-demo')` and pass `ariaLabelledBy`.
-      view: (model, h) => {
-        const labelId = 'date-picker-label'
-
-        return h.div(
-          [h.Class('flex flex-col gap-1.5')],
-          [
-            h.label(
-              [h.Id(labelId), h.For(DatePickerTriggerId('date-picker-demo'))],
-              ['Date'],
-            ),
-            model.datePickerDemo.view({
-              ariaLabelledBy: labelId,
-              anchor: { placement: 'bottom-start', gap: 4, padding: 8 },
-              // The parent-owned selection. The trigger content, the calendar's
-              // selected-day marker, and the hidden form input all derive from it.
-              maybeSelectedDate: model.maybeSelectedDate,
-              triggerContent: maybeDate =>
-                Option.match(maybeDate, {
-                  onNone: () => h.span([], ['Pick a date']),
-                  onSome: date =>
-                    h.span([], [`${date.year}-${date.month}-${date.day}`]),
-                }),
-              toCalendarView: Match.type<UiCalendarCalendarAttributes>().pipe(
-                Match.tagsExhaustive({
-                  Days: days => daysView(days, h),
-                  Months: months => monthsView(months, h),
-                  Years: years => yearsView(years, h),
-                }),
-              ),
-              // Optional: enable hidden form input for native <form> submission:
-              name: 'appointment-date',
-            }),
-          ],
-        )
-      },
-    }
+export const DatePickerExampleLive = DatePickerExample.toLayer(() => ({
+  init: ({ today }) => ({
+    // DatePicker holds its own Calendar and Popover instances
+    datePickerDemo: new DatePicker.DatePicker('datePickerDemo', {
+      id: 'date-picker-demo',
+      today,
+      minDate: today,
+      maxDate: Calendar.addMonths(today, 3),
+    }),
+    maybeSelectedDate: Option.none(),
   }),
-).pipe(Layer.provide(DatePicker.DatePickerLive))
+
+  update: {
+    // `SelectedDate` carries the committed date; the popover has already
+    // closed. `ClearedDate` fires when the user clears the selection.
+    ...DatePicker.DatePicker.on({
+      SelectedDate: (model, { date }) => ({
+        model: modifyFields(model, {
+          maybeSelectedDate: () => Option.some(date),
+        }),
+      }),
+      ClearedDate: model => ({
+        model: modifyFields(model, {
+          maybeSelectedDate: () => Option.none(),
+        }),
+      }),
+    }),
+  },
+
+  // `toCalendarView` receives a discriminated `CalendarAttributes` whose
+  // variant matches the calendar's current `viewMode`. The trigger is a
+  // form field, so name it with a visible label: target the trigger id
+  // with `triggerId('date-picker-demo')` and pass `ariaLabelledBy`.
+  view: (model, h) => {
+    const labelId = 'date-picker-label'
+
+    return h.div(
+      [h.Class('flex flex-col gap-1.5')],
+      [
+        h.label(
+          [h.Id(labelId), h.For(DatePickerTriggerId('date-picker-demo'))],
+          ['Date'],
+        ),
+        model.datePickerDemo.view({
+          ariaLabelledBy: labelId,
+          anchor: { placement: 'bottom-start', gap: 4, padding: 8 },
+          // The parent-owned selection. The trigger content, the calendar's
+          // selected-day marker, and the hidden form input all derive from it.
+          maybeSelectedDate: model.maybeSelectedDate,
+          triggerContent: maybeDate =>
+            Option.match(maybeDate, {
+              onNone: () => h.span([], ['Pick a date']),
+              onSome: date =>
+                h.span([], [`${date.year}-${date.month}-${date.day}`]),
+            }),
+          toCalendarView: Match.type<UiCalendarCalendarAttributes>().pipe(
+            Match.tagsExhaustive({
+              Days: days => daysView(days, h),
+              Months: months => monthsView(months, h),
+              Years: years => yearsView(years, h),
+            }),
+          ),
+          // Optional: enable hidden form input for native <form> submission:
+          name: 'appointment-date',
+        }),
+      ],
+    )
+  },
+})).pipe(Layer.provide(DatePicker.DatePickerLive))

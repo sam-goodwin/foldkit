@@ -17,10 +17,6 @@ type Message = typeof Message.Type
 const Paint = Command.define('Paint', {
   args: { generation: Schema.Number },
   messages: [Message.CompletedPaint],
-  handler: function* () {
-    return ({ generation }) =>
-      Effect.succeed(Message.CompletedPaint({ generation }))
-  },
 })
 
 const ParentMessage = defineMessageUnion({
@@ -232,9 +228,6 @@ describe('Command.argsOf', () => {
     const work = Command.define('PassiveArgsWork', {
       args: { generation: Schema.Number },
       messages: [ParentMessage.ClickedPaint],
-      handler: function* () {
-        return () => Effect.sync(execute)
-      },
     })
     const pending = Object.freeze({
       ...work({ generation: 4 }),

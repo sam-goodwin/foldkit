@@ -116,7 +116,7 @@ type HandlerOf<Definition> =
   }>
     ? Parameters[0] extends Effect.Effect<infer Handler, any, any>
       ? WithAnyRequirements<Handler>
-      : never
+      : WithAnyRequirements<Parameters[0]>
     : never
 
 /** A handler may use the services the runtime provides while it runs. */
@@ -395,9 +395,11 @@ export type ChildBlocksOf<Self, Model> = Exclude<InstancesIn<Model>, Self>
 
 type ConstructorArgs<Args> = [Args] extends [void] ? [] : [args: Args]
 
-/** A Block class. Declare one with
- *  `class Counter extends Block<Counter, Args>()('Counter', contract) {}`. */
-export type BlockClass<
+/** A Block class without its `layer` static: the constructor, Schema, contract
+ *  members, and parent-facing helpers. Block factories whose implementation
+ *  static takes a different input, such as a Query's fetch function, build
+ *  their class type from this. */
+export type BlockClassDeclaration<
   Self,
   Id extends string,
   Args,
@@ -421,17 +423,6 @@ export type BlockClass<
     Command: C['Command']
     /** The Mounts this Block owns. */
     Mount: C['Mount']
-    /** Implements the Block. The constructor runs once, when the program's
-     *  Layer is built: it yields the services the Block uses and returns
-     *  its module, which every instance shares. The returned Layer requires
-     *  the Layers of the Blocks its Model holds. */
-    layer: <E, R>(
-      constructor: Effect.Effect<Implementation<C, Args, ViewInput>, E, R>,
-    ) => Layer.Layer<
-      Self,
-      E,
-      Exclude<R, Scope.Scope> | ChildBlocksOf<Self, ModelOf<C>>
-    >
     /** Handles the OutMessages of every instance of this Block that the
      *  parent's Model holds. Spread the result into the parent's update
      *  record. An OutMessage without a handler is dropped. */
@@ -467,6 +458,34 @@ export type BlockClass<
         message: MessageOf<C>,
       ) => boolean,
     ) => OnEntry<ParentModel>
+  }>
+
+/** A Block class. Declare one with
+ *  `class Counter extends Block<Counter, Args>()('Counter', contract) {}`. */
+export type BlockClass<
+  Self,
+  Id extends string,
+  Args,
+  ViewInput,
+  C extends Contract,
+> = BlockClassDeclaration<Self, Id, Args, ViewInput, C> &
+  Readonly<{
+    /** Implements the Block with its module, which every instance shares.
+     *  Pass a function returning the module when the Block uses no
+     *  services, or an Effect that yields the services its handlers use and
+     *  returns the module. Either runs once, when the program's Layer is
+     *  built.
+     *  The returned Layer requires the Layers of the Blocks its Model
+     *  holds. */
+    toLayer: <E = never, R = never>(
+      module:
+        | (() => Implementation<C, Args, ViewInput>)
+        | Effect.Effect<Implementation<C, Args, ViewInput>, E, R>,
+    ) => Layer.Layer<
+      Self,
+      E,
+      Exclude<R, Scope.Scope> | ChildBlocksOf<Self, ModelOf<C>>
+    >
   }>
 
 const nonCopiedSchemaKeys: ReadonlySet<PropertyKey> = new Set([
@@ -634,12 +653,17 @@ export const Block =
       OutMessage: contract?.OutMessage,
       Command: contract?.Command,
       Mount: contract?.Mount,
-      layer: (
-        constructor: Effect.Effect<RuntimeImplementation, unknown, unknown>,
+      toLayer: (
+        input:
+          | (() => RuntimeImplementation)
+          | Effect.Effect<RuntimeImplementation, unknown, unknown>,
       ) =>
         Layer.effect(
           service,
-          Effect.flatMap(constructor, impl => makeModule(runtimeBlock, impl)),
+          Effect.flatMap(
+            Effect.isEffect(input) ? input : Effect.sync(input),
+            impl => makeModule(runtimeBlock, impl),
+          ),
         ),
       on: (handlers: unknown) => onEntry(runtimeBlock, handlers),
       onAll: (handlers: unknown) => onEntry(runtimeBlock, handlers),

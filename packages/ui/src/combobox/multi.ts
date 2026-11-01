@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type * as BlockTypes from 'foldkit/block'
 import { modifyFields } from 'foldkit/struct'
@@ -78,31 +78,27 @@ const makeComboboxClass = <Item extends string, ItemEncoded>(
     ViewInputs<Item>
   >()('Combobox', contract)
 
-  const ComboboxLive = ComboboxClass.layer(
-    Effect.gen(function* () {
-      return {
-        init: baseInit,
-        update: makeUpdate<Item>('KeepOpen', {
-          handleClose: model => ({
-            model: modifyFields(closedBaseModel(model), {
-              inputValue: () => '',
-            }),
-          }),
-          handleSelectedItem: (model, item) => ({
-            model,
-            outMessage: OutMessage.Selected({ value: item }),
-          }),
-          handleImmediateActivation: (model, item) => ({
-            model,
-            outMessage: OutMessage.Selected({ value: item }),
-          }),
+  const ComboboxLive = ComboboxClass.toLayer(() => ({
+    init: baseInit,
+    update: makeUpdate<Item>('KeepOpen', {
+      handleClose: model => ({
+        model: modifyFields(closedBaseModel(model), {
+          inputValue: () => '',
         }),
-        commands: commandHandlers,
-        mounts: mountHandlers,
-        view: (model, h, viewInputs) => render(model, viewInputs, h),
-      }
+      }),
+      handleSelectedItem: (model, item) => ({
+        model,
+        outMessage: OutMessage.Selected({ value: item }),
+      }),
+      handleImmediateActivation: (model, item) => ({
+        model,
+        outMessage: OutMessage.Selected({ value: item }),
+      }),
     }),
-  ).pipe(Layer.provide(Animation.AnimationLive))
+    commands: commandHandlers,
+    mounts: mountHandlers,
+    view: (model, h, viewInputs) => render(model, viewInputs, h),
+  })).pipe(Layer.provide(Animation.AnimationLive))
 
   return Object.assign(ComboboxClass, { Live: ComboboxLive })
 }

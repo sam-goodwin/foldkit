@@ -21,7 +21,7 @@ type ParityView = (
 
 const renderParityView = (view: ParityView) => {
   class Application extends Block<Application>()('Application') {}
-  const ApplicationLive = Application.layer(
+  const ApplicationLive = Application.toLayer(
     Effect.gen(function* () {
       return { view: (_model, h) => view(h) }
     }),

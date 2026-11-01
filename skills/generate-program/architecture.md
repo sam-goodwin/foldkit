@@ -68,7 +68,7 @@ export class Counter extends Block<Counter, Readonly<{ max: number }>>()(
   },
 ) {}
 
-export const CounterLive = Counter.layer(
+export const CounterLive = Counter.toLayer(
   Effect.gen(function* () {
     const store = yield* CountStore
 
@@ -131,7 +131,7 @@ The view takes the Model and the builder `h` and returns Html. It must not acces
 The Layer constructor yields Services. `init` returns an instance's starting Model synchronously, including any child instances it creates. Work that loads data, reads storage, or reads the clock belongs in a Command returned from `start`, which Foldkit runs when the instance appears in the Model:
 
 ```ts
-export const PeopleLive = People.layer(
+export const PeopleLive = People.toLayer(
   Effect.gen(function* () {
     return {
       init: ({ route }) => ({
@@ -295,7 +295,7 @@ export class Board extends Block<Board>()('Board', {
   Message,
 }) {}
 
-export const BoardLive = Board.layer(
+export const BoardLive = Board.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({
@@ -396,7 +396,7 @@ When only a Stream reads it, a Subscription acquires it. The Subscription holds 
 When Commands also use it, create an Effect `RcMap` once in the Layer constructor and key it by a value stored in the Model. A Subscription holds the key's reference for as long as the instance is in the Model, and Commands borrow the resource by key:
 
 ```ts
-export const ChatRoomLive = ChatRoom.layer(
+export const ChatRoomLive = ChatRoom.toLayer(
   Effect.gen(function* () {
     const makeWebSocket = yield* Socket.WebSocketConstructor
     const sockets = yield* RcMap.make({
@@ -460,7 +460,7 @@ export class Application extends Block<
   Readonly<{ flags: Flags }>
 >()('Application', { Model, Message, Command: [SaveTodos] }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     return {
       init: ({ flags }) => ({
@@ -510,7 +510,7 @@ export const SavedBoardJsonString = Schema.fromJsonString(
 - A Layer constructor yields the Services it needs. Command, Mount, and Subscription handlers close over them and must return Effects with no remaining requirements.
 - A Block's Layer requires the Services its constructor yields plus the Layer of every Block its Model Schema holds. Provide a child's Layer to every parent Layer whose Model holds it. If a child holds Blocks, provide those to the child's Layer first, or provide one merged Layer to the whole graph.
 - `@foldkit/ui` components provide their own component dependencies.
-- The root `ApplicationLayer` (in `services.ts`) supplies ordinary Services: `Http.layer`, `BrowserKeyValueStore.layerLocalStorage`, `BrowserCrypto.layer`, and app-specific Services. A test alternative is `ApplicationTestLayer`.
+- The root `ApplicationLayer` (in `services.ts`) supplies ordinary Services: `Http.toLayer`, `BrowserKeyValueStore.layerLocalStorage`, `BrowserCrypto.toLayer`, and app-specific Services. A test alternative is `ApplicationTestLayer`.
 
 Lifetimes stay distinct. Services and resources created in a Layer constructor last as long as the program and are shared by every instance. A Command Effect lasts for one dispatch. Subscription Streams run while their instance is in the Model and follow their dependencies. A Mount follows one DOM element. A handler must not capture current time, Command args, Subscription dependencies, or a DOM element in the constructor.
 
@@ -681,7 +681,7 @@ Use these directly from the `effect` package for non-DOM concerns. Yield the Ser
 | UUID                  | `const crypto = yield* Crypto.Crypto` in the Layer constructor, `yield* Effect.orDie(crypto.randomUUIDv4)` in the handler |
 | Delay                 | `yield* Effect.sleep(Duration.millis(500))`                                                                               |
 
-Use these instead of raw `document.querySelector`, `setTimeout`, `Date.now()`, or `Math.random()`. Provide platform Layers such as `BrowserCrypto.layer` in `ApplicationLayer`.
+Use these instead of raw `document.querySelector`, `setTimeout`, `Date.now()`, or `Math.random()`. Provide platform Layers such as `BrowserCrypto.toLayer` in `ApplicationLayer`.
 
 ## With and Without URL Routing
 

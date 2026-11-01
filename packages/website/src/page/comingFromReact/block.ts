@@ -1,4 +1,4 @@
-import { Array, Effect, Record, pipe } from 'effect'
+import { Array, Record, pipe } from 'effect'
 import { Block } from 'foldkit'
 
 import { FAQ_IDS } from './faq'
@@ -11,23 +11,19 @@ export class ComingFromReact extends Block<ComingFromReact, void, ViewInputs>()(
   { Model, Message },
 ) {}
 
-export const ComingFromReactLive = ComingFromReact.layer(
-  Effect.gen(function* () {
-    return {
-      init: () =>
-        pipe(
-          FAQ_IDS,
-          Array.map(id => [id, false] as const),
-          Record.fromEntries,
-        ),
+export const ComingFromReactLive = ComingFromReact.toLayer(() => ({
+  init: () =>
+    pipe(
+      FAQ_IDS,
+      Array.map(id => [id, false] as const),
+      Record.fromEntries,
+    ),
 
-      update: {
-        ToggledFaq: (model, { id, isOpen }) => ({
-          model: Record.set(model, id, isOpen),
-        }),
-      },
+  update: {
+    ToggledFaq: (model, { id, isOpen }) => ({
+      model: Record.set(model, id, isOpen),
+    }),
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))

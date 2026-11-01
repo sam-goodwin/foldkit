@@ -81,93 +81,89 @@ export class Application extends Block<Application>()('Application', {
   Command: [UploadFile],
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ uploadId: 0, uploads: [] }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ uploadId: 0, uploads: [] }),
 
-      update: {
-        ClickedStartUpload: model => {
-          const fakeFile = fakeFileForUpload(model.uploadId)
-          const startedUpload = Upload.make({
-            id: model.uploadId,
-            fileName: fakeFile.name,
-            sizeMegabytes: fakeFile.sizeMegabytes,
-            status: 'Uploading',
-          })
-          return {
+  update: {
+    ClickedStartUpload: model => {
+      const fakeFile = fakeFileForUpload(model.uploadId)
+      const startedUpload = Upload.make({
+        id: model.uploadId,
+        fileName: fakeFile.name,
+        sizeMegabytes: fakeFile.sizeMegabytes,
+        status: 'Uploading',
+      })
+      return {
+        model: modifyFields(model, {
+          uploadId: Number.increment,
+          uploads: Array.append(startedUpload),
+        }),
+        commands: [
+          UploadFile({
+            uploadId: startedUpload.id,
+            sizeMegabytes: startedUpload.sizeMegabytes,
+          }),
+        ],
+      }
+    },
+    ClickedCancelUpload: (model, { uploadId }) => ({
+      model,
+      commands: [CancelUploadFile({ uploadId })],
+    }),
+    ClickedCancelAllUploads: model => ({
+      model,
+      commands: pipe(
+        model.uploads,
+        Array.filter(upload => upload.status === 'Uploading'),
+        Array.map(upload => CancelUploadFile({ uploadId: upload.id })),
+      ),
+    }),
+    ClickedRestartUpload: (model, { uploadId }) =>
+      pipe(
+        model.uploads,
+        Array.findFirst(
+          upload => upload.id === uploadId && upload.status === 'Cancelled',
+        ),
+        Option.match({
+          onNone: () => ({ model }),
+          onSome: upload => ({
             model: modifyFields(model, {
-              uploadId: Number.increment,
-              uploads: Array.append(startedUpload),
+              uploads: setStatusForId(uploadId, 'Uploading'),
             }),
             commands: [
-              UploadFile({
-                uploadId: startedUpload.id,
-                sizeMegabytes: startedUpload.sizeMegabytes,
-              }),
+              UploadFile({ uploadId, sizeMegabytes: upload.sizeMegabytes }),
             ],
-          }
-        },
-        ClickedCancelUpload: (model, { uploadId }) => ({
-          model,
-          commands: [CancelUploadFile({ uploadId })],
+          }),
         }),
-        ClickedCancelAllUploads: model => ({
-          model,
-          commands: pipe(
-            model.uploads,
-            Array.filter(upload => upload.status === 'Uploading'),
-            Array.map(upload => CancelUploadFile({ uploadId: upload.id })),
-          ),
-        }),
-        ClickedRestartUpload: (model, { uploadId }) =>
-          pipe(
-            model.uploads,
-            Array.findFirst(
-              upload => upload.id === uploadId && upload.status === 'Cancelled',
-            ),
-            Option.match({
-              onNone: () => ({ model }),
-              onSome: upload => ({
-                model: modifyFields(model, {
-                  uploads: setStatusForId(uploadId, 'Uploading'),
-                }),
-                commands: [
-                  UploadFile({ uploadId, sizeMegabytes: upload.sizeMegabytes }),
-                ],
-              }),
-            }),
-          ),
-        CompletedUploadFile: (model, { uploadId }) => ({
+      ),
+    CompletedUploadFile: (model, { uploadId }) => ({
+      model: modifyFields(model, {
+        uploads: setStatusForId(uploadId, 'Done'),
+      }),
+    }),
+    CompletedCancelUploadFile: (model, { uploadId, outcome }) =>
+      Command.Interruptible.Outcome.match(outcome, {
+        Interrupted: () => ({
           model: modifyFields(model, {
-            uploads: setStatusForId(uploadId, 'Done'),
+            uploads: setStatusForId(uploadId, 'Cancelled'),
           }),
         }),
-        CompletedCancelUploadFile: (model, { uploadId, outcome }) =>
-          Command.Interruptible.Outcome.match(outcome, {
-            Interrupted: () => ({
-              model: modifyFields(model, {
-                uploads: setStatusForId(uploadId, 'Cancelled'),
-              }),
-            }),
-            NotFound: () => ({ model }),
-          }),
-      },
+        NotFound: () => ({ model }),
+      }),
+  },
 
-      commands: {
-        UploadFile: ({ uploadId, sizeMegabytes }) =>
-          Effect.gen(function* () {
-            yield* Effect.sleep(
-              Duration.millis(sizeMegabytes * MILLISECONDS_PER_MEGABYTE),
-            )
-            return Message.CompletedUploadFile({ uploadId })
-          }),
-      },
+  commands: {
+    UploadFile: ({ uploadId, sizeMegabytes }) =>
+      Effect.gen(function* () {
+        yield* Effect.sleep(
+          Duration.millis(sizeMegabytes * MILLISECONDS_PER_MEGABYTE),
+        )
+        return Message.CompletedUploadFile({ uploadId })
+      }),
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 const MILLISECONDS_PER_MEGABYTE = 100
 

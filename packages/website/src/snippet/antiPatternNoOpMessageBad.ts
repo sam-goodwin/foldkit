@@ -1,6 +1,5 @@
 // ❌ Bad: NoOp does not identify the event.
 
-import { Effect } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
@@ -10,14 +9,10 @@ const Message = defineMessageUnion({
 
 export class Canvas extends Block<Canvas>()('Canvas', { Message }) {}
 
-export const CanvasLive = Canvas.layer(
-  Effect.gen(function* () {
-    return {
-      update: {
-        NoOp: model => ({ model }),
-      },
+export const CanvasLive = Canvas.toLayer(() => ({
+  update: {
+    NoOp: model => ({ model }),
+  },
 
-      view: (_model, h) => h.div([h.OnClick(Message.NoOp())], ['Drawing area']),
-    }
-  }),
-)
+  view: (_model, h) => h.div([h.OnClick(Message.NoOp())], ['Drawing area']),
+}))

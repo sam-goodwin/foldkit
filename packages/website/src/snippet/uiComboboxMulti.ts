@@ -1,4 +1,4 @@
-import { Array, Effect, Layer, Schema } from 'effect'
+import { Array, Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { childAttributes } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
@@ -25,79 +25,75 @@ export class CitiesPicker extends Block<CitiesPicker>()('CitiesPicker', {
   }),
 }) {}
 
-export const CitiesPickerLive = CitiesPicker.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        comboboxMulti: new CitiesCombobox('comboboxMulti', {
-          id: 'cities-multi',
-        }),
-        selectedCities: [],
-      }),
-
-      update: {
-        // The parent toggles the committed value in the selection it owns
-        ...CitiesCombobox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              selectedCities: selectedCities =>
-                Array.contains(selectedCities, value)
-                  ? Array.filter(selectedCities, city => city !== value)
-                  : Array.append(selectedCities, value),
-            }),
-          }),
-        }),
-      },
-
-      view: (model, h) => {
-        const filteredCities =
-          model.comboboxMulti.model.inputValue === ''
-            ? cities
-            : Array.filter(cities, city =>
-                city
-                  .toLowerCase()
-                  .includes(model.comboboxMulti.model.inputValue.toLowerCase()),
-              )
-
-        const labelId = 'cities-multi-label'
-
-        return h.div(
-          [h.Class('flex flex-col gap-1.5')],
-          [
-            h.label(
-              [h.Id(labelId), h.For(MultiComboboxInputId('cities-multi'))],
-              ['Cities'],
-            ),
-            model.comboboxMulti.view({
-              ariaLabelledBy: labelId,
-              items: filteredCities,
-              selectedValues: model.selectedCities,
-              restingInputValue: '',
-              itemToValue: city => city,
-              itemToDisplayText: city => city,
-              itemToConfig: (city, { isSelected }) => ({
-                className: 'px-3 py-2 cursor-pointer data-[active]:bg-blue-100',
-                content: h.div(
-                  [h.Class('flex items-center gap-2')],
-                  [
-                    isSelected ? h.span([], ['✓']) : h.span([h.Class('w-4')]),
-                    h.span([], [city]),
-                  ],
-                ),
-              }),
-              inputAttributes: childAttributes([
-                h.Class('w-full rounded-lg border px-3 py-2'),
-                h.Placeholder('Search cities...'),
-              ]),
-              itemsAttributes: childAttributes([
-                h.Class('rounded-lg border shadow-lg'),
-              ]),
-              backdropAttributes: childAttributes([h.Class('fixed inset-0')]),
-              anchor: { placement: 'bottom-start', gap: 8, padding: 8 },
-            }),
-          ],
-        )
-      },
-    }
+export const CitiesPickerLive = CitiesPicker.toLayer(() => ({
+  init: () => ({
+    comboboxMulti: new CitiesCombobox('comboboxMulti', {
+      id: 'cities-multi',
+    }),
+    selectedCities: [],
   }),
-).pipe(Layer.provide(CitiesCombobox.Live))
+
+  update: {
+    // The parent toggles the committed value in the selection it owns
+    ...CitiesCombobox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, {
+          selectedCities: selectedCities =>
+            Array.contains(selectedCities, value)
+              ? Array.filter(selectedCities, city => city !== value)
+              : Array.append(selectedCities, value),
+        }),
+      }),
+    }),
+  },
+
+  view: (model, h) => {
+    const filteredCities =
+      model.comboboxMulti.model.inputValue === ''
+        ? cities
+        : Array.filter(cities, city =>
+            city
+              .toLowerCase()
+              .includes(model.comboboxMulti.model.inputValue.toLowerCase()),
+          )
+
+    const labelId = 'cities-multi-label'
+
+    return h.div(
+      [h.Class('flex flex-col gap-1.5')],
+      [
+        h.label(
+          [h.Id(labelId), h.For(MultiComboboxInputId('cities-multi'))],
+          ['Cities'],
+        ),
+        model.comboboxMulti.view({
+          ariaLabelledBy: labelId,
+          items: filteredCities,
+          selectedValues: model.selectedCities,
+          restingInputValue: '',
+          itemToValue: city => city,
+          itemToDisplayText: city => city,
+          itemToConfig: (city, { isSelected }) => ({
+            className: 'px-3 py-2 cursor-pointer data-[active]:bg-blue-100',
+            content: h.div(
+              [h.Class('flex items-center gap-2')],
+              [
+                isSelected ? h.span([], ['✓']) : h.span([h.Class('w-4')]),
+                h.span([], [city]),
+              ],
+            ),
+          }),
+          inputAttributes: childAttributes([
+            h.Class('w-full rounded-lg border px-3 py-2'),
+            h.Placeholder('Search cities...'),
+          ]),
+          itemsAttributes: childAttributes([
+            h.Class('rounded-lg border shadow-lg'),
+          ]),
+          backdropAttributes: childAttributes([h.Class('fixed inset-0')]),
+          anchor: { placement: 'bottom-start', gap: 8, padding: 8 },
+        }),
+      ],
+    )
+  },
+})).pipe(Layer.provide(CitiesCombobox.Live))

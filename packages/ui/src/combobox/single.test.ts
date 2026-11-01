@@ -78,20 +78,16 @@ class ComboboxScene extends Block<ComboboxScene>()('ComboboxScene', {
 }) {}
 
 const makeComboboxSceneLive = ({ toViewInputs }: SceneInput) =>
-  ComboboxScene.layer(
-    Effect.gen(function* () {
-      return {
-        init: () => ({ combobox: new TestCombobox('combobox', testConfig) }),
-        update: {
-          ...TestCombobox.on({
-            Selected: (model, outMessage) => ({ model, outMessage }),
-            ClearedSelection: (model, outMessage) => ({ model, outMessage }),
-          }),
-        },
-        view: model => model.combobox.view(toViewInputs(model.combobox.model)),
-      }
-    }),
-  ).pipe(Layer.provide(TestCombobox.Live))
+  ComboboxScene.toLayer(() => ({
+    init: () => ({ combobox: new TestCombobox('combobox', testConfig) }),
+    update: {
+      ...TestCombobox.on({
+        Selected: (model, outMessage) => ({ model, outMessage }),
+        ClearedSelection: (model, outMessage) => ({ model, outMessage }),
+      }),
+    },
+    view: model => model.combobox.view(toViewInputs(model.combobox.model)),
+  })).pipe(Layer.provide(TestCombobox.Live))
 
 const Fruit = Schema.Literals(['Apple', 'Pear'])
 type Fruit = typeof Fruit.Type
@@ -111,57 +107,53 @@ class FruitComboboxTest extends Block<FruitComboboxTest>()(
   },
 ) {}
 
-const FruitComboboxTestLive = FruitComboboxTest.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        combobox: new FruitCombobox('combobox', { id: 'fruit' }),
-        maybeSelectedFruit: Option.none(),
-      }),
-      update: {
-        RequestedSelectFruitAndClose: (model, { item }) => ({
-          model,
-          messages: [
-            model.combobox.send(
-              FruitCombobox.Message.RequestedSelectItem({
-                item,
-                displayText: item,
-              }),
-            ),
-            model.combobox.send(
-              FruitCombobox.Message.RequestedClose({
-                restingInputValue: '',
-                isClearable: true,
-              }),
-            ),
-          ],
-        }),
-        ...FruitCombobox.on({
-          Selected: (model, { value }) => ({
-            model: modifyFields(model, {
-              maybeSelectedFruit: () => Option.some(value),
-            }),
-          }),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.combobox.view({
-              items: ['Apple', 'Pear'],
-              restingInputValue: '',
-              itemToConfig: () => ({ content: null }),
-              itemToValue: item => item,
-              itemToDisplayText: item => item,
-              maybeSelectedValue: model.maybeSelectedFruit,
-              formName: 'fruit',
-            }),
-          ],
-        ),
-    }
+const FruitComboboxTestLive = FruitComboboxTest.toLayer(() => ({
+  init: () => ({
+    combobox: new FruitCombobox('combobox', { id: 'fruit' }),
+    maybeSelectedFruit: Option.none(),
   }),
-).pipe(Layer.provide(FruitCombobox.Live))
+  update: {
+    RequestedSelectFruitAndClose: (model, { item }) => ({
+      model,
+      messages: [
+        model.combobox.send(
+          FruitCombobox.Message.RequestedSelectItem({
+            item,
+            displayText: item,
+          }),
+        ),
+        model.combobox.send(
+          FruitCombobox.Message.RequestedClose({
+            restingInputValue: '',
+            isClearable: true,
+          }),
+        ),
+      ],
+    }),
+    ...FruitCombobox.on({
+      Selected: (model, { value }) => ({
+        model: modifyFields(model, {
+          maybeSelectedFruit: () => Option.some(value),
+        }),
+      }),
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.combobox.view({
+          items: ['Apple', 'Pear'],
+          restingInputValue: '',
+          itemToConfig: () => ({ content: null }),
+          itemToValue: item => item,
+          itemToDisplayText: item => item,
+          maybeSelectedValue: model.maybeSelectedFruit,
+          formName: 'fruit',
+        }),
+      ],
+    ),
+})).pipe(Layer.provide(FruitCombobox.Live))
 
 const acknowledgeAnchor = Scene.Mount.resolve(Anchor, Message.CompletedAnchor())
 const acknowledgeBackdrop = Scene.Mount.resolve(

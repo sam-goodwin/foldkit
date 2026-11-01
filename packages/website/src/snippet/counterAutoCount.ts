@@ -1,4 +1,4 @@
-import { Duration, Effect, Number, Schema, Stream } from 'effect'
+import { Duration, Number, Schema, Stream } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -21,41 +21,37 @@ const ticks = Stream.tick(Duration.seconds(1)).pipe(
   Stream.as(Message.Ticked()),
 )
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0, isAutoCounting: false }),
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0, isAutoCounting: false }),
 
-      update: {
-        ClickedToggleAutoCount: model => ({
-          model: modifyFields(model, { isAutoCounting: isOn => !isOn }),
-        }),
-        Ticked: model => ({
-          model: modifyFields(model, { count: Number.increment }),
-        }),
-      },
+  update: {
+    ClickedToggleAutoCount: model => ({
+      model: modifyFields(model, { isAutoCounting: isOn => !isOn }),
+    }),
+    Ticked: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+  },
 
-      subscriptions: {
-        gameClockTicks: {
-          dependencies: model => model.isAutoCounting,
-          stream: (isAutoCounting: boolean) =>
-            isAutoCounting ? ticks : Stream.empty,
-        },
-      },
+  subscriptions: {
+    gameClockTicks: {
+      dependencies: model => model.isAutoCounting,
+      stream: (isAutoCounting: boolean) =>
+        isAutoCounting ? ticks : Stream.empty,
+    },
+  },
 
-      view: (model, h) => ({
-        title: `Counter: ${model.count}`,
-        body: h.main(
-          [],
-          [
-            h.p([], [`Count: ${model.count}`]),
-            h.button(
-              [h.OnClick(Application.Message.ClickedToggleAutoCount())],
-              [model.isAutoCounting ? 'Stop' : 'Start'],
-            ),
-          ],
+  view: (model, h) => ({
+    title: `Counter: ${model.count}`,
+    body: h.main(
+      [],
+      [
+        h.p([], [`Count: ${model.count}`]),
+        h.button(
+          [h.OnClick(Application.Message.ClickedToggleAutoCount())],
+          [model.isAutoCounting ? 'Stop' : 'Start'],
         ),
-      }),
-    }
+      ],
+    ),
   }),
-)
+}))

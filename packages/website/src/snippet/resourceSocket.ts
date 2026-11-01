@@ -27,7 +27,7 @@ export class Socket extends Block<Socket, Readonly<{ roomId: string }>>()(
   },
 ) {}
 
-export const SocketLive = Socket.layer(
+export const SocketLive = Socket.toLayer(
   Effect.gen(function* () {
     const connections = yield* RcMap.make({
       lookup: (roomId: string) =>

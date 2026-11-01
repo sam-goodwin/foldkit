@@ -149,7 +149,7 @@ export const isBlockInstanceConstruction = (
   node.type === 'NewExpression' && resolvesToBlockClass(node.callee, references)
 
 /** Recognizes `Block.method(...)` on a local Foldkit Block class, such as
- *  `Counter.layer(...)` or `Counter.on(...)`. */
+ *  `Counter.toLayer(...)` or `Counter.on(...)`. */
 export const isBlockClassMethodCall = (
   node: unknown,
   method: string,
@@ -241,7 +241,7 @@ export const blockConstructorOfLayerCall = (
   call: ESTree.CallExpression,
   references: WeakMap<ESTree.Node, Reference> | undefined,
 ): Option.Option<FunctionNode> =>
-  isBlockClassMethodCall(call, 'layer', references)
+  isBlockClassMethodCall(call, 'toLayer', references)
     ? Option.flatMap(Array.head(call.arguments), argument =>
         effectFunctionBody(argument, references),
       )
@@ -257,7 +257,7 @@ const enclosingLayerCall = (
   }
 
   if (isCallExpression(parent) && parent.arguments.includes(node as never)) {
-    if (isBlockClassMethodCall(parent, 'layer', references)) {
+    if (isBlockClassMethodCall(parent, 'toLayer', references)) {
       return Option.exists(
         Array.head(parent.arguments),
         first => first === node,

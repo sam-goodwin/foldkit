@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
@@ -23,21 +23,17 @@ export class SelectPage extends Block<SelectPage>()('SelectPage', {
   Message,
 }) {}
 
-export const SelectPageLive = SelectPage.layer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ selectDemoValue: 'us' }),
+export const SelectPageLive = SelectPage.toLayer(() => ({
+  init: () => ({ selectDemoValue: 'us' }),
 
-      update: {
-        UpdatedSelectDemoValue: (model, { value }) => ({
-          model: modifyFields(model, { selectDemoValue: () => value }),
-        }),
-      },
+  update: {
+    UpdatedSelectDemoValue: (model, { value }) => ({
+      model: modifyFields(model, { selectDemoValue: () => value }),
+    }),
+  },
 
-      view,
-    }
-  }),
-)
+  view,
+}))
 
 const selectClassName =
   'appearance-none inline-flex items-center gap-2 w-full px-4 py-2 text-base font-normal cursor-pointer transition rounded-lg border border-gray-300 bg-white text-gray-900 hover:bg-gray-100 select-none focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50'

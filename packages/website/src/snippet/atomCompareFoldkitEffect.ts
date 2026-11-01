@@ -37,7 +37,7 @@ export class Todo extends Block<Todo>()('Todo', {
   Command: [CreateTodo],
 }) {}
 
-export const TodoLive = Todo.layer(
+export const TodoLive = Todo.toLayer(
   Effect.gen(function* () {
     const api = yield* Api
 

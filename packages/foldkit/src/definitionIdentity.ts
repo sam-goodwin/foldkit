@@ -65,3 +65,10 @@ export type ValidateConstructionRequirements<Requirements> = [
   : Readonly<{
       'Foldkit operation handlers are unavailable during handler construction': HandlerCapability<Requirements>
     }>
+
+/** @internal The execution requirements a handler Layer exposes. A
+ *  constructor that fails instead of returning a handler leaves them
+ *  uninferred as `unknown`, and such a handler requires nothing. */
+export type HandlerRequirements<Requirements> = unknown extends Requirements
+  ? never
+  : Requirements

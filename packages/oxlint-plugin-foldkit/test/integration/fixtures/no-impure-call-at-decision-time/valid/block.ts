@@ -24,7 +24,7 @@ export class Editor extends Block<Editor>()('Editor', {
   Mount: [Measure],
 }) {}
 
-export const EditorLive = Editor.layer(
+export const EditorLive = Editor.toLayer(
   Effect.gen(function* () {
     return {
       init: () => ({ isRunning: true, lastSavedAt: 0 }),

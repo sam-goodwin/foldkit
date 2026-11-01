@@ -231,113 +231,109 @@ export class HoverIntent extends Block<HoverIntent, InitConfig, ViewInputs>()(
 ) {}
 
 /** The HoverIntent implementation. Provide it to every parent that creates a HoverIntent instance. */
-export const HoverIntentLive = HoverIntent.layer(
-  Effect.gen(function* () {
-    return {
-      init: makeInitialModel,
+export const HoverIntentLive = HoverIntent.toLayer(() => ({
+  init: makeInitialModel,
 
-      update: {
-        EnteredTrigger: model =>
-          entered(modifyFields(model, { isTriggerHovered: () => true })),
-        LeftTrigger: model =>
-          left(modifyFields(model, { isTriggerHovered: () => false })),
-        EnteredPanel: model =>
-          entered(modifyFields(model, { isPanelHovered: () => true })),
-        LeftPanel: model =>
-          left(modifyFields(model, { isPanelHovered: () => false })),
-        FocusedTrigger: model => focused(model, 'Trigger'),
-        BlurredTrigger: model => blurred(model),
-        FocusedPanel: model => focused(model, 'Panel'),
-        BlurredPanel: model => blurred(model),
-        PressedEscape: (model, { source }) => {
-          const isTriggerFocused =
-            source === 'Trigger' ||
-            Option.exists(
-              model.maybeFocusLocation,
-              focusLocation => focusLocation === 'Trigger',
-            )
-          return dismiss(model, isTriggerFocused)
-        },
-        RequestedClose: model =>
-          dismiss(
-            model,
-            Option.exists(
-              model.maybeFocusLocation,
-              focusLocation => focusLocation === 'Trigger',
-            ),
-          ),
-        CompletedWaitBeforeOpening: (model, { version }) => {
-          if (version !== model.pendingOpenVersion) {
-            return { model }
-          }
-          if (model.isDismissed || !isEngaged(model)) {
-            return { model }
-          }
-          return open(model)
-        },
-        CompletedWaitBeforeClosing: (model, { version }) => {
-          if (version !== model.pendingCloseVersion || isEngaged(model)) {
-            return { model }
-          }
-          return finishClosing(model)
-        },
-      },
+  update: {
+    EnteredTrigger: model =>
+      entered(modifyFields(model, { isTriggerHovered: () => true })),
+    LeftTrigger: model =>
+      left(modifyFields(model, { isTriggerHovered: () => false })),
+    EnteredPanel: model =>
+      entered(modifyFields(model, { isPanelHovered: () => true })),
+    LeftPanel: model =>
+      left(modifyFields(model, { isPanelHovered: () => false })),
+    FocusedTrigger: model => focused(model, 'Trigger'),
+    BlurredTrigger: model => blurred(model),
+    FocusedPanel: model => focused(model, 'Panel'),
+    BlurredPanel: model => blurred(model),
+    PressedEscape: (model, { source }) => {
+      const isTriggerFocused =
+        source === 'Trigger' ||
+        Option.exists(
+          model.maybeFocusLocation,
+          focusLocation => focusLocation === 'Trigger',
+        )
+      return dismiss(model, isTriggerFocused)
+    },
+    RequestedClose: model =>
+      dismiss(
+        model,
+        Option.exists(
+          model.maybeFocusLocation,
+          focusLocation => focusLocation === 'Trigger',
+        ),
+      ),
+    CompletedWaitBeforeOpening: (model, { version }) => {
+      if (version !== model.pendingOpenVersion) {
+        return { model }
+      }
+      if (model.isDismissed || !isEngaged(model)) {
+        return { model }
+      }
+      return open(model)
+    },
+    CompletedWaitBeforeClosing: (model, { version }) => {
+      if (version !== model.pendingCloseVersion || isEngaged(model)) {
+        return { model }
+      }
+      return finishClosing(model)
+    },
+  },
 
-      commands: {
-        WaitBeforeOpening: ({ delay, version }) =>
-          Effect.sleep(delay).pipe(
-            Effect.as(Message.CompletedWaitBeforeOpening({ version })),
-          ),
-        WaitBeforeClosing: ({ delay, version }) =>
-          Effect.sleep(delay).pipe(
-            Effect.as(Message.CompletedWaitBeforeClosing({ version })),
-          ),
-      },
+  commands: {
+    WaitBeforeOpening: ({ delay, version }) =>
+      Effect.sleep(delay).pipe(
+        Effect.as(Message.CompletedWaitBeforeOpening({ version })),
+      ),
+    WaitBeforeClosing: ({ delay, version }) =>
+      Effect.sleep(delay).pipe(
+        Effect.as(Message.CompletedWaitBeforeClosing({ version })),
+      ),
+  },
 
-      view: (model, h, { focusTriggerSelector, toView }) => {
-        const toPressedEscape =
-          (source: 'Trigger' | 'Panel') =>
-          (key: string): Option.Option<typeof Message.PressedEscape.Type> =>
+  view: (model, h, { focusTriggerSelector, toView }) => {
+    const toPressedEscape =
+      (source: 'Trigger' | 'Panel') =>
+      (key: string): Option.Option<typeof Message.PressedEscape.Type> =>
+        Match.value(key).pipe(
+          Match.when('Escape', () =>
+            Option.some(Message.PressedEscape({ source })),
+          ),
+          Match.orElse(() => Option.none()),
+        )
+
+    const panelEscapeHandler =
+      focusTriggerSelector === undefined
+        ? h.OnKeyDownPreventDefault(toPressedEscape('Panel'))
+        : h.OnKeyDownFocus(key =>
             Match.value(key).pipe(
               Match.when('Escape', () =>
-                Option.some(Message.PressedEscape({ source })),
+                Option.some({
+                  focusSelector: focusTriggerSelector,
+                  message: Message.PressedEscape({ source: 'Panel' }),
+                }),
               ),
               Match.orElse(() => Option.none()),
-            )
+            ),
+          )
 
-        const panelEscapeHandler =
-          focusTriggerSelector === undefined
-            ? h.OnKeyDownPreventDefault(toPressedEscape('Panel'))
-            : h.OnKeyDownFocus(key =>
-                Match.value(key).pipe(
-                  Match.when('Escape', () =>
-                    Option.some({
-                      focusSelector: focusTriggerSelector,
-                      message: Message.PressedEscape({ source: 'Panel' }),
-                    }),
-                  ),
-                  Match.orElse(() => Option.none()),
-                ),
-              )
-
-        return toView({
-          trigger: childAttributes([
-            h.OnMouseEnter(Message.EnteredTrigger()),
-            h.OnMouseLeave(Message.LeftTrigger()),
-            h.OnFocus(Message.FocusedTrigger()),
-            h.OnBlur(Message.BlurredTrigger()),
-            h.OnKeyDownPreventDefault(toPressedEscape('Trigger')),
-          ]),
-          panel: childAttributes([
-            h.OnMouseEnter(Message.EnteredPanel()),
-            h.OnMouseLeave(Message.LeftPanel()),
-            h.OnFocusEnter(Message.FocusedPanel()),
-            h.OnFocusLeave(Message.BlurredPanel()),
-            panelEscapeHandler,
-          ]),
-          isVisible: model.isOpen,
-        })
-      },
-    }
-  }),
-)
+    return toView({
+      trigger: childAttributes([
+        h.OnMouseEnter(Message.EnteredTrigger()),
+        h.OnMouseLeave(Message.LeftTrigger()),
+        h.OnFocus(Message.FocusedTrigger()),
+        h.OnBlur(Message.BlurredTrigger()),
+        h.OnKeyDownPreventDefault(toPressedEscape('Trigger')),
+      ]),
+      panel: childAttributes([
+        h.OnMouseEnter(Message.EnteredPanel()),
+        h.OnMouseLeave(Message.LeftPanel()),
+        h.OnFocusEnter(Message.FocusedPanel()),
+        h.OnFocusLeave(Message.BlurredPanel()),
+        panelEscapeHandler,
+      ]),
+      isVisible: model.isOpen,
+    })
+  },
+}))

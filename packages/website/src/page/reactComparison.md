@@ -66,7 +66,7 @@ The Foldkit root is a Block class, its implementation Layer, and a Program that 
 
 ::Snippet{name="comparisonFoldkitProgram" label="Foldkit program"}
 
-The `Application` class declares the Model, Message, and Command contracts. `Application.layer` takes an Effect that runs once, yields the services the Block uses, and returns its module: an `init` that builds the starting Model from the decoded `{ flags }`, one update handler per Message, one handler per Command, and the view. `init` creates each child UI Block as plain data with `new`, such as `new Dialog.Dialog('errorDialog', { id: 'error-dialog' })`. `Program.make` receives the class, a Layer that provides the root Block, its child UI Blocks, and ordinary services, the Flags Schema, and the container. The Runtime dispatches Messages, runs Commands, and starts the Subscriptions.
+The `Application` class declares the Model, Message, and Command contracts. `Application.toLayer` takes an Effect that runs once, yields the services the Block uses, and returns its module: an `init` that builds the starting Model from the decoded `{ flags }`, one update handler per Message, one handler per Command, and the view. `init` creates each child UI Block as plain data with `new`, such as `new Dialog.Dialog('errorDialog', { id: 'error-dialog' })`. `Program.make` receives the class, a Layer that provides the root Block, its child UI Blocks, and ordinary services, the Flags Schema, and the container. The Runtime dispatches Messages, runs Commands, and starts the Subscriptions.
 
 The Foldkit view still passes Model data to smaller view functions as parameters. Those functions do not own Hook state or lifecycle, so the program wiring stays separate from the view tree.
 

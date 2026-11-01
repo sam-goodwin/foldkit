@@ -14,7 +14,7 @@ export class Application extends Block<Application>()('Application', {
   Model: Schema.Struct({ greeting: Schema.String }),
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const greeting = yield* Greeting
 

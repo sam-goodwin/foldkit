@@ -120,7 +120,7 @@ export class Application extends Block<
   ],
 }) {}
 
-export const ApplicationLive = Application.layer(
+export const ApplicationLive = Application.toLayer(
   Effect.gen(function* () {
     const store = yield* KeyValueStore.KeyValueStore
 

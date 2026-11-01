@@ -1,4 +1,4 @@
-import { Array, Effect, Schema } from 'effect'
+import { Array, Schema } from 'effect'
 import { Block } from 'foldkit'
 
 import { Counter } from './blockCounterChild'
@@ -13,23 +13,19 @@ export class Scoreboard extends Block<
   Model: Schema.Struct({ scores: Schema.Array(Counter) }),
 }) {}
 
-export const ScoreboardLive = Scoreboard.layer(
-  Effect.gen(function* () {
-    return {
-      init: ({ players }) => ({
-        scores: Array.map(
-          players,
-          player => new Counter(player.id, { max: player.maxScore }),
-        ),
-      }),
-
-      view: (model, h) =>
-        h.ul(
-          [],
-          Array.map(model.scores, counter =>
-            h.keyed('li')(counter.id, [], [counter.view()]),
-          ),
-        ),
-    }
+export const ScoreboardLive = Scoreboard.toLayer(() => ({
+  init: ({ players }) => ({
+    scores: Array.map(
+      players,
+      player => new Counter(player.id, { max: player.maxScore }),
+    ),
   }),
-)
+
+  view: (model, h) =>
+    h.ul(
+      [],
+      Array.map(model.scores, counter =>
+        h.keyed('li')(counter.id, [], [counter.view()]),
+      ),
+    ),
+}))

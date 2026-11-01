@@ -586,7 +586,7 @@ Notes:
 - Only import what you use in the file. The lint pass catches unused imports.
 - `Block`, `Program`, `Runtime`, `Command`, and `Mount` come from `foldkit`. Type-only Block names (`Send`, `UpdateRecord`, `Instance`) come from `foldkit/block`.
 - Test steps come from `foldkit/story` or `foldkit/scene`, and `describe`, `expect`, `it` from `@effect/vitest`.
-- For time, randomness, or delays, use Effect's built-ins (`Clock`, `Random`, `Effect.sleep(Duration.millis(...))`). For UUIDs, use the `Crypto.Crypto` Service's `randomUUIDv4` and provide `BrowserCrypto.layer` from `@effect/platform-browser` in `ApplicationLayer`.
+- For time, randomness, or delays, use Effect's built-ins (`Clock`, `Random`, `Effect.sleep(Duration.millis(...))`). For UUIDs, use the `Crypto.Crypto` Service's `randomUUIDv4` and provide `BrowserCrypto.toLayer` from `@effect/platform-browser` in `ApplicationLayer`.
 - Import Effect modules by their PascalCase names. When an Effect module name collides with a JavaScript or TypeScript global, qualify the global through `globalThis`, such as `globalThis.String`. When an existing local binding must keep the module name, give the Effect import an `Effect` prefix, such as `Order as EffectOrder`.
 - **UI components live in a separate package.** Import them by name from `@foldkit/ui`. There is no `Ui` export on the `foldkit` package.
 - **`empty` and `keyed` are properties on `h`**, the builder every view receives. They never belong in the `foldkit/html` import list.

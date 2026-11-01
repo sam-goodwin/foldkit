@@ -77,7 +77,7 @@ export class IssueMove extends Block<IssueMove>()('IssueMove', {
   Command: [MoveIssue],
 }) {}
 
-export const IssueMoveLive = IssueMove.layer(
+export const IssueMoveLive = IssueMove.toLayer(
   Effect.gen(function* () {
     const repository = yield* WorkspaceRepository
 

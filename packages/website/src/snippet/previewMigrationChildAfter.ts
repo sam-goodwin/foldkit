@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
@@ -15,42 +15,38 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.layer(
-  Effect.gen(function* () {
-    return {
-      // The instance is plain data. Foldkit starts it when it appears here.
-      init: () => ({
-        settings: new Settings('settings'),
-        previewTheme: 'System',
-      }),
-
-      update: {
-        // The parent changes the child by sending it a Message.
-        ClickedResetSettings: model => ({
-          model,
-          messages: [model.settings.send(Settings.Message.RequestedReset())],
-        }),
-        // The parent learns about the child through its OutMessages.
-        ...Settings.on({
-          ChangedTheme: (model, { theme }) => ({
-            model: modifyFields(model, { previewTheme: () => theme }),
-          }),
-        }),
-      },
-
-      view: (model, h) => ({
-        title: `Theme: ${model.previewTheme}`,
-        body: h.main(
-          [],
-          [
-            model.settings.view(),
-            h.button(
-              [h.OnClick(Message.ClickedResetSettings())],
-              ['Reset settings'],
-            ),
-          ],
-        ),
-      }),
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  // The instance is plain data. Foldkit starts it when it appears here.
+  init: () => ({
+    settings: new Settings('settings'),
+    previewTheme: 'System',
   }),
-).pipe(Layer.provide(SettingsLive))
+
+  update: {
+    // The parent changes the child by sending it a Message.
+    ClickedResetSettings: model => ({
+      model,
+      messages: [model.settings.send(Settings.Message.RequestedReset())],
+    }),
+    // The parent learns about the child through its OutMessages.
+    ...Settings.on({
+      ChangedTheme: (model, { theme }) => ({
+        model: modifyFields(model, { previewTheme: () => theme }),
+      }),
+    }),
+  },
+
+  view: (model, h) => ({
+    title: `Theme: ${model.previewTheme}`,
+    body: h.main(
+      [],
+      [
+        model.settings.view(),
+        h.button(
+          [h.OnClick(Message.ClickedResetSettings())],
+          ['Reset settings'],
+        ),
+      ],
+    ),
+  }),
+})).pipe(Layer.provide(SettingsLive))

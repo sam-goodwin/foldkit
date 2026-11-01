@@ -20,7 +20,7 @@ export class Banner extends Block<Banner>()('Banner', {
   Mount: [TrackVisit, MeasureWidth],
 }) {}
 
-export const BannerLive = Banner.layer(
+export const BannerLive = Banner.toLayer(
   Effect.gen(function* () {
     return {
       update: {
