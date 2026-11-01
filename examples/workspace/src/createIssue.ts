@@ -5,7 +5,14 @@ import { defineMessageUnion } from 'foldkit/message'
 import { defineTaggedUnion } from 'foldkit/schema'
 import { modifyFields } from 'foldkit/struct'
 
-import { Button, Dialog, Fieldset, Input, Textarea } from '@foldkit/ui'
+import {
+  Animation,
+  Button,
+  Dialog,
+  Fieldset,
+  Input,
+  Textarea,
+} from '@foldkit/ui'
 import type { RenderInfo } from '@foldkit/ui/dialog'
 import { buttonId } from '@foldkit/ui/listbox'
 
@@ -274,11 +281,12 @@ export const CreateIssueLive = CreateIssue.toLayer(
   Layer.provide(
     Layer.mergeAll(
       Dialog.DialogLive,
-      WorkspaceListbox.Live,
-      StatusListbox.Live,
-      PriorityListbox.Live,
+      WorkspaceListbox,
+      StatusListbox,
+      PriorityListbox,
     ),
   ),
+  Layer.provide(Animation.AnimationLive),
 )
 
 type DraftState = Readonly<{ createState: CreateState }>

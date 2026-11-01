@@ -16,7 +16,7 @@ const STATS_REFETCH_INTERVAL = Duration.seconds(5)
 const Tab = Schema.Literals(['Posts', 'Stats'])
 type Tab = typeof Tab.Type
 
-export const AppTabs = Tabs.makeBlock<Tab>()
+export const AppTabs = Tabs.make<Tab>()
 
 const Model = Schema.Struct({
   tabs: AppTabs,
@@ -85,9 +85,7 @@ export const ApplicationLive = Application.toLayer(() => ({
       ],
     ),
   }),
-})).pipe(
-  Layer.provide(Layer.mergeAll(AppTabs.Live, PostsTabLive, StatsTabLive)),
-)
+})).pipe(Layer.provide(Layer.mergeAll(AppTabs, PostsTabLive, StatsTabLive)))
 
 type ApplicationViewBuilder = HtmlBuilder<Message>
 

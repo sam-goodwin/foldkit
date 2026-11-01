@@ -48,8 +48,9 @@ export interface Combobox<
   ViewInputs<Item>
 > {}
 
-/** A multi-select Combobox class refined to one Item Schema, with its Layer
- *  as `Live`. */
+/** A multi-select Combobox class refined to one Item Schema, declared with
+ *  its implementation. The class is its own Layer and requires
+ *  `AnimationLive`. */
 export type ComboboxClass<
   Item extends string = string,
   ItemEncoded = Item,
@@ -60,7 +61,7 @@ export type ComboboxClass<
   ViewInputs<Item>,
   Contract<Item, ItemEncoded>
 > &
-  Readonly<{ Live: Layer.Layer<Combobox<Item, ItemEncoded>> }>
+  Layer.Layer<Combobox<Item, ItemEncoded>, never, Animation.Animation>
 
 const makeComboboxClass = <Item extends string, ItemEncoded>(
   Item: ItemSchema<Item, ItemEncoded>,
@@ -72,40 +73,37 @@ const makeComboboxClass = <Item extends string, ItemEncoded>(
     contract.Message,
   )
 
-  const ComboboxClass = Block<
-    Combobox<Item, ItemEncoded>,
-    InitConfig,
-    ViewInputs<Item>
-  >()('Combobox', contract)
-
-  const ComboboxLive = ComboboxClass.toLayer(() => ({
-    init: baseInit,
-    update: makeUpdate<Item>('KeepOpen', {
-      handleClose: model => ({
-        model: modifyFields(closedBaseModel(model), {
-          inputValue: () => '',
+  return Block<Combobox<Item, ItemEncoded>, InitConfig, ViewInputs<Item>>()(
+    'Combobox',
+    contract,
+    () => ({
+      init: baseInit,
+      update: makeUpdate<Item>('KeepOpen', {
+        handleClose: model => ({
+          model: modifyFields(closedBaseModel(model), {
+            inputValue: () => '',
+          }),
+        }),
+        handleSelectedItem: (model, item) => ({
+          model,
+          outMessage: OutMessage.Selected({ value: item }),
+        }),
+        handleImmediateActivation: (model, item) => ({
+          model,
+          outMessage: OutMessage.Selected({ value: item }),
         }),
       }),
-      handleSelectedItem: (model, item) => ({
-        model,
-        outMessage: OutMessage.Selected({ value: item }),
-      }),
-      handleImmediateActivation: (model, item) => ({
-        model,
-        outMessage: OutMessage.Selected({ value: item }),
-      }),
+      commands: commandHandlers,
+      mounts: mountHandlers,
+      view: (model, h, viewInputs) => render(model, viewInputs, h),
     }),
-    commands: commandHandlers,
-    mounts: mountHandlers,
-    view: (model, h, viewInputs) => render(model, viewInputs, h),
-  })).pipe(Layer.provide(Animation.AnimationLive))
-
-  return Object.assign(ComboboxClass, { Live: ComboboxLive })
+  )
 }
 
 /**
- * Creates a multi-select Combobox class with its Layer attached as `Live`.
+ * Creates a multi-select Combobox class declared with its implementation.
  * Pass an Item Schema to retain its exact Message and OutMessage payloads.
+ * Provide the class itself, with `AnimationLive`, to the parent's Layer.
  * Selection leaves the Combobox open and reports `Selected({ value })` for
  * the parent to handle by toggling membership. Closing never reports
  * `ClearedSelection` because its input rests empty by design. Send
@@ -113,10 +111,10 @@ const makeComboboxClass = <Item extends string, ItemEncoded>(
  * and `RequestedSelectItem({ item, displayText })` to drive it from the
  * parent.
  */
-export function makeBlock(): ComboboxClass<string>
-export function makeBlock<Item extends string, ItemEncoded>(
+export function make(): ComboboxClass<string>
+export function make<Item extends string, ItemEncoded>(
   Item: ItemSchema<Item, ItemEncoded>,
 ): ComboboxClass<Item, ItemEncoded>
-export function makeBlock(Item: ItemSchema<string, unknown> = Schema.String) {
+export function make(Item: ItemSchema<string, unknown> = Schema.String) {
   return makeComboboxClass(Item)
 }

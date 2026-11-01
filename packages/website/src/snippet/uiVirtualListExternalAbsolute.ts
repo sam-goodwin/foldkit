@@ -11,7 +11,7 @@ const Activity = Schema.Struct({
 })
 type Activity = typeof Activity.Type
 
-const ActivityList = VirtualList.makeBlock<Activity>()
+const ActivityList = VirtualList.make<Activity>()
 
 const Message = defineMessageUnion({ ClickedJumpToLatestActivity: {} })
 
@@ -70,4 +70,4 @@ export const ActivityFeedLive = ActivityFeed.toLayer(() => ({
         }),
       ],
     ),
-})).pipe(Layer.provide(ActivityList.Live))
+})).pipe(Layer.provide(ActivityList))

@@ -71,8 +71,9 @@ export interface Listbox<
   ViewInputs<Item, Value>
 > {}
 
-/** A single-select Listbox class refined to one Item and Value pair, with
- *  its Layer as `Live`. */
+/** A single-select Listbox class refined to one Item and Value pair, declared
+ *  with its implementation. The class is its own Layer and requires
+ *  `AnimationLive`. */
 export type ListboxClass<
   Item = string,
   Value extends string = Item extends string ? Item : string,
@@ -83,44 +84,42 @@ export type ListboxClass<
   ViewInputs<Item, Value>,
   Contract<Value>
 > &
-  Readonly<{ Live: Layer.Layer<Listbox<Item, Value>> }>
+  Layer.Layer<Listbox<Item, Value>, never, Animation.Animation>
 
 /**
  * Creates a single-select Listbox class refined to one Item and Value pair,
- * with its Layer attached as `Live`. `Value` defaults to `Item` for string
+ * declared with its implementation. `Value` defaults to `Item` for string
  * items and to `string` for object items. Declare
- * `const ResultListbox = Listbox.makeBlock<Result>()` once at module scope,
- * create instances with `new ResultListbox('listbox', { id })` in a parent's
- * Model, and provide `ResultListbox.Live` to the parent's Layer.
- * Selection closes the Listbox and reports `Selected({ value })` for the
- * parent to store. Send `RequestedOpen`, `RequestedClose`, and
- * `RequestedSelectItem({ item })` to drive it from the parent.
+ * `const ResultListbox = Listbox.make<Result>()` once at module scope, create
+ * instances with `new ResultListbox('listbox', { id })` in a parent's Model,
+ * and provide the class itself, with `AnimationLive` for its open and close
+ * transitions, to the parent's Layer. Selection closes the Listbox and
+ * reports `Selected({ value })` for the parent to store. Send
+ * `RequestedOpen`, `RequestedClose`, and `RequestedSelectItem({ item })` to
+ * drive it from the parent.
  */
-export const makeBlock = <
+export const make = <
   Item = string,
   Value extends string = Item extends string ? Item : string,
 >(): ListboxClass<Item, Value> => {
-  const ListboxClass = Block<
-    Listbox<Item, Value>,
-    InitConfig,
-    ViewInputs<Item, Value>
-  >()('Listbox', makeContract<Value>())
   const arrayBasedView = internalView<unknown, Value>()
 
-  const ListboxLive = ListboxClass.toLayer(() => ({
-    init: baseInit,
-    update: makeUpdate<Value>('CloseWithFocus', (model, item) => ({
-      model,
-      outMessage: selected<Value>(item),
-    })),
-    commands: commandHandlers,
-    mounts: mountHandlers,
-    view: (model, h, viewInputs) => {
-      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-      const erased = viewInputs as ViewInputs<unknown, Value>
-      return arrayBasedView(model, toBaseViewInputs(erased), h)
-    },
-  })).pipe(Layer.provide(Animation.AnimationLive))
-
-  return Object.assign(ListboxClass, { Live: ListboxLive })
+  return Block<Listbox<Item, Value>, InitConfig, ViewInputs<Item, Value>>()(
+    'Listbox',
+    makeContract<Value>(),
+    () => ({
+      init: baseInit,
+      update: makeUpdate<Value>('CloseWithFocus', (model, item) => ({
+        model,
+        outMessage: selected<Value>(item),
+      })),
+      commands: commandHandlers,
+      mounts: mountHandlers,
+      view: (model, h, viewInputs) => {
+        /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+        const erased = viewInputs as ViewInputs<unknown, Value>
+        return arrayBasedView(model, toBaseViewInputs(erased), h)
+      },
+    }),
+  )
 }

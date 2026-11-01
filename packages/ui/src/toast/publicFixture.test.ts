@@ -6,6 +6,7 @@ import { expect } from 'vitest'
 
 import { describe, it } from '@effect/vitest'
 
+import * as Animation from '../animation/block.js'
 import * as Toast from './index.js'
 
 const FirstPayload = Schema.Struct({ body: Schema.String })
@@ -13,8 +14,10 @@ type FirstPayload = typeof FirstPayload.Type
 const SecondPayload = Schema.Struct({ count: Schema.Number })
 type SecondPayload = typeof SecondPayload.Type
 
-const FirstToast = Toast.makeBlock(FirstPayload)
-const SecondToast = Toast.makeBlock(SecondPayload)
+const FirstToast = Toast.make(FirstPayload)
+const FirstToastLive = FirstToast.pipe(Layer.provide(Animation.AnimationLive))
+const SecondToast = Toast.make(SecondPayload)
+const SecondToastLive = SecondToast.pipe(Layer.provide(Animation.AnimationLive))
 
 class ToastFixtureParent extends Block<ToastFixtureParent>()(
   'ToastFixtureParent',
@@ -59,7 +62,7 @@ const ToastFixtureParentLive = ToastFixtureParent.toLayer(() => ({
       ],
     }),
   },
-})).pipe(Layer.provide(Layer.mergeAll(FirstToast.Live, SecondToast.Live)))
+})).pipe(Layer.provide(Layer.mergeAll(FirstToastLive, SecondToastLive)))
 
 class KeyedToastFixtureParent extends Block<KeyedToastFixtureParent>()(
   'KeyedToastFixtureParent',
@@ -85,7 +88,7 @@ const KeyedToastFixtureParentLive = KeyedToastFixtureParent.toLayer(() => ({
     }),
     RemovedSlots: () => ({ model: { slots: [] } }),
   },
-})).pipe(Layer.provide(FirstToast.Live))
+})).pipe(Layer.provide(FirstToastLive))
 
 const failureOf = <A, E>(exit: Exit.Exit<A, E>): string =>
   Exit.isFailure(exit) ? Cause.pretty(exit.cause) : ''

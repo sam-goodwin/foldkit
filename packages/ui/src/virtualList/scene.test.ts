@@ -17,7 +17,7 @@ import {
   ScrollTarget,
   type ViewInputs,
   initialModel,
-  makeBlock,
+  make,
   update as updateHandlers,
 } from './virtualList.js'
 
@@ -39,7 +39,7 @@ const update = (
   return handler(model, message)
 }
 
-const DemoList = makeBlock<DemoItem>()
+const DemoList = make<DemoItem>()
 
 type HostArgs = Readonly<{
   config: InitConfig
@@ -54,7 +54,7 @@ const makeHostLive = ({ config, toViewInputs }: HostArgs) =>
   Host.toLayer(() => ({
     init: () => ({ list: new DemoList('list', config) }),
     view: (model, h) => model.list.view(toViewInputs(h)),
-  })).pipe(Layer.provide(DemoList.Live))
+  })).pipe(Layer.provide(DemoList))
 
 const demoItems: ReadonlyArray<DemoItem> = [
   { id: 0, label: 'Item 0' },

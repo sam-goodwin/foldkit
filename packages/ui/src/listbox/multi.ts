@@ -52,8 +52,9 @@ export interface Listbox<
   ViewInputs<Item, Value>
 > {}
 
-/** A multi-select Listbox class refined to one Item and Value pair, with its
- *  Layer as `Live`. */
+/** A multi-select Listbox class refined to one Item and Value pair, declared
+ *  with its implementation. The class is its own Layer and requires
+ *  `AnimationLive`. */
 export type ListboxClass<
   Item = string,
   Value extends string = Item extends string ? Item : string,
@@ -64,43 +65,41 @@ export type ListboxClass<
   ViewInputs<Item, Value>,
   Contract<Value>
 > &
-  Readonly<{ Live: Layer.Layer<Listbox<Item, Value>> }>
+  Layer.Layer<Listbox<Item, Value>, never, Animation.Animation>
 
 /**
  * Creates a multi-select Listbox class refined to one Item and Value pair,
- * with its Layer attached as `Live`. `Value` defaults to `Item` for string
- * items and to `string` for object items. Selection leaves the Listbox open
+ * declared with its implementation. `Value` defaults to `Item` for string
+ * items and to `string` for object items. Provide the class itself, with
+ * `AnimationLive`, to the parent's Layer. Selection leaves the Listbox open
  * and reports `Selected({ value })` for the parent to handle by toggling
  * membership. Send `RequestedOpen`, `RequestedClose`, and
  * `RequestedSelectItem({ item })` to drive it from the parent.
  */
-export const makeBlock = <
+export const make = <
   Item = string,
   Value extends string = Item extends string ? Item : string,
 >(): ListboxClass<Item, Value> => {
-  const ListboxClass = Block<
-    Listbox<Item, Value>,
-    InitConfig,
-    ViewInputs<Item, Value>
-  >()('Listbox', makeContract<Value>())
   const arrayBasedView = internalView<unknown, Value>()
 
-  const ListboxLive = ListboxClass.toLayer(() => ({
-    init: baseInit,
-    update: makeUpdate<Value>('KeepOpen', (model, item) => ({
-      model,
-      outMessage: selected<Value>(item),
-    })),
-    commands: commandHandlers,
-    mounts: mountHandlers,
-    view: (model, h, viewInputs) =>
-      arrayBasedView(
+  return Block<Listbox<Item, Value>, InitConfig, ViewInputs<Item, Value>>()(
+    'Listbox',
+    makeContract<Value>(),
+    () => ({
+      init: baseInit,
+      update: makeUpdate<Value>('KeepOpen', (model, item) => ({
         model,
-        /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-        viewInputs as ViewInputs<unknown, Value>,
-        h,
-      ),
-  })).pipe(Layer.provide(Animation.AnimationLive))
-
-  return Object.assign(ListboxClass, { Live: ListboxLive })
+        outMessage: selected<Value>(item),
+      })),
+      commands: commandHandlers,
+      mounts: mountHandlers,
+      view: (model, h, viewInputs) =>
+        arrayBasedView(
+          model,
+          /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+          viewInputs as ViewInputs<unknown, Value>,
+          h,
+        ),
+    }),
+  )
 }

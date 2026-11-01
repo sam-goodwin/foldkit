@@ -12,7 +12,7 @@ import { expect, expectTypeOf } from 'vitest'
 import { describe, it } from '@effect/vitest'
 
 import * as Animation from '../animation/block.js'
-import { makeBlock } from './multi.js'
+import { make } from './multi.js'
 import type { Model as ComboboxModel, InitConfig, ViewInputs } from './multi.js'
 import {
   Anchor,
@@ -32,19 +32,25 @@ import {
 
 type Model = BlockTypes.Resolved<ComboboxModel>
 
-const TestCombobox = makeBlock()
+const TestCombobox = make()
+const TestComboboxLive = TestCombobox.pipe(
+  Layer.provide(Animation.AnimationLive),
+)
 const testConfig: InitConfig = { id: 'test' }
 
 const Fruit = Schema.Literals(['Apple', 'Pear'])
 type Fruit = typeof Fruit.Type
 
-const FruitCombobox = makeBlock(Fruit)
+const FruitCombobox = make(Fruit)
+const FruitComboboxLive = FruitCombobox.pipe(
+  Layer.provide(Animation.AnimationLive),
+)
 
 const initialModel = (config: InitConfig): Model => {
   let model!: Model
   Effect.runSync(
     story(
-      TestCombobox.Live,
+      TestComboboxLive,
       config,
       Story.model(constructedModel => {
         model = constructedModel
@@ -69,7 +75,7 @@ const makeComboboxSceneLive = (viewInputs: ViewInputs<string>) =>
       }),
     },
     view: model => model.combobox.view(viewInputs),
-  })).pipe(Layer.provide(TestCombobox.Live))
+  })).pipe(Layer.provide(TestComboboxLive))
 
 const acknowledgeAnchor = Scene.Mount.resolve(Anchor, Message.CompletedAnchor())
 const acknowledgeBackdrop = Scene.Mount.resolve(
@@ -114,7 +120,7 @@ describe('Combobox.Multi', () => {
 
     it.effect('selects and closes through parent-sent Messages', () =>
       story(
-        FruitCombobox.Live,
+        FruitComboboxLive,
         { id: 'fruit-multi' },
         Story.message(
           FruitCombobox.Message.RequestedSelectItem({
@@ -139,7 +145,7 @@ describe('Combobox.Multi', () => {
 
     it.effect('routes Animation Messages for a generic multi Combobox', () =>
       story(
-        FruitCombobox.Live,
+        FruitComboboxLive,
         { id: 'fruit-combobox', isAnimated: true },
         Story.message(
           FruitCombobox.Message.Opened({
@@ -191,7 +197,7 @@ describe('Combobox.Multi', () => {
     describe('SelectedItem (multiple)', () => {
       it.effect('emits Selected with the item value', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenMulti,
           Story.message(
@@ -207,7 +213,7 @@ describe('Combobox.Multi', () => {
 
       it.effect('stays open after selection', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenMulti,
           Story.message(
@@ -227,7 +233,7 @@ describe('Combobox.Multi', () => {
         'emits Selected again when the same item is activated (parent toggles off)',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpenMulti,
             Story.message(
@@ -251,7 +257,7 @@ describe('Combobox.Multi', () => {
 
       it.effect('emits Selected for each activated item', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenMulti,
           Story.message(
@@ -275,7 +281,7 @@ describe('Combobox.Multi', () => {
 
       it.effect('preserves active item after selection', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenMulti,
           Story.message(
@@ -308,7 +314,7 @@ describe('Combobox.Multi', () => {
         'resets input to empty regardless of the resting input value',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             Story.given(
               modifyFields(initialModel({ id: 'test' }), {
@@ -331,7 +337,7 @@ describe('Combobox.Multi', () => {
         'does not emit ClearedSelection when nullable, since the input rests empty',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             Story.given(initialModel({ id: 'test', nullable: true })),
             Story.message(
@@ -354,7 +360,7 @@ describe('Combobox.Multi', () => {
         })
 
         return story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           Story.given(closedModel),
           Story.message(
@@ -375,7 +381,7 @@ describe('Combobox.Multi', () => {
         'emits Selected on each immediate activation (parent toggles)',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             Story.given(initialModel({ id: 'test', immediate: true })),
             Story.message(
@@ -429,7 +435,7 @@ describe('Combobox.Multi', () => {
 
     it.effect('unwinds modal commands when closed', () =>
       story(
-        TestCombobox.Live,
+        TestComboboxLive,
         testConfig,
         givenOpenModal,
         Story.message(
@@ -450,7 +456,7 @@ describe('Combobox.Multi', () => {
       'stays open without unwinding modal commands after selection',
       () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenModal,
           Story.message(
@@ -476,7 +482,7 @@ describe('Combobox.Multi', () => {
       let model!: Model
       Effect.runSync(
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenMulti,
           Story.model(extractedModel => {

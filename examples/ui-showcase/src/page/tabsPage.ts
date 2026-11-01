@@ -9,7 +9,7 @@ import type { RenderInfo } from '@foldkit/ui/tabs'
 const DemoTab = Schema.Literals(['Foldkit', 'React', 'Elm'])
 type DemoTab = typeof DemoTab.Type
 
-const DemoTabs = Tabs.makeBlock<DemoTab>()
+const DemoTabs = Tabs.make<DemoTab>()
 
 const Model = Schema.Struct({
   horizontalTabsDemo: DemoTabs,
@@ -45,7 +45,7 @@ export const TabsPageLive = TabsPage.toLayer(() => ({
   },
 
   view,
-})).pipe(Layer.provide(DemoTabs.Live))
+})).pipe(Layer.provide(DemoTabs))
 
 const demoTabs: ReadonlyArray<DemoTab> = ['Foldkit', 'React', 'Elm']
 

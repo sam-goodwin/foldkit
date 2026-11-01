@@ -3,13 +3,13 @@ import { Block } from 'foldkit'
 import { childAttributes } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
 
-import { Combobox } from '@foldkit/ui'
+import { Animation, Combobox } from '@foldkit/ui'
 import { inputId as MultiComboboxInputId } from '@foldkit/ui/combobox'
 
 const City = Schema.Literals(['Johannesburg', 'Kyiv', 'Oxford', 'Wellington'])
 type City = typeof City.Type
 
-const CitiesCombobox = Combobox.Multi.makeBlock(City)
+const CitiesCombobox = Combobox.Multi.make(City)
 
 const cities: ReadonlyArray<City> = [
   'Johannesburg',
@@ -96,4 +96,4 @@ export const CitiesPickerLive = CitiesPicker.toLayer(() => ({
       ],
     )
   },
-})).pipe(Layer.provide(CitiesCombobox.Live))
+})).pipe(Layer.provide(CitiesCombobox), Layer.provide(Animation.AnimationLive))

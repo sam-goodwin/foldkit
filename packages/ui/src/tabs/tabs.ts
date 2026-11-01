@@ -93,7 +93,7 @@ type OutMessageSchema<Value extends string = string> =
     : never
 
 /** Generic over `Value extends string` so consumers using
- *  `Tabs.makeBlock<MyUnion>()` receive `value: MyUnion` in the
+ *  `Tabs.make<MyUnion>()` receive `value: MyUnion` in the
  *  `Selected` OutMessage. Defaults to `string`. */
 export type OutMessage<Value extends string = string> = Selected<Value>
 
@@ -121,7 +121,7 @@ export const FocusTab = Command.define('FocusTab', {
 // VIEW
 
 /** Per-tab render info passed to the consumer's `toView`. Generic over
- *  `Value extends string`: when `Tabs.makeBlock<MyUnion>()` is declared,
+ *  `Value extends string`: when `Tabs.make<MyUnion>()` is declared,
  *  `tab.value` is typed `MyUnion` so the consumer can switch on it without
  *  casting. */
 export type TabInfo<Value extends string = string> = Readonly<{
@@ -157,7 +157,7 @@ export type PanelMount = typeof PanelMount.Type
 
 /** View input a parent passes to `tabs.view(...)`.
  *  Generic over `Value extends string` so consumers using
- *  `Tabs.makeBlock<MyUnion>()` receive `tab.value: MyUnion` in `toView`
+ *  `Tabs.make<MyUnion>()` receive `tab.value: MyUnion` in `toView`
  *  and `(value: MyUnion, index) => boolean` in `isTabDisabled`, without
  *  casting.
  *
@@ -356,7 +356,8 @@ export interface Tabs<
   Value extends string = string,
 > extends BlockTypes.Instance<Contract<Value>, InitConfig, ViewInputs<Value>> {}
 
-/** A Tabs class refined to one Value type, with its Layer as `Live`. */
+/** A Tabs class refined to one Value type, declared with its
+ *  implementation. The class is its own Layer. */
 export type TabsClass<Value extends string = string> = BlockTypes.BlockClass<
   Tabs<Value>,
   'Tabs',
@@ -364,18 +365,16 @@ export type TabsClass<Value extends string = string> = BlockTypes.BlockClass<
   ViewInputs<Value>,
   Contract<Value>
 > &
-  Readonly<{ Live: Layer.Layer<Tabs<Value>> }>
+  Layer.Layer<Tabs<Value>>
 
 /**
- * Creates a Tabs class refined to one Value type, with its Layer attached as
- * `Live`. Declare `Tabs.makeBlock<DemoTab>()` once at module scope, create
- * instances with `new DemoTabs(id, { id })` in a parent's Model, and provide
- * `DemoTabs.Live` to the parent's Layer. Its view input and
+ * Creates a Tabs class refined to one Value type, declared with its
+ * implementation. Declare `const DemoTabs = Tabs.make<DemoTab>()` once at
+ * module scope, create instances with `new DemoTabs(id, { id })` in a parent's Model, and
+ * provide the class itself to the parent's Layer. Its view input and
  * `Selected.value` share the Value type; the parent Model owns the active tab.
  */
-export const makeBlock = <
-  Value extends string = string,
->(): TabsClass<Value> => {
+export const make = <Value extends string = string>(): TabsClass<Value> => {
   const contract: Contract<Value> = {
     Model,
     Message,
@@ -384,46 +383,43 @@ export const makeBlock = <
     Command: [FocusTab],
   }
 
-  const TabsClass = Block<Tabs<Value>, InitConfig, ViewInputs<Value>>()(
-    'Tabs',
-    contract,
-  )
-
   const selected = (value: string, index: number): Selected<Value> =>
     /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
     contract.OutMessage.Selected({ value: value as Value, index })
 
-  const TabsLive = TabsClass.toLayer(() => ({
-    init: config => ({
-      id: config.id,
-      maybeFocusedIndex: Option.none(),
-      activationMode: config.activationMode ?? 'Automatic',
+  return Block<Tabs<Value>, InitConfig, ViewInputs<Value>>()(
+    'Tabs',
+    contract,
+    () => ({
+      init: config => ({
+        id: config.id,
+        maybeFocusedIndex: Option.none(),
+        activationMode: config.activationMode ?? 'Automatic',
+      }),
+      update: {
+        SelectedTab: (model, { index, value }) => ({
+          model: modifyFields(model, {
+            maybeFocusedIndex: () => Option.none(),
+          }),
+          commands: [FocusTab({ id: model.id, index })],
+          outMessage: selected(value, index),
+        }),
+        FocusedTab: (model, { index }) => ({
+          model: modifyFields(model, {
+            maybeFocusedIndex: () => Option.some(index),
+          }),
+          commands: [FocusTab({ id: model.id, index })],
+        }),
+        CompletedFocusTab: model => ({ model }),
+      },
+      commands: {
+        FocusTab: ({ id, index }) =>
+          Dom.focus(idSelector(tabId(id, index))).pipe(
+            Effect.ignore,
+            Effect.as(Message.CompletedFocusTab()),
+          ),
+      },
+      view: (model, h, viewInputs) => renderView(model, viewInputs, h),
     }),
-    update: {
-      SelectedTab: (model, { index, value }) => ({
-        model: modifyFields(model, {
-          maybeFocusedIndex: () => Option.none(),
-        }),
-        commands: [FocusTab({ id: model.id, index })],
-        outMessage: selected(value, index),
-      }),
-      FocusedTab: (model, { index }) => ({
-        model: modifyFields(model, {
-          maybeFocusedIndex: () => Option.some(index),
-        }),
-        commands: [FocusTab({ id: model.id, index })],
-      }),
-      CompletedFocusTab: model => ({ model }),
-    },
-    commands: {
-      FocusTab: ({ id, index }) =>
-        Dom.focus(idSelector(tabId(id, index))).pipe(
-          Effect.ignore,
-          Effect.as(Message.CompletedFocusTab()),
-        ),
-    },
-    view: (model, h, viewInputs) => renderView(model, viewInputs, h),
-  }))
-
-  return Object.assign(TabsClass, { Live: TabsLive })
+  )
 }

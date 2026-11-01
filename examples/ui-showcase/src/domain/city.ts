@@ -21,7 +21,7 @@ export const City = Schema.Literals([
 ])
 export type City = typeof City.Type
 
-export const CityCombobox = Combobox.makeBlock(City)
+export const CityCombobox = Combobox.make(City)
 
 const CITIES: ReadonlyArray<City> = [
   'Johannesburg',

@@ -55,8 +55,9 @@ export interface Combobox<
   ViewInputs<Item>
 > {}
 
-/** A single-select Combobox class refined to one Item Schema, with its Layer
- *  as `Live`. */
+/** A single-select Combobox class refined to one Item Schema, declared with
+ *  its implementation. The class is its own Layer and requires
+ *  `AnimationLive`. */
 export type ComboboxClass<
   Item extends string = string,
   ItemEncoded = Item,
@@ -67,7 +68,7 @@ export type ComboboxClass<
   ViewInputs<Item>,
   Contract<Item, ItemEncoded>
 > &
-  Readonly<{ Live: Layer.Layer<Combobox<Item, ItemEncoded>> }>
+  Layer.Layer<Combobox<Item, ItemEncoded>, never, Animation.Animation>
 
 const makeComboboxClass = <Item extends string, ItemEncoded>(
   Item: ItemSchema<Item, ItemEncoded>,
@@ -79,78 +80,75 @@ const makeComboboxClass = <Item extends string, ItemEncoded>(
     contract.Message,
   )
 
-  const ComboboxClass = Block<
-    Combobox<Item, ItemEncoded>,
-    InitConfig,
-    ViewInputs<Item>
-  >()('Combobox', contract)
+  return Block<Combobox<Item, ItemEncoded>, InitConfig, ViewInputs<Item>>()(
+    'Combobox',
+    contract,
+    () => ({
+      init: baseInit,
+      update: makeUpdate<Item>('CloseWithFocus', {
+        handleClose: (model, restingInputValue, isClearable) => {
+          if (isClearable && model.nullable && model.inputValue === '') {
+            return {
+              model: modifyFields(closedBaseModel(model), {
+                inputValue: () => '',
+              }),
+              outMessage: OutMessage.ClearedSelection(),
+            }
+          }
 
-  const ComboboxLive = ComboboxClass.toLayer(() => ({
-    init: baseInit,
-    update: makeUpdate<Item>('CloseWithFocus', {
-      handleClose: (model, restingInputValue, isClearable) => {
-        if (isClearable && model.nullable && model.inputValue === '') {
           return {
             model: modifyFields(closedBaseModel(model), {
-              inputValue: () => '',
+              inputValue: () => restingInputValue,
             }),
-            outMessage: OutMessage.ClearedSelection(),
           }
-        }
-
-        return {
-          model: modifyFields(closedBaseModel(model), {
-            inputValue: () => restingInputValue,
-          }),
-        }
-      },
-      handleSelectedItem: (model, item, displayText, wasSelected) => {
-        const nullableDeselect = model.nullable && wasSelected
-
-        return {
-          model: modifyFields(closedBaseModel(model), {
-            inputValue: () => (nullableDeselect ? '' : displayText),
-          }),
-          outMessage: OutMessage.Selected({ value: item }),
-        }
-      },
-      handleImmediateActivation: (model, item) => ({
-        model,
-        outMessage: OutMessage.Selected({ value: item }),
-      }),
-    }),
-    commands: commandHandlers,
-    mounts: mountHandlers,
-    view: (model, h, { maybeSelectedValue, ...baseInputs }) =>
-      render(
-        model,
-        {
-          ...baseInputs,
-          selectedValues: Option.toArray(maybeSelectedValue),
         },
-        h,
-      ),
-  })).pipe(Layer.provide(Animation.AnimationLive))
+        handleSelectedItem: (model, item, displayText, wasSelected) => {
+          const nullableDeselect = model.nullable && wasSelected
 
-  return Object.assign(ComboboxClass, { Live: ComboboxLive })
+          return {
+            model: modifyFields(closedBaseModel(model), {
+              inputValue: () => (nullableDeselect ? '' : displayText),
+            }),
+            outMessage: OutMessage.Selected({ value: item }),
+          }
+        },
+        handleImmediateActivation: (model, item) => ({
+          model,
+          outMessage: OutMessage.Selected({ value: item }),
+        }),
+      }),
+      commands: commandHandlers,
+      mounts: mountHandlers,
+      view: (model, h, { maybeSelectedValue, ...baseInputs }) =>
+        render(
+          model,
+          {
+            ...baseInputs,
+            selectedValues: Option.toArray(maybeSelectedValue),
+          },
+          h,
+        ),
+    }),
+  )
 }
 
 /**
- * Creates a single-select Combobox class with its Layer attached as `Live`.
+ * Creates a single-select Combobox class declared with its implementation.
  * Pass an Item Schema to retain its exact Message and OutMessage payloads.
- * Declare it once at module scope, create instances with
- * `new FruitCombobox('combobox', { id })` in a parent's Model, and provide
- * `FruitCombobox.Live` to the parent's Layer. Selection closes the
+ * Declare `const FruitCombobox = Combobox.make(Fruit)` once at module scope,
+ * create instances with `new FruitCombobox('combobox', { id })` in a parent's
+ * Model, and provide the class itself, with `AnimationLive`, to the parent's
+ * Layer. Selection closes the
  * Combobox and reports `Selected({ value })` for the parent to store. A
  * nullable Combobox also reports `ClearedSelection` when it closes with an
  * empty input. Send `RequestedOpen`,
  * `RequestedClose({ restingInputValue, isClearable })`, and
  * `RequestedSelectItem({ item, displayText })` to drive it from the parent.
  */
-export function makeBlock(): ComboboxClass<string>
-export function makeBlock<Item extends string, ItemEncoded>(
+export function make(): ComboboxClass<string>
+export function make<Item extends string, ItemEncoded>(
   Item: ItemSchema<Item, ItemEncoded>,
 ): ComboboxClass<Item, ItemEncoded>
-export function makeBlock(Item: ItemSchema<string, unknown> = Schema.String) {
+export function make(Item: ItemSchema<string, unknown> = Schema.String) {
   return makeComboboxClass(Item)
 }

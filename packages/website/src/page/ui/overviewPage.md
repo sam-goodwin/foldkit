@@ -28,13 +28,13 @@ The Kind column below identifies each component category.
 
 Some components use Commands, Subscriptions, or Mounts for focus, positioning, animation, and other effects. Each component's Layer carries those handlers once for every instance. Foldkit starts an instance's Subscriptions when it appears in the parent Model and stops them when it leaves. The parent's only wiring is to provide the component's Layer to its own Layer.
 
-Each component module exports its class and its Layer: `Dialog.Dialog` and `Dialog.DialogLive`. A generic factory such as `Menu.makeBlock<Item>()` returns a class with its Layer attached as `Live`. A component that holds other components, such as Dialog holding an Animation, provides their Layers inside its own, so you only provide the components you create.
+Each component module exports its class and its Layer: `Dialog.Dialog` and `Dialog.DialogLive`. A component that holds other components, such as Dialog holding an Animation, provides their Layers inside its own. A generic factory such as `Menu.make<Item>()` returns a class declared with its implementation, so the class is its own Layer: provide it with `Layer.provide(ActionMenu)`. Its Layer requires the Layers of the components it holds, so provide `AnimationLive` alongside a Combobox, Listbox, Menu, or Toast class.
 
 The example below creates a Dialog and a Menu in one root Block, provides both Layers, and starts the Program. Supply external services through the root Layer as described in [Layers](/core/layers).
 
 ::Snippet{name="uiEffects" label="Providing Foldkit UI effects"}
 
-Component factories with instance-specific behavior return classes too. Call `Slider.forRoot(getTrackRoot)` or `Toast.makeBlock(PayloadSchema)` once at module scope, create instances of the class it returns, and provide that class's `Live`.
+Component factories with instance-specific behavior return classes too. Call `Slider.make(getTrackRoot)` or `Toast.make(PayloadSchema)` once at module scope, create instances of the class it returns, and provide that class.
 
 ## Components
 

@@ -138,11 +138,11 @@ Before generating, check whether any part of the app maps to a built-in componen
 
 The package has two shapes.
 
-**Stateful components are Block classes with a Live Layer.** An ordinary component exports its class under the component name and its Layer with a `Live` suffix: `Dialog.Dialog` and `Dialog.DialogLive`, `DatePicker.DatePicker` and `DatePicker.DatePickerLive`. A generic component exposes a factory that you call once at module scope; it returns a class with its Layer attached as `.Live`: `const ResultListbox = Listbox.makeBlock<Result>()`, then provide `ResultListbox.Live`. Stateful components include `Menu`, `Listbox`, `Combobox`, `Calendar`, `DatePicker`, `Dialog`, `Popover`, `RadioGroup`, `Tabs`, `Tooltip`, `FileDrop`, `DragAndDrop`, `Slider`, `VirtualList`, and `Toast` (through `Toast.makeBlock(PayloadSchema)`).
+**Stateful components are Block classes with a Live Layer.** An ordinary component exports its class under the component name and its Layer with a `Live` suffix: `Dialog.Dialog` and `Dialog.DialogLive`, `DatePicker.DatePicker` and `DatePicker.DatePickerLive`. A generic component exposes a `make` factory that you call once at module scope; it returns a class declared with its implementation, so the class is its own Layer: `const ResultListbox = Listbox.make<Result>()`, then `Layer.provide(ResultListbox)`. A Combobox, Listbox, Menu, or Toast class holds Animation instances, so also provide `AnimationLive`. Stateful components include `Menu`, `Listbox`, `Combobox`, `Calendar`, `DatePicker`, `Dialog`, `Popover`, `RadioGroup`, `Tabs`, `Tooltip`, `FileDrop`, `DragAndDrop`, `Slider`, `VirtualList`, and `Toast` (through `Toast.make(PayloadSchema)`).
 
 **Stateless render helpers** have no Model. Call `view` directly with a config and your own `h`, and keep the value in your own Model: `Button`, `Input`, `Textarea`, `Select`, `Fieldset`, `Checkbox`, `Switch`, `Disclosure`, `Nav`.
 
-Components have moved across that split before, so read the component's `public.d.ts`. A namespace exporting a class (or a `makeBlock` factory) is stateful. A namespace exporting only `view` and a config type is a render helper.
+Components have moved across that split before, so read the component's `public.d.ts`. A namespace exporting a class (or a `make` factory) is stateful. A namespace exporting only `view` and a config type is a render helper.
 
 Using a stateful component is the same as using any child Block:
 
@@ -345,7 +345,7 @@ For each Foldkit module you plan to use, read the `.d.ts` at the paths below. Re
 # Rule.Rule is [Predicate, Rule.RuleMessage], NOT { test, message }. Field.Invalid has `errors: NonEmptyArray<string>`, not `error: string`.
 
 # If using any UI component (SEPARATE PACKAGE)
-<project>/node_modules/@foldkit/ui/dist/<component>/public.d.ts  # a class + `<Name>Live` or a `makeBlock` factory (stateful), or `view` + config type (render helper)
+<project>/node_modules/@foldkit/ui/dist/<component>/public.d.ts  # a class + `<Name>Live` or a `make` factory (stateful), or `view` + config type (render helper)
 # For a stateful component, record its instance args, Message constructors the parent sends (Requested*, InformedOf*), OutMessages, and view input type.
 
 # If using dates

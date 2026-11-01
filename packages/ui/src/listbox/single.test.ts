@@ -28,19 +28,20 @@ import {
   UnlockListboxScroll,
   buttonId,
 } from './shared.js'
-import { type ListboxClass, makeBlock } from './single.js'
+import { type ListboxClass, make } from './single.js'
 import type { InitConfig, Model as ListboxModel, ViewInputs } from './single.js'
 
 type Model = BlockTypes.Resolved<ListboxModel>
 
-const TestListbox = makeBlock()
+const TestListbox = make()
+const TestListboxLive = TestListbox.pipe(Layer.provide(Animation.AnimationLive))
 const testConfig: InitConfig = { id: 'test' }
 
 const initialModel = (config: InitConfig): Model => {
   let model!: Model
   Effect.runSync(
     story(
-      TestListbox.Live,
+      TestListboxLive,
       config,
       Story.model(constructedModel => {
         model = constructedModel
@@ -70,7 +71,9 @@ const makeListboxScene = <Item, Value extends string>(
         }),
       },
       view: model => model.listbox.view(viewInputs),
-    })).pipe(Layer.provide(SceneListbox.Live))
+    })).pipe(
+      Layer.provide(SceneListbox.pipe(Layer.provide(Animation.AnimationLive))),
+    )
 }
 
 const makeListboxSceneLive = makeListboxScene(TestListbox)
@@ -126,9 +129,9 @@ const givenOpenAnimated = Story.steps(
 )
 
 describe('Listbox', () => {
-  describe('makeBlock', () => {
+  describe('make', () => {
     it('refines the selected item in Messages and OutMessages to Value', () => {
-      const FruitListbox = makeBlock<'Apple' | 'Pear'>()
+      const FruitListbox = make<'Apple' | 'Pear'>()
 
       FruitListbox.Message.RequestedSelectItem({ item: 'Apple' })
       FruitListbox.Message.SelectedItem({ item: 'Pear' })
@@ -195,7 +198,7 @@ describe('Listbox', () => {
     describe('Opened', () => {
       it.effect('opens the listbox with the given active item', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -214,7 +217,7 @@ describe('Listbox', () => {
 
       it.effect('resets search state on open', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           Story.given(
             modifyFields(initialModel({ id: 'test' }), {
@@ -238,7 +241,7 @@ describe('Listbox', () => {
 
       it.effect('sets trigger to Keyboard when opened with active item', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -256,7 +259,7 @@ describe('Listbox', () => {
 
       it.effect('sets trigger to Pointer when opened without active item', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -275,7 +278,7 @@ describe('Listbox', () => {
 
       it.effect('resets pointer position on open', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           Story.given(
             modifyFields(initialModel({ id: 'test' }), {
@@ -303,7 +306,7 @@ describe('Listbox', () => {
     describe('Closed', () => {
       it.effect('closes the listbox and resets state', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.Closed()),
@@ -329,7 +332,7 @@ describe('Listbox', () => {
         'returns no Command and no OutMessage when already closed',
         () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenClosed,
             Story.message(Message.Closed()),
@@ -345,7 +348,7 @@ describe('Listbox', () => {
     describe('BlurredItems', () => {
       it.effect('closes the listbox without restoring button focus', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.BlurredItems()),
@@ -361,7 +364,7 @@ describe('Listbox', () => {
     describe('PressedPointerOnButton', () => {
       it.effect('records pointer type for touch without toggling', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -378,7 +381,7 @@ describe('Listbox', () => {
 
       it.effect('records pointer type for pen without toggling', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -395,7 +398,7 @@ describe('Listbox', () => {
 
       it.effect('opens the listbox on mouse left button when closed', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -420,7 +423,7 @@ describe('Listbox', () => {
         'closes the listbox on mouse left button when open and preserves pointer type',
         () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenOpen,
             Story.message(
@@ -444,7 +447,7 @@ describe('Listbox', () => {
 
       it.effect('does not toggle on mouse right button', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -461,7 +464,7 @@ describe('Listbox', () => {
 
       it.effect('always records maybeLastButtonPointerType', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -491,7 +494,7 @@ describe('Listbox', () => {
     describe('ActivatedItem', () => {
       it.effect('sets the active item index', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -509,7 +512,7 @@ describe('Listbox', () => {
 
       it.effect('replaces the previous active item', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -534,7 +537,7 @@ describe('Listbox', () => {
 
       it.effect('stores activation trigger in model', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -548,7 +551,7 @@ describe('Listbox', () => {
 
       it.effect('returns scroll command for keyboard activation', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -568,7 +571,7 @@ describe('Listbox', () => {
     describe('DeactivatedItem', () => {
       it.effect('clears active item when pointer-activated', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -583,7 +586,7 @@ describe('Listbox', () => {
 
       it.effect('preserves active item when keyboard-activated', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -604,7 +607,7 @@ describe('Listbox', () => {
     describe('MovedPointerOverItem', () => {
       it.effect('activates item on first pointer move', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -626,7 +629,7 @@ describe('Listbox', () => {
 
       it.effect('activates when position differs from stored', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -654,7 +657,7 @@ describe('Listbox', () => {
 
       it.effect('returns model unchanged when position matches', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -681,7 +684,7 @@ describe('Listbox', () => {
     describe('SelectedItem', () => {
       it.effect('emits Selected with the item value', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -695,7 +698,7 @@ describe('Listbox', () => {
 
       it.effect('closes the listbox on selection', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -712,7 +715,7 @@ describe('Listbox', () => {
 
       it.effect('returns a focus button command', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -728,7 +731,7 @@ describe('Listbox', () => {
         'emits Selected with the newly chosen value across selections',
         () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenClosed,
             Story.message(
@@ -751,7 +754,7 @@ describe('Listbox', () => {
         'returns no Command when an item is selected while already closed',
         () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenClosed,
             Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -767,7 +770,7 @@ describe('Listbox', () => {
     describe('RequestedItemClick', () => {
       it.effect('returns model unchanged with a click command', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.RequestedItemClick({ index: 2 })),
@@ -785,7 +788,7 @@ describe('Listbox', () => {
     describe('Searched', () => {
       it.effect('appends the key to the search query', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -817,7 +820,7 @@ describe('Listbox', () => {
 
       it.effect('bumps the search version', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -849,7 +852,7 @@ describe('Listbox', () => {
 
       it.effect('updates active item when a match is found', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -869,7 +872,7 @@ describe('Listbox', () => {
 
       it.effect('keeps existing active item when no match is found', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -889,7 +892,7 @@ describe('Listbox', () => {
 
       it.effect('returns a delay command for debounce', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -911,7 +914,7 @@ describe('Listbox', () => {
     describe('CompletedDelayClearListboxSearch', () => {
       it.effect('clears search query when version matches', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -937,7 +940,7 @@ describe('Listbox', () => {
 
       it.effect('ignores stale version', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -974,7 +977,7 @@ describe('Listbox', () => {
     describe('completed and view-dispatched messages', () => {
       it.effect('returns model unchanged for CompletedLockListboxScroll', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.CompletedLockListboxScroll()),
@@ -986,7 +989,7 @@ describe('Listbox', () => {
 
       it.effect('resets maybeLastButtonPointerType for IgnoredMouseClick', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -1015,7 +1018,7 @@ describe('Listbox', () => {
         'keeps the listbox open after ClickedButton follows a mouse press',
         () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenClosed,
             Story.message(
@@ -1042,7 +1045,7 @@ describe('Listbox', () => {
         'opens on ClickedButton when the click did not follow a mouse press',
         () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenClosed,
             Story.message(Message.ClickedButton()),
@@ -1061,7 +1064,7 @@ describe('Listbox', () => {
         'closes an open listbox on ClickedButton when the click did not follow a mouse press',
         () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenOpen,
             Story.message(Message.ClickedButton()),
@@ -1077,7 +1080,7 @@ describe('Listbox', () => {
 
       it.effect('returns model unchanged for SuppressedSpaceScroll', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.SuppressedSpaceScroll()),
@@ -1089,7 +1092,7 @@ describe('Listbox', () => {
 
       it.effect('returns model unchanged for SuppressedItemCommit', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.SuppressedItemCommit()),
@@ -1106,7 +1109,7 @@ describe('Listbox', () => {
           'sets EnterStart and emits focus + afterPaint on Opened',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenClosedAnimated,
               Story.message(
@@ -1134,7 +1137,7 @@ describe('Listbox', () => {
           'advances EnterStart to EnterAnimating on GotAnimationMessage(CompletedWaitForPaint)',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenClosedAnimated,
               Story.message(
@@ -1161,7 +1164,7 @@ describe('Listbox', () => {
           'completes EnterAnimating to Idle on GotAnimationMessage(EndedAnimation)',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenClosedAnimated,
               Story.message(
@@ -1188,7 +1191,7 @@ describe('Listbox', () => {
       describe('leave flow', () => {
         it.effect('starts no leave cascade on Closed when already closed', () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenClosedAnimated,
             Story.message(Message.Closed()),
@@ -1203,7 +1206,7 @@ describe('Listbox', () => {
 
         it.effect('sets LeaveStart on Closed', () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenOpenAnimated,
             Story.message(Message.Closed()),
@@ -1229,7 +1232,7 @@ describe('Listbox', () => {
           'begins the leave animation when the items container blurs',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenOpenAnimated,
               Story.message(Message.BlurredItems()),
@@ -1252,7 +1255,7 @@ describe('Listbox', () => {
 
         it.effect('sets LeaveStart on SelectedItem', () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenOpenAnimated,
             Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -1279,7 +1282,7 @@ describe('Listbox', () => {
           'advances LeaveStart to LeaveAnimating on GotAnimationMessage(CompletedWaitForPaint)',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenOpenAnimated,
               Story.message(Message.Closed()),
@@ -1310,7 +1313,7 @@ describe('Listbox', () => {
           'completes LeaveAnimating to Idle on GotAnimationMessage(EndedAnimation)',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenOpenAnimated,
               Story.message(Message.Closed()),
@@ -1335,7 +1338,7 @@ describe('Listbox', () => {
       describe('non-animated', () => {
         it.effect('keeps transitionState Idle on Opened', () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenClosed,
             Story.message(
@@ -1353,7 +1356,7 @@ describe('Listbox', () => {
 
         it.effect('keeps transitionState Idle on Closed', () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenOpen,
             Story.message(Message.Closed()),
@@ -1373,7 +1376,7 @@ describe('Listbox', () => {
           'ignores GotAnimationMessage with CompletedWaitForPaint when Idle',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenOpen,
               Story.message(
@@ -1394,7 +1397,7 @@ describe('Listbox', () => {
           'ignores CompletedDetectListboxMovementOrAnimationEnd when Idle',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenOpen,
               Story.message(completedDetectListboxMovementOrAnimationEnd(0)),
@@ -1411,7 +1414,7 @@ describe('Listbox', () => {
           'transitions to LeaveStart when Closed during EnterStart',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenClosedAnimated,
               Story.message(
@@ -1455,7 +1458,7 @@ describe('Listbox', () => {
           'transitions to LeaveStart when Closed during EnterAnimating',
           () =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               givenClosedAnimated,
               Story.message(
@@ -1521,7 +1524,7 @@ describe('Listbox', () => {
       'emits lockScroll and inertOthers commands on Opened when isModal is true',
       () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosedModal,
           Story.message(
@@ -1542,7 +1545,7 @@ describe('Listbox', () => {
       'emits unlockScroll and restoreInert commands on Closed when isModal is true',
       () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpenModal,
           Story.message(Message.Closed()),
@@ -1561,7 +1564,7 @@ describe('Listbox', () => {
       'emits no Commands on Closed when already closed in modal mode',
       () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosedModal,
           Story.message(Message.Closed()),
@@ -1593,7 +1596,7 @@ describe('Listbox', () => {
           ],
           reopen =>
             story(
-              TestListbox.Live,
+              TestListboxLive,
               testConfig,
               Story.given(openModal),
               Story.message(reopen),
@@ -1615,7 +1618,7 @@ describe('Listbox', () => {
       'emits unlockScroll and restoreInert commands when the items container blurs in modal mode',
       () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpenModal,
           Story.message(Message.BlurredItems()),
@@ -1633,7 +1636,7 @@ describe('Listbox', () => {
       'emits no Commands when the items container blurs on a closed listbox in modal mode',
       () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenClosedModal,
           Story.message(Message.BlurredItems()),
@@ -1649,7 +1652,7 @@ describe('Listbox', () => {
       'emits unlockScroll and restoreInert commands on SelectedItem when isModal is true',
       () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpenModal,
           Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -1666,7 +1669,7 @@ describe('Listbox', () => {
 
     it.effect('does not emit modal commands when isModal is false', () =>
       story(
-        TestListbox.Live,
+        TestListboxLive,
         testConfig,
         givenClosed,
         Story.message(Message.Opened({ maybeActiveItemIndex: Option.some(0) })),
@@ -1695,7 +1698,7 @@ describe('Listbox', () => {
       let model!: Model
       Effect.runSync(
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpen,
           Story.model(extractedModel => {
@@ -2527,7 +2530,7 @@ describe('Listbox', () => {
       ]
 
       const makePersonListboxSceneLive =
-        makeListboxScene(makeBlock<Person, string>())
+        makeListboxScene(make<Person, string>())
 
       const personSceneView = (
         overrides: Omit<

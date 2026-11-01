@@ -2,7 +2,7 @@ import { Array, Effect, Layer, Option } from 'effect'
 import type { Resolved } from 'foldkit/block'
 import { model, story } from 'foldkit/story'
 
-import { Dialog } from '@foldkit/ui'
+import { Animation, Dialog } from '@foldkit/ui'
 
 import { ApplicationLive, type Flags, type Model } from './application'
 import { createEmptyGrid } from './domain/grid'
@@ -24,12 +24,13 @@ export const application = ApplicationLive.pipe(
   Layer.provide(
     Layer.mergeAll(
       Dialog.DialogLive,
-      ThemeListbox.Live,
-      ToolRadioGroup.Live,
-      GridSizeRadioGroup.Live,
-      PaletteRadioGroup.Live,
+      ThemeListbox,
+      ToolRadioGroup,
+      GridSizeRadioGroup,
+      PaletteRadioGroup,
     ),
   ),
+  Layer.provide(Animation.AnimationLive),
   Layer.provide(ApplicationLayer),
 )
 

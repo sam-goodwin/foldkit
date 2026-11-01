@@ -13,7 +13,11 @@ The architecture does not change. The Model is the source of truth, Messages rec
 
 Declare a Block with `class X extends Block<X>()('X', { Model, Message, OutMessage?, Command?: [...], Mount?: [...] }) {}`. The class contains no implementation. Declare the Message union and the Block's Commands at module level before the class, so Commands can name their result Messages. Optional type parameters after the class declare the args a parent passes to `new X(id, args)` and the view input a parent passes to `view`: `Block<X, Args, ViewInput>()`.
 
-Implement it with `XLive = X.toLayer(...)`, passing `() => ({ ... })` when the Block uses no services or `Effect.gen(function* () { ... })` when its handlers need services. Either runs once, when the program's Layer is built. The Effect form yields services and returns `{ init, start?, update, commands?, mounts?, subscriptions?, view? }`:
+A Block's implementation goes inline, as the declaration's optional third argument, or in a separate Layer. Inline, `class X extends Block<X>()('X', contract, () => ({ ... }))` declares a class that is its own Layer: provide it with `Layer.provide(X)` and test it with `story(X, ...)`. `yield* X` returns its implementation, so another Layer can reuse or wrap it. Separately, `XLive = X.toLayer(...)` implements a class declared with the contract alone, or replaces an inline implementation.
+
+Either form takes `() => ({ ... })` when the Block uses no services or `Effect.gen(function* () { ... })` when its handlers need services. Either runs once, when the program's Layer is built. The Effect form yields services and returns `{ init, start?, update, commands?, mounts?, subscriptions?, view? }`:
+
+Write a Block's pieces inside the implementation, where they are inferred from the contract, or at module scope. In the `toLayer` form, `X.init`, `X.update`, `X.step`, `X.view`, `X.commands`, `X.mounts`, and `X.subscriptions` type module-scope pieces from the contract and return them unchanged. In the inline form, annotate module-scope pieces with the module's own `Model` and `Message` types, since the class is still being declared.
 
 - `init(args, { id, path })` returns an instance's starting Model. Foldkit calls it when the instance first appears in a Model. Omit it only for a Block without a Model.
 - `start(model, args)` lists Commands the Runtime performs when the instance appears. Load data here, never with asynchronous work in `init`.

@@ -915,4 +915,4 @@ export const NotePlayerDemoLive = NotePlayerDemo.toLayer(
       view,
     }
   }),
-).pipe(Layer.provide(NoteDurationRadioGroup.Live))
+).pipe(Layer.provide(NoteDurationRadioGroup))

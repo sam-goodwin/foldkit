@@ -8,39 +8,49 @@ export type PickerViewInput<Item> = Readonly<{
   toLabel: (item: Item) => string
 }>
 
-export const makeBlock = <Item>() => {
-  class Picker extends Block<Picker, void, PickerViewInput<Item>>()('Picker', {
-    Model: Schema.Struct({ maybeSelectedIndex: Schema.Option(Schema.Number) }),
-    Message: defineMessageUnion({ ClickedItem: { index: Schema.Number } }),
-    OutMessage: defineMessageUnion({ SelectedItem: { index: Schema.Number } }),
-  }) {}
+const Model = Schema.Struct({
+  maybeSelectedIndex: Schema.Option(Schema.Number),
+})
 
-  const PickerLive = Picker.toLayer(() => ({
-    init: () => ({ maybeSelectedIndex: Option.none() }),
+const Message = defineMessageUnion({ ClickedItem: { index: Schema.Number } })
 
-    update: {
-      ClickedItem: (model, { index }) => ({
-        model: modifyFields(model, {
-          maybeSelectedIndex: () => Option.some(index),
+const OutMessage = defineMessageUnion({
+  SelectedItem: { index: Schema.Number },
+})
+
+export const make = <Item>() => {
+  class Picker extends Block<Picker, void, PickerViewInput<Item>>()(
+    'Picker',
+    { Model, Message, OutMessage },
+    () => ({
+      init: () => ({ maybeSelectedIndex: Option.none() }),
+
+      update: {
+        ClickedItem: (model, { index }) => ({
+          model: modifyFields(model, {
+            maybeSelectedIndex: () => Option.some(index),
+          }),
+          outMessage: OutMessage.SelectedItem({ index }),
         }),
-        outMessage: Picker.OutMessage.SelectedItem({ index }),
-      }),
-    },
+      },
 
-    view: (model, h, { items, toLabel }) =>
-      h.ul(
-        [],
-        Array.map(items, (item, index) =>
-          h.li(
-            [
-              h.AriaSelected(Option.contains(model.maybeSelectedIndex, index)),
-              h.OnClick(Picker.Message.ClickedItem({ index })),
-            ],
-            [toLabel(item)],
+      view: (model, h, { items, toLabel }) =>
+        h.ul(
+          [],
+          Array.map(items, (item, index) =>
+            h.li(
+              [
+                h.AriaSelected(
+                  Option.contains(model.maybeSelectedIndex, index),
+                ),
+                h.OnClick(Message.ClickedItem({ index })),
+              ],
+              [toLabel(item)],
+            ),
           ),
         ),
-      ),
-  }))
+    }),
+  ) {}
 
-  return Object.assign(Picker, { Live: PickerLive })
+  return Picker
 }

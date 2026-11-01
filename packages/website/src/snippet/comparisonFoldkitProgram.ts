@@ -45,7 +45,7 @@ export const ApplicationLive = Application.toLayer(() => ({
 import { Effect, Layer } from 'effect'
 import { Program, Runtime } from 'foldkit'
 
-import { Dialog } from '@foldkit/ui'
+import { Animation, Dialog } from '@foldkit/ui'
 
 import { Application, ApplicationLive, Flags, flags } from './application'
 import { ApplicationLayer } from './services'
@@ -61,12 +61,13 @@ const program = Program.make(Application, {
     Layer.provide(
       Layer.mergeAll(
         Dialog.DialogLive,
-        ThemeListbox.Live,
-        ToolRadioGroup.Live,
-        GridSizeRadioGroup.Live,
-        PaletteRadioGroup.Live,
+        ThemeListbox,
+        ToolRadioGroup,
+        GridSizeRadioGroup,
+        PaletteRadioGroup,
       ),
     ),
+    Layer.provide(Animation.AnimationLive),
     Layer.provide(ApplicationLayer),
   ),
   Flags,

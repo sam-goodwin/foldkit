@@ -10,10 +10,11 @@ import {
   DetectMenuMovementOrAnimationEnd,
   FocusMenuButton,
   FocusMenuItems,
-  makeBlock,
+  make,
 } from './menu.js'
 
-const RefinedMenu = makeBlock<'Edit' | 'Delete'>()
+const RefinedMenu = make<'Edit' | 'Delete'>()
+const RefinedMenuLive = RefinedMenu.pipe(Layer.provide(Animation.AnimationLive))
 
 const ParentMessage = defineMessageUnion({
   ClickedOpenMenu: {},
@@ -49,7 +50,7 @@ const MenuParentLive = MenuParent.toLayer(() => ({
       Closed: model => ({ model }),
     }),
   },
-})).pipe(Layer.provide(RefinedMenu.Live))
+})).pipe(Layer.provide(RefinedMenuLive))
 
 describe('Menu inside a parent', () => {
   it.effect('opens, animates, selects, and finishes leaving', () =>

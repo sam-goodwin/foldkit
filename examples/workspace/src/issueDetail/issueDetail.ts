@@ -5,7 +5,7 @@ import { defineMessageUnion } from 'foldkit/message'
 import { defineTaggedUnion } from 'foldkit/schema'
 import { modifyFields } from 'foldkit/struct'
 
-import { Button, Fieldset, Input, Textarea } from '@foldkit/ui'
+import { Animation, Button, Fieldset, Input, Textarea } from '@foldkit/ui'
 import { buttonId } from '@foldkit/ui/listbox'
 
 import {
@@ -363,11 +363,12 @@ export const IssueDetailLive = IssueDetail.toLayer(
   Layer.provide(
     Layer.mergeAll(
       CommentComposerLive,
-      StatusListbox.Live,
-      PriorityListbox.Live,
-      WorkspaceListbox.Live,
+      StatusListbox,
+      PriorityListbox,
+      WorkspaceListbox,
     ),
   ),
+  Layer.provide(Animation.AnimationLive),
 )
 
 // UPDATE

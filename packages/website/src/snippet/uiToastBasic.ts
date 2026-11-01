@@ -3,7 +3,7 @@ import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-import { Toast as UiToast } from '@foldkit/ui'
+import { Animation, Toast as UiToast } from '@foldkit/ui'
 
 // Toast owns the entry lifecycle, accessibility role, optional dismiss timer,
 // hover state, and swipe state. The payload is yours, whatever you can encode
@@ -16,7 +16,7 @@ const ToastPayload = Schema.Struct({
 })
 type ToastPayload = typeof ToastPayload.Type
 
-export const Toast = UiToast.makeBlock(ToastPayload)
+export const Toast = UiToast.make(ToastPayload)
 
 const Message = defineMessageUnion({
   ClickedSave: {},
@@ -111,4 +111,4 @@ export const NotificationsLive = Notifications.toLayer(() => ({
           ],
         ),
     }),
-})).pipe(Layer.provide(Toast.Live))
+})).pipe(Layer.provide(Toast), Layer.provide(Animation.AnimationLive))

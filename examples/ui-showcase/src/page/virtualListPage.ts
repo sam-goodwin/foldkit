@@ -16,7 +16,7 @@ type Activity = Readonly<{
   hasSummary: boolean
 }>
 
-const ActivityVirtualList = VirtualList.makeBlock<Activity>()
+const ActivityVirtualList = VirtualList.make<Activity>()
 
 const ROW_COUNT = 10_000
 const MIDDLE_INDEX = Math.floor(ROW_COUNT / 2)
@@ -71,7 +71,7 @@ export const VirtualListPageLive = VirtualListPage.toLayer(() => ({
   },
 
   view,
-})).pipe(Layer.provide(ActivityVirtualList.Live))
+})).pipe(Layer.provide(ActivityVirtualList))
 
 const actorNames = [
   'Sarah Chen',

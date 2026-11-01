@@ -31,7 +31,7 @@ import {
   inputId,
   mounts,
 } from './shared.js'
-import { makeBlock } from './single.js'
+import { make } from './single.js'
 import type {
   Model as ComboboxModel,
   InitConfig,
@@ -48,14 +48,17 @@ const ModalCommandsLayer = Layer.mergeAll(
   FocusInput.toLayer<never>(Effect.succeed(commandHandlers.FocusInput)),
 )
 
-const TestCombobox = makeBlock()
+const TestCombobox = make()
+const TestComboboxLive = TestCombobox.pipe(
+  Layer.provide(Animation.AnimationLive),
+)
 const testConfig: InitConfig = { id: 'test' }
 
 const initialModel = (config: InitConfig): Model => {
   let model!: Model
   Effect.runSync(
     story(
-      TestCombobox.Live,
+      TestComboboxLive,
       config,
       Story.model(constructedModel => {
         model = constructedModel
@@ -87,12 +90,15 @@ const makeComboboxSceneLive = ({ toViewInputs }: SceneInput) =>
       }),
     },
     view: model => model.combobox.view(toViewInputs(model.combobox.model)),
-  })).pipe(Layer.provide(TestCombobox.Live))
+  })).pipe(Layer.provide(TestComboboxLive))
 
 const Fruit = Schema.Literals(['Apple', 'Pear'])
 type Fruit = typeof Fruit.Type
 
-const FruitCombobox = makeBlock(Fruit)
+const FruitCombobox = make(Fruit)
+const FruitComboboxLive = FruitCombobox.pipe(
+  Layer.provide(Animation.AnimationLive),
+)
 
 class FruitComboboxTest extends Block<FruitComboboxTest>()(
   'FruitComboboxTest',
@@ -153,7 +159,7 @@ const FruitComboboxTestLive = FruitComboboxTest.toLayer(() => ({
         }),
       ],
     ),
-})).pipe(Layer.provide(FruitCombobox.Live))
+})).pipe(Layer.provide(FruitComboboxLive))
 
 const acknowledgeAnchor = Scene.Mount.resolve(Anchor, Message.CompletedAnchor())
 const acknowledgeBackdrop = Scene.Mount.resolve(
@@ -200,7 +206,7 @@ const givenOpenAnimated = Story.steps(
 )
 
 describe('Combobox', () => {
-  describe('makeBlock', () => {
+  describe('make', () => {
     it('preserves refined Message and OutMessage payloads with shared definitions', () => {
       expectTypeOf<typeof FruitCombobox.OutMessage.Type>().toEqualTypeOf<
         OutMessage<Fruit>
@@ -225,7 +231,7 @@ describe('Combobox', () => {
 
     it.effect('routes Animation Messages for a generic Combobox', () =>
       story(
-        FruitCombobox.Live,
+        FruitComboboxLive,
         { id: 'fruit-combobox', isAnimated: true },
         Story.message(
           FruitCombobox.Message.Opened({
@@ -354,7 +360,7 @@ describe('Combobox', () => {
     describe('Opened', () => {
       it.effect('opens with given active item', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -369,7 +375,7 @@ describe('Combobox', () => {
 
       it.effect('resets pointer position on open', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           Story.given(
             modifyFields(initialModel({ id: 'test' }), {
@@ -391,7 +397,7 @@ describe('Combobox', () => {
 
       it.effect('sets trigger to Keyboard when opened with active item', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -405,7 +411,7 @@ describe('Combobox', () => {
 
       it.effect('sets trigger to Pointer when opened without active item', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -422,7 +428,7 @@ describe('Combobox', () => {
     describe('Closed', () => {
       it.effect('closes and restores input to the resting input value', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           Story.given(
             modifyFields(initialModel({ id: 'test' }), {
@@ -445,7 +451,7 @@ describe('Combobox', () => {
 
       it.effect('emits ClearedSelection when nullable and input is empty', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           Story.given(
             modifyFields(initialModel({ id: 'test' }), {
@@ -468,7 +474,7 @@ describe('Combobox', () => {
 
       it.effect('returns focus-input and close commands', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -487,7 +493,7 @@ describe('Combobox', () => {
         })
 
         return story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           Story.given(closedModel),
           Story.message(
@@ -506,7 +512,7 @@ describe('Combobox', () => {
     describe('BlurredInput', () => {
       it.effect('closes without restoring input focus', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -522,7 +528,7 @@ describe('Combobox', () => {
 
       it.effect('restores input value to the resting input value', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           Story.given(
             modifyFields(initialModel({ id: 'test' }), {
@@ -544,7 +550,7 @@ describe('Combobox', () => {
 
       it.effect('emits ClearedSelection when nullable and input is empty', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           Story.given(
             modifyFields(initialModel({ id: 'test' }), {
@@ -572,7 +578,7 @@ describe('Combobox', () => {
         })
 
         return story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           Story.given(closedModel),
           Story.message(
@@ -594,7 +600,7 @@ describe('Combobox', () => {
         'does not emit ClearedSelection when nullable with an empty input and already closed',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             Story.given(initialModel({ id: 'test', nullable: true })),
             Story.message(
@@ -615,7 +621,7 @@ describe('Combobox', () => {
     describe('ActivatedItem', () => {
       it.effect('sets the active item index', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -637,7 +643,7 @@ describe('Combobox', () => {
 
       it.effect('replaces previous active item', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -670,7 +676,7 @@ describe('Combobox', () => {
 
       it.effect('stores activation trigger', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -688,7 +694,7 @@ describe('Combobox', () => {
 
       it.effect('returns scroll command for keyboard activation', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -712,7 +718,7 @@ describe('Combobox', () => {
         'emits Selected and stays open when maybeImmediateSelection is Some',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpen,
             Story.message(
@@ -740,7 +746,7 @@ describe('Combobox', () => {
     describe('DeactivatedItem', () => {
       it.effect('clears active item when pointer-activated', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -759,7 +765,7 @@ describe('Combobox', () => {
 
       it.effect('preserves active item when keyboard-activated', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -784,7 +790,7 @@ describe('Combobox', () => {
     describe('MovedPointerOverItem', () => {
       it.effect('activates item on first pointer move', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -806,7 +812,7 @@ describe('Combobox', () => {
 
       it.effect('skips when position is same', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -831,7 +837,7 @@ describe('Combobox', () => {
 
       it.effect('updates position when different', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -863,7 +869,7 @@ describe('Combobox', () => {
         'closes, sets input to the display text, and emits Selected',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpen,
             Story.message(
@@ -887,7 +893,7 @@ describe('Combobox', () => {
         'resets input and emits Selected when nullable and item was selected',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             Story.given(
               modifyFields(initialModel({ id: 'test' }), {
@@ -914,7 +920,7 @@ describe('Combobox', () => {
 
       it.effect('returns focus-input command', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(
@@ -935,7 +941,7 @@ describe('Combobox', () => {
     describe('RequestedItemClick', () => {
       it.effect('returns click element command', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.RequestedItemClick({ index: 2 })),
@@ -950,7 +956,7 @@ describe('Combobox', () => {
     describe('SuppressedItemCommit', () => {
       it.effect('leaves the model unchanged and emits no OutMessage', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.SuppressedItemCommit()),
@@ -968,7 +974,7 @@ describe('Combobox', () => {
     describe('UpdatedInputValue', () => {
       it.effect('sets input value and activates first item when open', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.UpdatedInputValue({ value: 'app' })),
@@ -983,7 +989,7 @@ describe('Combobox', () => {
 
       it.effect('opens combobox when closed and typing', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenClosed,
           Story.message(Message.UpdatedInputValue({ value: 'b' })),
@@ -1000,7 +1006,7 @@ describe('Combobox', () => {
     describe('PressedToggleButton', () => {
       it.effect('opens when closed', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenClosed,
           Story.message(
@@ -1022,7 +1028,7 @@ describe('Combobox', () => {
         'closes and restores input to the resting input value when open',
         () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpen,
             Story.message(
@@ -1043,7 +1049,7 @@ describe('Combobox', () => {
     describe('CompletedFocusInput', () => {
       it.effect('returns model unchanged', () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.message(Message.CompletedFocusInput()),
@@ -1060,7 +1066,7 @@ describe('Combobox', () => {
           'starts enter transition and emits WaitForPaint on Opened',
           () =>
             story(
-              TestCombobox.Live,
+              TestComboboxLive,
               testConfig,
               givenClosedAnimated,
               Story.message(
@@ -1088,7 +1094,7 @@ describe('Combobox', () => {
           'advances EnterStart to EnterAnimating on CompletedWaitForPaint',
           () =>
             story(
-              TestCombobox.Live,
+              TestComboboxLive,
               testConfig,
               givenClosedAnimated,
               Story.message(
@@ -1110,7 +1116,7 @@ describe('Combobox', () => {
 
         it.effect('completes EnterAnimating to Idle on EndedAnimation', () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenClosedAnimated,
             Story.message(
@@ -1138,7 +1144,7 @@ describe('Combobox', () => {
           'preserves ClearedSelection when an animated nullable Combobox closes',
           () =>
             story(
-              TestCombobox.Live,
+              TestComboboxLive,
               { id: 'animated-nullable', isAnimated: true, nullable: true },
               Story.message(
                 Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -1176,7 +1182,7 @@ describe('Combobox', () => {
 
         it.effect('sets LeaveStart on Closed', () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpenAnimated,
             Story.message(
@@ -1202,7 +1208,7 @@ describe('Combobox', () => {
 
         it.effect('begins the leave animation when the input blurs', () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpenAnimated,
             Story.message(
@@ -1230,7 +1236,7 @@ describe('Combobox', () => {
 
         it.effect('sets LeaveStart on SelectedItem', () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpenAnimated,
             Story.message(
@@ -1263,7 +1269,7 @@ describe('Combobox', () => {
           'advances LeaveStart to LeaveAnimating with DetectMovementOrAnimationEnd',
           () =>
             story(
-              TestCombobox.Live,
+              TestComboboxLive,
               testConfig,
               givenOpenAnimated,
               Story.message(
@@ -1294,7 +1300,7 @@ describe('Combobox', () => {
 
         it.effect('completes LeaveAnimating to Idle on transition end', () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpenAnimated,
             Story.message(
@@ -1321,7 +1327,7 @@ describe('Combobox', () => {
       describe('non-animated', () => {
         it.effect('keeps transitionState Idle on Opened', () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenClosed,
             Story.message(
@@ -1335,7 +1341,7 @@ describe('Combobox', () => {
 
         it.effect('keeps transitionState Idle on Closed', () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenOpen,
             Story.message(
@@ -1354,7 +1360,7 @@ describe('Combobox', () => {
           'ignores GotAnimationMessage with CompletedWaitForPaint when Idle',
           () =>
             story(
-              TestCombobox.Live,
+              TestComboboxLive,
               testConfig,
               givenOpen,
               Story.message(
@@ -1375,7 +1381,7 @@ describe('Combobox', () => {
           'ignores CompletedDetectMovementOrAnimationEnd when Idle',
           () =>
             story(
-              TestCombobox.Live,
+              TestComboboxLive,
               testConfig,
               givenOpen,
               Story.message(completedDetectMovementOrAnimationEnd(0)),
@@ -1390,7 +1396,7 @@ describe('Combobox', () => {
       describe('interruptions', () => {
         it.effect('transitions to LeaveStart when Closed during enter', () =>
           story(
-            TestCombobox.Live,
+            TestComboboxLive,
             testConfig,
             givenClosedAnimated,
             Story.message(
@@ -1456,7 +1462,7 @@ describe('Combobox', () => {
       'emits lockScroll and inertOthers commands on Opened when isModal is true',
       () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenClosedModal,
           Story.message(
@@ -1492,7 +1498,7 @@ describe('Combobox', () => {
           ],
           reopen =>
             story(
-              TestCombobox.Live,
+              TestComboboxLive,
               testConfig,
               Story.given(openModal),
               Story.message(reopen),
@@ -1514,7 +1520,7 @@ describe('Combobox', () => {
       'emits no Commands when focus opens a modal combobox the toggle already opened',
       () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenClosedModal,
           Story.message(
@@ -1545,7 +1551,7 @@ describe('Combobox', () => {
       'emits unlockScroll and restoreInert commands on Closed when isModal is true',
       () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenModal,
           Story.message(
@@ -1566,7 +1572,7 @@ describe('Combobox', () => {
       'emits unlockScroll and restoreInert commands when the input blurs in modal mode',
       () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenModal,
           Story.message(
@@ -1586,7 +1592,7 @@ describe('Combobox', () => {
       'emits unlockScroll and restoreInert commands on SelectedItem when isModal is true',
       () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenModal,
           Story.message(
@@ -1611,7 +1617,7 @@ describe('Combobox', () => {
       'emits unlockScroll and restoreInert commands when the toggle button closes a modal combobox',
       () =>
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpenModal,
           Story.message(
@@ -1633,7 +1639,7 @@ describe('Combobox', () => {
 
     it.effect('does not emit cleanup commands for a stale close message', () =>
       story(
-        TestCombobox.Live,
+        TestComboboxLive,
         testConfig,
         givenOpenModal,
         Story.message(
@@ -1657,7 +1663,7 @@ describe('Combobox', () => {
 
     it.effect('does not emit modal commands when isModal is false', () =>
       story(
-        TestCombobox.Live,
+        TestComboboxLive,
         testConfig,
         givenClosed,
         Story.message(Message.Opened({ maybeActiveItemIndex: Option.some(0) })),
@@ -1684,7 +1690,7 @@ describe('Combobox', () => {
       let model!: Model
       Effect.runSync(
         story(
-          TestCombobox.Live,
+          TestComboboxLive,
           testConfig,
           givenOpen,
           Story.model(extractedModel => {
@@ -2108,7 +2114,7 @@ describe('Combobox', () => {
         }).pipe(Effect.provide(ModalCommandsLayer))
 
         const openAndClose = story(
-          TestCombobox.Live,
+          TestComboboxLive,
           { id: 'modal-empty', isModal: true },
           Story.message(
             Message.Opened({ maybeActiveItemIndex: Option.none() }),

@@ -2,7 +2,7 @@ import { Layer, Match, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { type Html, type HtmlBuilder, childAttributes } from 'foldkit/html'
 
-import { Menu } from '@foldkit/ui'
+import { Animation, Menu } from '@foldkit/ui'
 import {
   type AnchorConfig,
   type GroupHeading,
@@ -13,7 +13,7 @@ import * as Icon from '../domain/icon'
 
 type MenuItem = 'Edit' | 'Duplicate' | 'Archive' | 'Move' | 'Delete'
 
-const DemoMenu = Menu.makeBlock<MenuItem>()
+const DemoMenu = Menu.make<MenuItem>()
 
 const Model = Schema.Struct({
   menuBasicDemo: DemoMenu,
@@ -34,7 +34,7 @@ export const MenuPageLive = MenuPage.toLayer(() => ({
     }),
   }),
   view,
-})).pipe(Layer.provide(DemoMenu.Live))
+})).pipe(Layer.provide(DemoMenu), Layer.provide(Animation.AnimationLive))
 
 const triggerClassName =
   'inline-flex items-center gap-1.5 px-4 py-2 text-base font-normal cursor-pointer transition rounded-lg border border-gray-300 bg-white text-gray-900 hover:bg-gray-100 select-none'

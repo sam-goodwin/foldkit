@@ -4,7 +4,7 @@
 
 Every stateful Foldkit UI component is a Block. A parent creates an instance with `new`, holds it in its Model, provides the component's Layer, renders it with `model.x.view(input)`, sends it Messages with `model.x.send(...)` under `messages`, and handles its OutMessages with the class's `on`, such as `Dialog.Dialog.on({ ... })`. The `init`, `update`, `view`, `Model`, `Message`, `OutMessage`, `subscriptions`, and Command exports of each component are replaced by the Block class, and a parent no longer needs a `Got*Message` wrapper, `Update.foldChild`, or `h.submodel`. The component's Commands, Mounts, and Subscriptions run from its Layer, so the parent does not register them.
 
-Components with a fixed Item type export a class and its Layer: `Animation.Animation` and `AnimationLive`, `Calendar.Calendar`, `DatePicker.DatePicker`, `Dialog.Dialog`, `DragAndDrop.DragAndDrop`, `FileDrop.FileDrop`, `HoverIntent.HoverIntent`, `Popover.Popover`, `Slider.Slider`, and `Tooltip.Tooltip`, each with a matching `*Live` Layer. Generic components have a `makeBlock` factory that returns a class with its Layer attached as `Live`. Call it once at module scope and name the result for its domain. `Combobox.create`, `Combobox.Multi.create`, `Listbox.create`, `Listbox.Multi.create`, `Menu.create`, `RadioGroup.create`, `Tabs.create`, and `VirtualList.create` become `makeBlock`, and `Toast.make` becomes `Toast.makeBlock`. Existing type parameters and Schema arguments are unchanged.
+Components with a fixed Item type export a class and its Layer: `Animation.Animation` and `AnimationLive`, `Calendar.Calendar`, `DatePicker.DatePicker`, `Dialog.Dialog`, `DragAndDrop.DragAndDrop`, `FileDrop.FileDrop`, `HoverIntent.HoverIntent`, `Popover.Popover`, `Slider.Slider`, and `Tooltip.Tooltip`, each with a matching `*Live` Layer. Generic components have a `make` factory that returns a class declared with its implementation, so the class is its own Layer: provide it with `Layer.provide(ActionMenu)`. Call it once at module scope and name the result for its domain. `Combobox.create`, `Combobox.Multi.create`, `Listbox.create`, `Listbox.Multi.create`, `Menu.create`, `RadioGroup.create`, `Tabs.create`, and `VirtualList.create` become `make`, and `Toast.make` keeps its name. Existing type parameters and Schema arguments are unchanged. A Combobox, Listbox, Menu, or Toast class holds Animation instances, so its Layer requires `AnimationLive`; provide it alongside the class.
 
 Before:
 
@@ -37,7 +37,7 @@ const view = (model: Model, h: HtmlBuilder<Message>) =>
 After:
 
 ```ts
-const ActionMenu = Menu.makeBlock<Action>()
+const ActionMenu = Menu.make<Action>()
 
 export class Toolbar extends Block<Toolbar>()('Toolbar', {
   Model: Schema.Struct({ menu: ActionMenu }),
@@ -51,7 +51,7 @@ export const ToolbarLive = Toolbar.toLayer(() => ({
     }),
   },
   view: (model, h) => model.menu.view(menuViewInputs),
-})).pipe(Layer.provide(ActionMenu.Live))
+})).pipe(Layer.provide(ActionMenu), Layer.provide(AnimationLive))
 ```
 
 Drive a component by sending one of its `Requested*` Messages. The free functions that returned an updated child Model, such as `Dialog.open`, `Dialog.close`, `Animation.show`, and `VirtualList.scrollToIndex`, are removed. For example, `model.dialog.send(Dialog.Dialog.Message.RequestedOpen())` opens a Dialog, and VirtualList's `requestScrollTo`, `requestScrollToIndex`, `requestScrollToKey`, `requestScrollToOffset`, `requestScrollToEnd`, `informItemsChanged`, and `informHistoryPrepended` build the Messages to send to a list instance.
@@ -104,7 +104,7 @@ model.dragAndDrop.view({
 })
 ```
 
-Toast is a class built by `Toast.makeBlock(PayloadSchema)`. Show an entry by sending `AppToast.requestShow({ payload })` to the instance, and provide `AppToast.Live`. The Toast Story helper moves from the module-level `Toast.test.drainEntry` to the class: `AppToast.test.drainEntry({ path, entryId })`, where `path` is the Toast instance's path from the Story root as in `Block.deliver`: its parents' ids followed by its own id. It drains a freshly shown, non-sticky entry through enter, auto-dismiss, and exit, and `version` defaults to `0`. Resolve individual Commands after hover, swipe, or manual dismissal has advanced the entry.
+Toast is a class built by `Toast.make(PayloadSchema)` and declared with its implementation. Show an entry by sending `AppToast.requestShow({ payload })` to the instance, and provide `AppToast` and `AnimationLive`. The Toast Story helper moves from the module-level `Toast.test.drainEntry` to the class: `AppToast.test.drainEntry({ path, entryId })`, where `path` is the Toast instance's path from the Story root as in `Block.deliver`: its parents' ids followed by its own id. It drains a freshly shown, non-sticky entry through enter, auto-dismiss, and exit, and `version` defaults to `0`. Resolve individual Commands after hover, swipe, or manual dismissal has advanced the entry.
 
 ```ts
 // Before

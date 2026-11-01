@@ -19,13 +19,13 @@ import * as Toast from './toast/public.js'
 import * as Tooltip from './tooltip/public.js'
 import * as VirtualList from './virtualList/public.js'
 
-const TestCombobox = Combobox.makeBlock()
-const TestListbox = Listbox.makeBlock()
-const TestMenu = Menu.makeBlock()
-const TestRadioGroup = RadioGroup.makeBlock()
-const TestTabs = Tabs.makeBlock()
-const TestToast = Toast.makeBlock(Schema.String)
-const TestVirtualList = VirtualList.makeBlock<string>()
+const TestCombobox = Combobox.make()
+const TestListbox = Listbox.make()
+const TestMenu = Menu.make()
+const TestRadioGroup = RadioGroup.make()
+const TestTabs = Tabs.make()
+const TestToast = Toast.make(Schema.String)
+const TestVirtualList = VirtualList.make<string>()
 
 const statefulBarrels: ReadonlyArray<Record<string, unknown>> = [
   Animation,

@@ -42,7 +42,7 @@ const update = (model: Model, message: Message): UpdateResult => {
 
 const init = (config: InitConfig) => ({ model: initialModel(config) })
 
-const TestList = VirtualList.makeBlock<unknown>()
+const TestList = VirtualList.make<unknown>()
 
 const EffectsLayer = Layer.mergeAll(
   ApplyScroll.toLayer(Effect.succeed(handleApplyScroll)),
@@ -457,7 +457,7 @@ describe('VirtualList', () => {
   describe('ObservedContainerScroll', () => {
     it.effect('writes the new scrollTop into the model', () =>
       Story.story(
-        TestList.Live,
+        TestList,
         defaultConfig,
         Story.given(defaultInit()),
         Story.message(
@@ -692,7 +692,7 @@ describe('VirtualList', () => {
       'transitions Unmeasured to Measured with the reported height',
       () =>
         Story.story(
-          TestList.Live,
+          TestList,
           defaultConfig,
           Story.given(defaultInit()),
           Story.message(
@@ -712,7 +712,7 @@ describe('VirtualList', () => {
 
     it.effect('updates the height when already Measured', () =>
       Story.story(
-        TestList.Live,
+        TestList,
         defaultConfig,
         Story.given(defaultInit()),
         Story.message(
@@ -740,7 +740,7 @@ describe('VirtualList', () => {
       'issues no Command on the initial Unmeasured to Measured transition when scrollTop is 0',
       () =>
         Story.story(
-          TestList.Live,
+          TestList,
           defaultConfig,
           Story.given(defaultInit()),
           Story.message(
@@ -757,7 +757,7 @@ describe('VirtualList', () => {
       'issues an apply-scroll Command on the initial transition when scrollTop is non-zero',
       () =>
         Story.story(
-          TestList.Live,
+          TestList,
           defaultConfig,
           Story.given(
             init({ id: 'test', rowHeightPx: 30, initialScrollTop: 600 }).model,
@@ -788,7 +788,7 @@ describe('VirtualList', () => {
       'reconciles the stored viewport anchor after a later resize',
       () =>
         Story.story(
-          TestList.Live,
+          TestList,
           defaultConfig,
           Story.given(defaultInit()),
           Story.message(
@@ -1887,7 +1887,7 @@ describe('VirtualList', () => {
         )
 
         return Story.story(
-          TestList.Live,
+          TestList,
           defaultConfig,
           Story.given(scrolled.model),
           Story.message(

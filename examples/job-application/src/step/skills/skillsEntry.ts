@@ -19,7 +19,7 @@ import * as ProficiencyLevel from '../../domain/proficiencyLevel'
 import { revealFieldErrors } from '../../domain/validation'
 
 const ProficiencyRadioGroup =
-  RadioGroup.makeBlock<ProficiencyLevel.ProficiencyLevel>()
+  RadioGroup.make<ProficiencyLevel.ProficiencyLevel>()
 
 const Model = Schema.Struct({
   id: Schema.String,
@@ -157,7 +157,7 @@ export const SkillsEntryLive = SkillsEntry.toLayer(() => ({
       ],
     )
   },
-})).pipe(Layer.provide(ProficiencyRadioGroup.Live))
+})).pipe(Layer.provide(ProficiencyRadioGroup))
 
 const nameRules = makeRules({
   required: 'Skill name is required',

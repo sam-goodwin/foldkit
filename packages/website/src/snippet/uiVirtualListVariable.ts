@@ -14,7 +14,7 @@ const Activity = Schema.Struct({
 })
 type Activity = typeof Activity.Type
 
-const ActivityList = VirtualList.makeBlock<Activity>()
+const ActivityList = VirtualList.make<Activity>()
 
 const Message = defineMessageUnion({
   ClickedScrollActivityListToMiddle: {},
@@ -94,4 +94,4 @@ export const ActivityFeedLive = ActivityFeed.toLayer(() => ({
       containerClassName:
         'h-96 w-full rounded-lg bg-white ring-1 ring-gray-200',
     }),
-})).pipe(Layer.provide(ActivityList.Live))
+})).pipe(Layer.provide(ActivityList))

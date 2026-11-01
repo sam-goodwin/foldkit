@@ -31,26 +31,23 @@ export type StatusFilterValue = typeof StatusFilterValue.Type
 export const StatusFilterListboxOption = makeListboxOption(StatusFilterValue)
 export type StatusFilterListboxOption = typeof StatusFilterListboxOption.Type
 
-export const WorkspaceListbox = Listbox.makeBlock<typeof ListboxOption.Type>()
+export const WorkspaceListbox = Listbox.make<typeof ListboxOption.Type>()
 
-export const StatusListbox = Listbox.makeBlock<
-  StatusListboxOption,
-  IssueStatus
->()
+export const StatusListbox = Listbox.make<StatusListboxOption, IssueStatus>()
 
-export const PriorityListbox = Listbox.makeBlock<
+export const PriorityListbox = Listbox.make<
   PriorityListboxOption,
   IssuePriority
 >()
 
-export const SortListbox = Listbox.makeBlock<
+export const SortListbox = Listbox.make<
   SortListboxOption,
   typeof IssueFilters.fields.sort.Type
 >()
 
-export const GroupListbox = Listbox.makeBlock<GroupListboxOption, GroupBy>()
+export const GroupListbox = Listbox.make<GroupListboxOption, GroupBy>()
 
-export const StatusFilterListbox = Listbox.makeBlock<
+export const StatusFilterListbox = Listbox.make<
   StatusFilterListboxOption,
   StatusFilterValue
 >()

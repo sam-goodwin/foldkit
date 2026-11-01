@@ -6,9 +6,9 @@ A searchable select with input filtering, keyboard navigation, and anchor positi
 
 ### Create a Typed Combobox
 
-Call the [`Combobox.makeBlock(Item)` factory](/ui/selection-blocks) once at module scope: `const CityCombobox = Combobox.makeBlock(City)`. Pass the same string Schema used by the parent Model. The factory returns a Block class with its Layer attached as `Live`. Its view, Message, and OutMessage all retain that Schema's exact type, so `Selected` carries a `City`. Use `Combobox.makeBlock(Schema.String)` for plain strings.
+Call the [`Combobox.make(Item)` factory](/ui/selection-blocks) once at module scope: `const CityCombobox = Combobox.make(City)`. Pass the same string Schema used by the parent Model. The factory returns a Block class declared with its implementation, so the class is its own Layer. Its view, Message, and OutMessage all retain that Schema's exact type, so `Selected` carries a `City`. Use `Combobox.make(Schema.String)` for plain strings.
 
-Create an instance with `new CityCombobox('combobox', { id: 'city' })` in the parent's `init` and hold it in the parent Model. Render it with `model.combobox.view({ ... })`, handle its OutMessages with `...CityCombobox.on({ ... })`, and provide `CityCombobox.Live` to the parent's Layer. See [Block](/core/block).
+Create an instance with `new CityCombobox('combobox', { id: 'city' })` in the parent's `init` and hold it in the parent Model. Render it with `model.combobox.view({ ... })`, handle its OutMessages with `...CityCombobox.on({ ... })`, and provide `CityCombobox` and `AnimationLive` to the parent's Layer. See [Block](/core/block).
 
 The class type is [`ComboboxClass<Item>` from `@foldkit/ui/combobox`](/ui/selection-blocks#completed-type), and an instance is `Combobox<Item>`. The multi-select subpath exports its own `ComboboxClass` and `Combobox` types for cases where either has to be named.
 
@@ -60,7 +60,7 @@ To make the behavior reproducible at any scroll position, this demo keeps the pa
 
 ### Multi-Select
 
-Use `Combobox.Multi.makeBlock(Item)` for multi-selection. The dropdown stays open on selection and items toggle on/off. The parent stores the selected values and handles each `Selected` OutMessage by toggling the value in its array.
+Use `Combobox.Multi.make(Item)` for multi-selection. The dropdown stays open on selection and items toggle on/off. The parent stores the selected values and handles each `Selected` OutMessage by toggling the value in its array.
 
 ::Demo{name="multi"}
 
@@ -167,7 +167,7 @@ Two view input fields cover the cases a `<label for>` does not. Pass `ariaLabel`
 
 ### InitConfig {#init-config}
 
-The args a parent passes when it creates an instance with `new`, for both `Combobox.makeBlock(Item)` and `Combobox.Multi.makeBlock(Item)`.
+The args a parent passes when it creates an instance with `new`, for both `Combobox.make(Item)` and `Combobox.Multi.make(Item)`.
 
 | Name                 | Type      | Default | Description                                                                                                                                                                                                                                                        |
 | -------------------- | --------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -215,7 +215,7 @@ Pass these fields to the instance's `view`, as in `model.combobox.view({ ... })`
 
 ### OutMessage {#out-message}
 
-Facts the Combobox reports to its parent, whether the user caused them or the parent sent a `Requested*` Message. Handle them by spreading `...CityCombobox.on({ ... })` into the parent's update record; variants without a handler are ignored. To pass a fact further up, return the parent's own OutMessage from the handler. The payloads keep the exact item type of the Schema passed to `Combobox.makeBlock(Item)` or `Combobox.Multi.makeBlock(Item)`.
+Facts the Combobox reports to its parent, whether the user caused them or the parent sent a `Requested*` Message. Handle them by spreading `...CityCombobox.on({ ... })` into the parent's update record; variants without a handler are ignored. To pass a fact further up, return the parent's own OutMessage from the handler. The payloads keep the exact item type of the Schema passed to `Combobox.make(Item)` or `Combobox.Multi.make(Item)`.
 
 | Name               | Type              | Default | Description                                                                                                                                                                                                                                                                                                                                                   |
 | ------------------ | ----------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

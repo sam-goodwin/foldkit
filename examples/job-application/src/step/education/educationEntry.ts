@@ -16,13 +16,13 @@ import {
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-import { Button, Listbox } from '@foldkit/ui'
+import { Animation, Button, Listbox } from '@foldkit/ui'
 
 import * as FieldView from '../../domain/field'
 import * as Icon from '../../domain/icon'
 import { revealFieldErrors } from '../../domain/validation'
 
-const GraduationYearListbox = Listbox.makeBlock()
+const GraduationYearListbox = Listbox.make()
 
 const Model = Schema.Struct({
   id: Schema.String,
@@ -234,7 +234,10 @@ export const EducationEntryLive = EducationEntry.toLayer(() => ({
       ],
     )
   },
-})).pipe(Layer.provide(GraduationYearListbox.Live))
+})).pipe(
+  Layer.provide(GraduationYearListbox),
+  Layer.provide(Animation.AnimationLive),
+)
 
 const schoolRules = makeRules({
   required: 'School is required',

@@ -8,7 +8,7 @@ Tab panel navigation with roving tabindex keyboard support, horizontal and verti
 
 A Tabs instance keeps its own keyboard-focus state, but the parent owns the active tab. Store the active value in your Model, pass it in as `selectedValue`, and store the value from the `Selected` OutMessage back into that field with `...FrameworkTabs.on({ Selected })`.
 
-`Tabs.makeBlock<Value>()` returns a Block class with its Layer attached as `Live`. Create an instance with `new FrameworkTabs('tabs', { id })` in the parent's `init` and provide `FrameworkTabs.Live` to the parent's Layer. The class type is [`TabsClass<Value>` from `@foldkit/ui/tabs`](/ui/selection-blocks#completed-type), and an instance is `Tabs<Value>`, for cases where either has to be named.
+`Tabs.make<Value>()` returns a Block class declared with its implementation, so the class is its own Layer. Create an instance with `new FrameworkTabs('tabs', { id })` in the parent's `init` and provide `FrameworkTabs` to the parent's Layer. The class type is [`TabsClass<Value>` from `@foldkit/ui/tabs`](/ui/selection-blocks#completed-type), and an instance is `Tabs<Value>`, for cases where either has to be named.
 
 :::Info{label="See it in an app"}
 Check out how Tabs is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/tabsPage.ts).
@@ -22,7 +22,7 @@ Tabs switches content within one page and applies the `tablist`/`tab`/`tabpanel`
 
 ### Horizontal
 
-Call `Tabs.makeBlock<Value>()` once at module scope to carry the tab type through the view and the `Selected` OutMessage without casting. Pass the typed `tabs` array and a `toView` callback that receives one `TabInfo<Value>` per tab (with attribute bundles for the tab button and its panel).
+Call `Tabs.make<Value>()` once at module scope to carry the tab type through the view and the `Selected` OutMessage without casting. Pass the typed `tabs` array and a `toView` callback that receives one `TabInfo<Value>` per tab (with attribute bundles for the tab button and its panel).
 
 ::Demo{name="horizontal"}
 
@@ -78,7 +78,7 @@ Pass these fields to the instance's `view`, as in `model.tabs.view({ ... })`. Sp
 
 | Name            | Type                                       | Default        | Description                                                                                                                                                                                                                                |
 | --------------- | ------------------------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tabs`          | `ReadonlyArray<Value>`                     | —              | The list of tab values, in display order. When the tabs component is declared via `Tabs.makeBlock<MyUnion>()`, `Value` is your union type and each `TabInfo.value` is typed as `MyUnion`.                                                  |
+| `tabs`          | `ReadonlyArray<Value>`                     | —              | The list of tab values, in display order. When the tabs component is declared via `Tabs.make<MyUnion>()`, `Value` is your union type and each `TabInfo.value` is typed as `MyUnion`.                                                       |
 | `selectedValue` | `Value`                                    | —              | The active tab, owned by the parent Model and passed back in on each render. `aria-selected`, the `data-selected` marker, the active panel, and `RenderInfo.activeIndex` all derive from it. Update it in the parent's `Selected` handler. |
 | `ariaLabel`     | `string`                                   | —              | Accessible label for the tab list.                                                                                                                                                                                                         |
 | `toView`        | `(render: RenderInfo<Value>) => Html`      | —              | Callback that receives the `tablist` attribute bundle, one `TabInfo<Value>` per tab, and the current `activeIndex`. Returns the composed layout.                                                                                           |
@@ -102,7 +102,7 @@ Each entry in `RenderInfo.tabs`. Carries the value, derived state flags, and att
 
 | Name         | Type                            | Default | Description                                                                                                                                                                                 |
 | ------------ | ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `value`      | `Value`                         | —       | The tab value. Typed as your `Value` union when the tabs component is declared via `Tabs.makeBlock<Value>()`.                                                                               |
+| `value`      | `Value`                         | —       | The tab value. Typed as your `Value` union when the tabs component is declared via `Tabs.make<Value>()`.                                                                                    |
 | `index`      | `number`                        | —       | Position in the `tabs` array.                                                                                                                                                               |
 | `isActive`   | `boolean`                       | —       | Whether this tab is currently active.                                                                                                                                                       |
 | `isFocused`  | `boolean`                       | —       | Whether this tab owns the roving tabindex (the one in the tab order).                                                                                                                       |
@@ -114,6 +114,6 @@ Each entry in `RenderInfo.tabs`. Carries the value, derived state flags, and att
 
 Facts the component reports to its parent. Handle them by spreading the class's `.on({ ... })`, such as `...FrameworkTabs.on({ ... })`, into the parent's update record. Variants without a handler are ignored.
 
-| Name       | Type                              | Default | Description                                                                                                                                                                                      |
-| ---------- | --------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Selected` | `{ value: Value; index: number }` | —       | Emitted when a tab is committed via click or keyboard. Carries both the tab’s value (typed as your `Value` union via `Tabs.makeBlock<Value>()`) and its index. Handle it with the class's `.on`. |
+| Name       | Type                              | Default | Description                                                                                                                                                                                 |
+| ---------- | --------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Selected` | `{ value: Value; index: number }` | —       | Emitted when a tab is committed via click or keyboard. Carries both the tab’s value (typed as your `Value` union via `Tabs.make<Value>()`) and its index. Handle it with the class's `.on`. |

@@ -10,7 +10,7 @@ export type Note = typeof Note.Type
 export const NoteDuration = Schema.Literals(['Short', 'Medium', 'Long'])
 export type NoteDuration = typeof NoteDuration.Type
 
-export const NoteDurationRadioGroup = RadioGroup.makeBlock<NoteDuration>()
+export const NoteDurationRadioGroup = RadioGroup.make<NoteDuration>()
 
 export const PlaybackState = defineTaggedUnion({
   Idle: {},

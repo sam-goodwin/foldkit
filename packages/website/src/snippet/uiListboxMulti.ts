@@ -2,7 +2,7 @@ import { Array, Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
-import { Listbox } from '@foldkit/ui'
+import { Animation, Listbox } from '@foldkit/ui'
 
 const Person = Schema.Literals([
   'Michael Bluth',
@@ -11,7 +11,7 @@ const Person = Schema.Literals([
 ])
 type Person = typeof Person.Type
 
-const PeopleListbox = Listbox.Multi.makeBlock<Person>()
+const PeopleListbox = Listbox.Multi.make<Person>()
 
 const people: ReadonlyArray<Person> = [
   'Michael Bluth',
@@ -79,4 +79,4 @@ export const PeoplePickerLive = PeoplePicker.toLayer(() => ({
       backdropClassName: 'fixed inset-0',
       anchor: { placement: 'bottom-start', gap: 4, padding: 8 },
     }),
-})).pipe(Layer.provide(PeopleListbox.Live))
+})).pipe(Layer.provide(PeopleListbox), Layer.provide(Animation.AnimationLive))

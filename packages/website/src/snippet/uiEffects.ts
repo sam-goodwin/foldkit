@@ -2,9 +2,9 @@ import { Layer, Schema } from 'effect'
 import { Block, Program, Runtime } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 
-import { Dialog, Menu } from '@foldkit/ui'
+import { Animation, Dialog, Menu } from '@foldkit/ui'
 
-const AccountMenu = Menu.makeBlock<'Profile' | 'Sign out'>()
+const AccountMenu = Menu.make<'Profile' | 'Sign out'>()
 
 const Message = defineMessageUnion({
   ClickedOpenSettings: {},
@@ -62,7 +62,8 @@ export const ApplicationLive = Application.toLayer(() => ({
   }),
 })).pipe(
   // Each component's Layer carries its Commands, Mounts, and Subscriptions
-  Layer.provide(Layer.mergeAll(Dialog.DialogLive, AccountMenu.Live)),
+  Layer.provide(Layer.mergeAll(Dialog.DialogLive, AccountMenu)),
+  Layer.provide(Animation.AnimationLive),
 )
 
 const program = Program.make(Application, {

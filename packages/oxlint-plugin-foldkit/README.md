@@ -40,7 +40,7 @@ Oxlint rules for Foldkit applications. Extend `recommended.json` for the support
 | `foldkit/prefer-effect-module-names`                 | Use Effect module names without import aliases.                                                                                    |
 | `foldkit/prefer-option-over-nullable-in-model`       | Model absence with `Schema.Option` instead of nullable or optional fields.                                                         |
 | `foldkit/require-rel-for-external-link`              | Require a protective `Rel` value alongside `Target('_blank')` attributes.                                                          |
-| `foldkit/selection-block-factory-at-module-scope`    | Create selection Block factories such as `Listbox.makeBlock<Item>()` once as module-scope variable initializers.                   |
+| `foldkit/selection-block-factory-at-module-scope`    | Create selection Block factories such as `Listbox.make<Item>()` once as module-scope variable initializers.                        |
 
 ## How rules recognize Blocks
 

@@ -224,11 +224,11 @@ export const swipeDependencies = (
 
 /**
  * Factory that creates Toast's Schemas and update handlers for a specific
- * payload schema. Called by `makeBlock` in `toast.ts`; inner helpers close
+ * payload schema. Called by `make` in `toast.ts`; inner helpers close
  * over the payload-specific Entry / Model / Message types so generics don't
  * have to propagate through every helper signature.
  *
- * @internal Consumers should use `Toast.makeBlock(PayloadSchema)`.
+ * @internal Consumers should use `Toast.make(PayloadSchema)`. The class it returns is its own Layer.
  */
 export const makeRuntime = <A, I>(payloadSchema: Schema.Codec<A, I>) => {
   const EntrySchema = makeEntry(payloadSchema)

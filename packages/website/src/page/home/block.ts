@@ -2,6 +2,8 @@ import { Layer } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
+import { Animation } from '@foldkit/ui'
+
 import { AsyncCounterDemo, AsyncCounterDemoLive } from './asyncCounterDemo'
 import { DemoTabs } from './demoTab'
 import { Message, OutMessage } from './message'
@@ -53,10 +55,11 @@ export const HomeLive = Home.toLayer(() => ({
 })).pipe(
   Layer.provide(
     Layer.mergeAll(
-      DemoTabs.Live,
-      PlaygroundMenu.Live,
+      DemoTabs,
+      PlaygroundMenu,
       AsyncCounterDemoLive,
       NotePlayerDemoLive,
     ),
   ),
+  Layer.provide(Animation.AnimationLive),
 )

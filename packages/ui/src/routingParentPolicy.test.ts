@@ -114,7 +114,7 @@ describe('VirtualList scroll OutMessages', () => {
     expect(applied.model.scrollTop).toBe(40)
     expect(applied.outMessage).toBeUndefined()
 
-    const RefinedVirtualList = VirtualList.makeBlock<{ id: string }>()
+    const RefinedVirtualList = VirtualList.make<{ id: string }>()
     expectTypeOf(RefinedVirtualList.OutMessage).toEqualTypeOf(
       VirtualList.OutMessage,
     )

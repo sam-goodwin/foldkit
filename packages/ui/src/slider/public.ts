@@ -1,7 +1,7 @@
 export {
   Slider,
   SliderLive,
-  forRoot,
+  make,
   fractionOfValue,
   snapAndClamp,
   valueFromPointer,

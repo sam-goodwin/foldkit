@@ -14,20 +14,20 @@ export type Character = Readonly<{
   lastName: string
 }>
 
-export const ItemListbox = Listbox.makeBlock<ListboxItem>()
-export const ItemMultiListbox = Listbox.Multi.makeBlock<ListboxItem>()
-export const CharacterListbox = Listbox.makeBlock<Character>()
+export const ItemListbox = Listbox.make<ListboxItem>()
+export const ItemMultiListbox = Listbox.Multi.make<ListboxItem>()
+export const CharacterListbox = Listbox.make<Character>()
 
 export type MenuItem = 'Edit' | 'Duplicate' | 'Archive' | 'Move' | 'Delete'
 
-export const DemoMenu = Menu.makeBlock<MenuItem>()
+export const DemoMenu = Menu.make<MenuItem>()
 
-export const PlanRadioGroup = RadioGroup.makeBlock<Plan>()
+export const PlanRadioGroup = RadioGroup.make<Plan>()
 
-export const DemoTabs = Tabs.makeBlock<DemoTab>()
+export const DemoTabs = Tabs.make<DemoTab>()
 
-export const ActivityVirtualList = VirtualList.makeBlock<Activity>()
-export const ChatVirtualList = VirtualList.makeBlock<VirtualListChatMessage>()
+export const ActivityVirtualList = VirtualList.make<Activity>()
+export const ChatVirtualList = VirtualList.make<VirtualListChatMessage>()
 
 export const HistoryModeRadioGroup =
-  RadioGroup.makeBlock<VirtualListChatHistoryMode>()
+  RadioGroup.make<VirtualListChatHistoryMode>()

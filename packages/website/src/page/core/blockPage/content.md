@@ -285,7 +285,7 @@ Pass stable functions as view input, defined at module level or in the parent's 
 
 ## Generic Blocks
 
-A Block that is generic over an item type is a function that declares a class and returns it with its Layer attached as `Live`. The items are parent data, so they arrive through the view input:
+A Block that is generic over an item type is a function that declares a class with its implementation and returns it. A class declared with its implementation is its own Layer, so the parent provides it with `Layer.provide(FruitPicker)`. Inside the implementation, refer to the module's Message and OutMessage constants, because the class is not defined yet. The items are parent data, so they arrive through the view input:
 
 ::Snippet{name="blockGenericFactory" label="A Picker factory generic over its items"}
 

@@ -2571,8 +2571,8 @@ export interface Instance<Item> extends BlockInstance<
   ViewInputs<Item>
 > {}
 
-/** A VirtualList Block class refined to one item type, with its Layer
- *  attached as `Live`. */
+/** A VirtualList Block class refined to one item type, declared with its
+ *  implementation. The class is its own Layer. */
 export type Completed<Item> = BlockClass<
   Instance<Item>,
   'VirtualList',
@@ -2580,27 +2580,25 @@ export type Completed<Item> = BlockClass<
   ViewInputs<Item>,
   VirtualListContract
 > &
-  Readonly<{ Live: Layer.Layer<Instance<Item>> }>
+  Layer.Layer<Instance<Item>>
 
-/** Creates a VirtualList Block class refined to one item type.
+/** Creates a VirtualList Block class refined to one item type, declared with
+ * its implementation.
  *
- * Store instances in a parent Model and provide the returned `Live` Layer to
- * the parent. Constructor args select Self, Ancestor or Window scrolling; view
- * input supplies rows, stable keys and a spacer or absolute layout. Creating
- * an instance installs no browser observers until its view mounts.
+ * Store instances in a parent Model and provide the class itself to the
+ * parent's Layer. Constructor args select Self, Ancestor or Window scrolling;
+ * view input supplies rows, stable keys and a spacer or absolute layout.
+ * Creating an instance installs no browser observers until its view mounts.
  */
-export const makeBlock = <Item>(): Completed<Item> => {
-  const VirtualList = Block<Instance<Item>, InitConfig, ViewInputs<Item>>()(
+export const make = <Item>(): Completed<Item> =>
+  Block<Instance<Item>, InitConfig, ViewInputs<Item>>()(
     'VirtualList',
     contract,
+    () => ({
+      init: initialModel,
+      update,
+      commands: { ApplyScroll: handleApplyScroll },
+      mounts: { ObserveVirtualList: handleObserveVirtualList },
+      view: (model, h, viewInputs) => view(model, h, viewInputs),
+    }),
   )
-  const VirtualListLive = VirtualList.toLayer(() => ({
-    init: initialModel,
-    update,
-    commands: { ApplyScroll: handleApplyScroll },
-    mounts: { ObserveVirtualList: handleObserveVirtualList },
-    view: (model, h, viewInputs) => view(model, h, viewInputs),
-  }))
-
-  return Object.assign(VirtualList, { Live: VirtualListLive })
-}

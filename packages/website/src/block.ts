@@ -5,7 +5,7 @@ import { modifyFields } from 'foldkit/struct'
 import { type Url, toString as urlToString } from 'foldkit/url'
 import { githubStarCount } from 'virtual:landing-data'
 
-import { Dialog, DialogLive } from '@foldkit/ui'
+import { Animation, Dialog, DialogLive } from '@foldkit/ui'
 
 import * as Command from './command'
 import { type Deployment, isTelemetryEnabled } from './deployment'
@@ -349,8 +349,9 @@ export const ApplicationLive = Application.toLayer(
       SearchLive,
       SnippetCopyLive,
       SnippetDisclosureLive,
-      ThemeMenu.Live,
+      ThemeMenu,
       UiLive,
     ),
   ),
+  Layer.provide(Animation.AnimationLive),
 )

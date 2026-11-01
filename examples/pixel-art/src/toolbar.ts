@@ -15,13 +15,13 @@ import {
 } from './domain/palette'
 import { Tool } from './domain/tool'
 
-export const ThemeListbox = Listbox.makeBlock()
+export const ThemeListbox = Listbox.make()
 export type ThemeListbox = Listbox.Listbox
-export const ToolRadioGroup = RadioGroup.makeBlock<Tool>()
+export const ToolRadioGroup = RadioGroup.make<Tool>()
 export type ToolRadioGroup = RadioGroup.RadioGroup<Tool>
-export const GridSizeRadioGroup = RadioGroup.makeBlock()
+export const GridSizeRadioGroup = RadioGroup.make()
 export type GridSizeRadioGroup = RadioGroup.RadioGroup
-export const PaletteRadioGroup = RadioGroup.makeBlock()
+export const PaletteRadioGroup = RadioGroup.make()
 export type PaletteRadioGroup = RadioGroup.RadioGroup
 
 const TOOL_RADIO_GROUP_ID = 'tool-picker'

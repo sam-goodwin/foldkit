@@ -3,13 +3,13 @@ import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-import { Combobox, Dialog } from '@foldkit/ui'
+import { Animation, Combobox, Dialog } from '@foldkit/ui'
 import type { RenderInfo as DialogRenderInfo } from '@foldkit/ui/dialog'
 
 const City = Schema.Literals(['Johannesburg', 'Kyiv', 'Oxford', 'Wellington'])
 type City = typeof City.Type
 
-const CityCombobox = Combobox.makeBlock(City)
+const CityCombobox = Combobox.make(City)
 
 const cities: ReadonlyArray<City> = [
   'Johannesburg',
@@ -101,4 +101,7 @@ export const FilterDialogLive = FilterDialog.toLayer(() => ({
       ],
     )
   },
-})).pipe(Layer.provide(Layer.mergeAll(Dialog.DialogLive, CityCombobox.Live)))
+})).pipe(
+  Layer.provide(Layer.mergeAll(Dialog.DialogLive, CityCombobox)),
+  Layer.provide(Animation.AnimationLive),
+)

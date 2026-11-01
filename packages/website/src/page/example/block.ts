@@ -89,7 +89,7 @@ export const ExampleDetailLive = ExampleDetail.toLayer(() => ({
   },
 
   view,
-})).pipe(Layer.provide(SourceFileTabs.Live))
+})).pipe(Layer.provide(SourceFileTabs))
 
 const sourceFileTabsFor = (slug: string) =>
   new SourceFileTabs(slug, { id: SOURCE_FILE_TABS_ID })

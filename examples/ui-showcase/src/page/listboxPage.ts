@@ -3,7 +3,7 @@ import { Block } from 'foldkit'
 import { type Html, type HtmlBuilder, childAttributes } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
 
-import { Listbox } from '@foldkit/ui'
+import { Animation, Listbox } from '@foldkit/ui'
 import { type AnchorConfig, buttonId } from '@foldkit/ui/listbox'
 
 import * as Icon from '../domain/icon'
@@ -25,9 +25,9 @@ type Character = Readonly<{
   lastName: string
 }>
 
-const ItemListbox = Listbox.makeBlock<ListboxItem>()
-const ItemMultiListbox = Listbox.Multi.makeBlock<ListboxItem>()
-const CharacterListbox = Listbox.makeBlock<Character>()
+const ItemListbox = Listbox.make<ListboxItem>()
+const ItemMultiListbox = Listbox.Multi.make<ListboxItem>()
+const CharacterListbox = Listbox.make<Character>()
 
 const Model = Schema.Struct({
   listboxDemo: ItemListbox,
@@ -94,12 +94,9 @@ export const ListboxPageLive = ListboxPage.toLayer(() => ({
   view,
 })).pipe(
   Layer.provide(
-    Layer.mergeAll(
-      ItemListbox.Live,
-      ItemMultiListbox.Live,
-      CharacterListbox.Live,
-    ),
+    Layer.mergeAll(ItemListbox, ItemMultiListbox, CharacterListbox),
   ),
+  Layer.provide(Animation.AnimationLive),
 )
 
 type ItemListboxModel = Model['listboxDemo']

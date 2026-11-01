@@ -32,7 +32,7 @@ Pass `orientation: 'Vertical'` to map pointer movement along the Y axis, with `m
 
 Pointer drag needs document-level `pointermove` / `pointerup` tracking because the cursor can leave the slider element. Slider owns that tracking and an Escape-key Subscription that cancels an in-progress drag. Both run inside each Slider instance while it is in the parent Model, so the parent writes no Subscription wiring of its own.
 
-The default `Slider.Slider` uses `document` to resolve its drag target. For a Slider inside a Shadow DOM, call `Slider.forRoot(getTrackRoot)` once at module scope. It returns a `Slider.SliderClass`, a Slider class with its Layer attached as `Live`. Create instances of that class and provide its `Live` instead of `Slider.SliderLive`. Pass the same `getTrackRoot` resolver to the instance's `view` so track presses and click-to-jump resolve the track inside that Shadow DOM too.
+The default `Slider.Slider` uses `document` to resolve its drag target. For a Slider inside a Shadow DOM, call `Slider.make(getTrackRoot)` once at module scope. It returns a `Slider.SliderClass`, a Slider class declared with its implementation, so the class is its own Layer. Create instances of that class and provide the class itself instead of `Slider.SliderLive`. Pass the same `getTrackRoot` resolver to the instance's `view` so track presses and click-to-jump resolve the track inside that Shadow DOM too.
 
 ## Styling
 

@@ -4,11 +4,11 @@ import { defineMessageUnion } from 'foldkit/message'
 import { Command, message, story } from 'foldkit/story'
 
 import { it } from '@effect/vitest'
-import { Toast } from '@foldkit/ui'
+import { Animation, Toast } from '@foldkit/ui'
 
 const ToastPayload = Schema.Struct({ body: Schema.String })
 
-const Notifications = Toast.makeBlock(ToastPayload)
+const Notifications = Toast.make(ToastPayload)
 
 const Message = defineMessageUnion({ ClickedSave: {} })
 
@@ -31,7 +31,7 @@ const ApplicationLive = Application.toLayer(() => ({
       ],
     }),
   },
-})).pipe(Layer.provide(Notifications.Live))
+})).pipe(Layer.provide(Notifications), Layer.provide(Animation.AnimationLive))
 
 it.effect('shows and drains a toast', () =>
   story(

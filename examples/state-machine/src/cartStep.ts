@@ -28,7 +28,7 @@ const EDITION_RADIO_GROUP_ID = 'edition'
 
 const EDITIONS: ReadonlyArray<string> = [HARDCOVER_EDITION, EBOOK_EDITION]
 
-export const EditionRadioGroup = RadioGroup.makeBlock()
+export const EditionRadioGroup = RadioGroup.make()
 
 const Model = Schema.Struct({
   editionRadioGroup: EditionRadioGroup,
@@ -82,7 +82,7 @@ export const CartStepLive = CartStep.toLayer(() => ({
   },
 
   view: (model, h, { state }) => cartView(state, model.editionRadioGroup, h),
-})).pipe(Layer.provide(EditionRadioGroup.Live))
+})).pipe(Layer.provide(EditionRadioGroup))
 
 type CartStepViewBuilder = HtmlBuilder<Message>
 

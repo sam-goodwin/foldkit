@@ -16,7 +16,7 @@ import type { ChildAttribute, Document, Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-import { Button, Menu, Tabs } from '@foldkit/ui'
+import { Animation, Button, Menu, Tabs } from '@foldkit/ui'
 import type { TabInfo } from '@foldkit/ui/tabs'
 
 import * as Icon from './domain/icon'
@@ -58,8 +58,8 @@ export const Flags = Schema.Struct({
 })
 export type Flags = typeof Flags.Type
 
-export const StepMenu = Menu.makeBlock<Step.Step>()
-export const StepTabs = Tabs.makeBlock<Step.Step>()
+export const StepMenu = Menu.make<Step.Step>()
+export const StepTabs = Tabs.make<Step.Step>()
 
 const Model = Schema.Struct({
   currentStep: Step.Step,
@@ -165,10 +165,11 @@ export const ApplicationLive = Application.toLayer(() => ({
       AttachmentsLive,
       ReviewLive,
       PreviewLive,
-      StepMenu.Live,
-      StepTabs.Live,
+      StepMenu,
+      StepTabs,
     ),
   ),
+  Layer.provide(Animation.AnimationLive),
 )
 
 const isApplicationComplete = (model: Model): boolean =>

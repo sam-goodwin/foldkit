@@ -1,5 +1,5 @@
 export {
-  makeBlock,
+  make,
   Variant,
   Position,
   SwipeDirection,

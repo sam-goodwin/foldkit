@@ -76,7 +76,7 @@ const ConfirmDeleteLive = ConfirmDelete.toLayer(() => ({
 })).pipe(Layer.provide(Dialog.DialogLive))
 ```
 
-Component subpaths also expose domain helpers and types. Generic factories are separate exports: `Combobox.makeBlock(City)` returns a Block class with Schema-refined payloads, and `Tabs.makeBlock<Tab>()` refines a type-only tab value. Each factory's class carries its Layer as `.Live`. Import component ViewInputs and other helper types from their subpaths.
+Component subpaths also expose domain helpers and types. Generic factories are separate exports: `Combobox.make(City)` returns a Block class with Schema-refined payloads, and `Tabs.make<Tab>()` refines a type-only tab value. Each factory declares its class with its implementation, so the class is its own Layer: provide it with `Layer.provide(CityCombobox)`. A Combobox, Listbox, Menu, or Toast class holds Animation instances, so its Layer also needs `AnimationLive`. Import component ViewInputs and other helper types from their subpaths.
 
 Stateless render helpers are also available as subpath namespaces:
 

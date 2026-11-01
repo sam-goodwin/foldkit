@@ -4,7 +4,7 @@ import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-import { Dialog } from '@foldkit/ui'
+import { Animation, Dialog } from '@foldkit/ui'
 import type { AnchorConfig } from '@foldkit/ui/combobox'
 import type { RenderInfo as DialogRenderInfo } from '@foldkit/ui/dialog'
 
@@ -106,7 +106,10 @@ export const DialogPageLive = DialogPage.toLayer(() => ({
   },
 
   view,
-})).pipe(Layer.provide(Layer.mergeAll(Dialog.DialogLive, CityCombobox.Live)))
+})).pipe(
+  Layer.provide(Layer.mergeAll(Dialog.DialogLive, CityCombobox)),
+  Layer.provide(Animation.AnimationLive),
+)
 
 type CityComboboxModel = Model['overlayComboboxDemo']
 type DialogModel = Model['dialogDemo']

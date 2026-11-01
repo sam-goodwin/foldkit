@@ -213,7 +213,7 @@ export type OutMessageSchema<Value extends string = string> =
     : never
 
 /** Generic over `Value extends string` so consumers who create the listbox
- *  via `Listbox.makeBlock<MyUnion>()` receive `value: MyUnion` in the
+ *  via `Listbox.make<MyUnion>()` receive `value: MyUnion` in the
  *  `Selected` OutMessage, instead of `value: string`. Defaults to
  *  `string`. */
 export type OutMessage<Value extends string = string> = Selected<Value>

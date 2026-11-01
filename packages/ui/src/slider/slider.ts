@@ -786,23 +786,19 @@ export class Slider extends Block<Slider, InitConfig, ViewInputs>()(
   contract,
 ) {}
 
-type SliderBlockClass = BlockTypes.BlockClass<
+/** A Slider class built by `Slider.make`, declared with its implementation.
+ *  The class is its own Layer. */
+export type SliderClass = BlockTypes.BlockClass<
   Slider,
   'Slider',
   InitConfig,
   ViewInputs,
   typeof contract
->
+> &
+  Layer.Layer<Slider>
 
-/** A Slider class built by `forRoot`, with its Layer as `Live`. */
-export type SliderClass = SliderBlockClass &
-  Readonly<{ Live: Layer.Layer<Slider> }>
-
-const implementSlider = (
-  SliderClass: SliderBlockClass,
-  getTrackRoot: () => Document | ShadowRoot,
-): Layer.Layer<Slider> =>
-  SliderClass.toLayer(() => ({
+const makeImplementation =
+  (getTrackRoot: () => Document | ShadowRoot) => () => ({
     init: makeInitialModel,
     update,
     subscriptions: {
@@ -821,29 +817,25 @@ const implementSlider = (
         stream: dragEscapeStream,
       },
     },
-    view: (model, h, viewInputs) => renderView(model, viewInputs, h),
-  }))
+    view: Slider.view((model, h, viewInputs) =>
+      renderView(model, viewInputs, h),
+    ),
+  })
 
 /** The Slider Layer, with drag Subscriptions that look up the track via
  *  `document`. */
-export const SliderLive: Layer.Layer<Slider> = implementSlider(
-  Slider,
-  () => document,
+export const SliderLive: Layer.Layer<Slider> = Slider.toLayer(
+  makeImplementation(() => document),
 )
 
 /**
- * Builds a Slider class whose drag Subscriptions resolve tracks from a custom
- * document or Shadow DOM root, with its Layer attached as `Live`.
+ * Builds a Slider class declared with its implementation, whose drag
+ * Subscriptions resolve tracks from a custom document or Shadow DOM root.
+ * Provide the class itself to the parent's Layer.
  */
-export const forRoot = (
-  getTrackRoot: () => Document | ShadowRoot,
-): SliderClass => {
-  const RootSlider: SliderBlockClass = Block<Slider, InitConfig, ViewInputs>()(
+export const make = (getTrackRoot: () => Document | ShadowRoot): SliderClass =>
+  Block<Slider, InitConfig, ViewInputs>()(
     'Slider',
     contract,
+    makeImplementation(getTrackRoot),
   )
-
-  return Object.assign(RootSlider, {
-    Live: implementSlider(RootSlider, getTrackRoot),
-  })
-}

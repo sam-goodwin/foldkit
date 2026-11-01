@@ -269,7 +269,7 @@ A generic factory that binds the declaration to a const keeps its own local name
 
 ### foldkit/selection-block-factory-at-module-scope {#selection-block-factory-at-module-scope}
 
-Requires selection component factories, such as `Listbox.makeBlock<Item>()` and the Combobox, Menu, and Tabs equivalents, to be created once as module-scope variable initializers. Each call creates a new Block class, so a factory called inside a function gives the parent a different class every time.
+Requires selection component factories, such as `Listbox.make<Item>()` and the Combobox, Menu, and Tabs equivalents, to be created once as module-scope variable initializers. Each call creates a new Block class, so a factory called inside a function gives the parent a different class every time.
 
 ::Snippet{name="lintSelectionBlockFactoryAtModuleScope" label="Rule: foldkit/selection-block-factory-at-module-scope"}
 

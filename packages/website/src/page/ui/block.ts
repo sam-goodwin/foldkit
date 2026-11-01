@@ -748,7 +748,6 @@ export const UiLive = Ui.toLayer(() => ({
 })).pipe(
   Layer.provide(
     Layer.mergeAll(
-      Animation.AnimationLive,
       Calendar.CalendarLive,
       DatePicker.DatePickerLive,
       Dialog.DialogLive,
@@ -758,20 +757,21 @@ export const UiLive = Ui.toLayer(() => ({
       Popover.PopoverLive,
       Slider.SliderLive,
       Tooltip.TooltipLive,
-      CityCombobox.Live,
-      CityMultiCombobox.Live,
-      ItemListbox.Live,
-      ItemMultiListbox.Live,
-      CharacterListbox.Live,
-      DemoMenu.Live,
-      PlanRadioGroup.Live,
-      DemoTabs.Live,
-      DemoToast.Live,
-      ActivityVirtualList.Live,
-      ChatVirtualList.Live,
-      HistoryModeRadioGroup.Live,
+      CityCombobox,
+      CityMultiCombobox,
+      ItemListbox,
+      ItemMultiListbox,
+      CharacterListbox,
+      DemoMenu,
+      PlanRadioGroup,
+      DemoTabs,
+      DemoToast,
+      ActivityVirtualList,
+      ChatVirtualList,
+      HistoryModeRadioGroup,
     ),
   ),
+  Layer.provide(Animation.AnimationLive),
 )
 
 const selectComboboxDemoCity = (model: Model, comboboxId: string, city: City) =>

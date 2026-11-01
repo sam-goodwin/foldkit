@@ -594,9 +594,7 @@ export const PlaygroundLive = Playground.toLayer(() => ({
 
   view,
 })).pipe(
-  Layer.provide(
-    Layer.mergeAll(PlaygroundFileTabs.Live, PlaygroundContainerLive),
-  ),
+  Layer.provide(Layer.mergeAll(PlaygroundFileTabs, PlaygroundContainerLive)),
 )
 
 const filesForSlug = (slug: string): Readonly<Record<string, string>> =>

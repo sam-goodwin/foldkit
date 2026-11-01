@@ -10,6 +10,7 @@ import { Block } from 'foldkit'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
+import * as Animation from '@foldkit/ui/animation'
 import * as Combobox from '@foldkit/ui/combobox'
 import * as DragAndDrop from '@foldkit/ui/dragAndDrop'
 import * as Listbox from '@foldkit/ui/listbox'
@@ -24,7 +25,7 @@ import * as VirtualList from '@foldkit/ui/virtualList'
 export const Item = Schema.Literals(['Apple', 'Pear'])
 export type Item = typeof Item.Type
 
-export const Picker = Combobox.makeBlock(Item)
+export const Picker = Combobox.make(Item)
 export const EncodedItem = Schema.Number.pipe(
   Schema.decodeTo(
     Schema.String,
@@ -34,20 +35,20 @@ export const EncodedItem = Schema.Number.pipe(
     }),
   ),
 )
-export const EncodedPicker = Combobox.makeBlock(EncodedItem)
-export const MultiPicker = Combobox.Multi.makeBlock(Item)
-export const ListPicker = Listbox.makeBlock<Item>()
-export const MultiListPicker = Listbox.Multi.makeBlock<Item>()
-export const MenuPicker = Menu.makeBlock<Item>()
-export const RadioPicker = RadioGroup.makeBlock<Item>()
-export const TabPicker = Tabs.makeBlock<Item>()
-export const ItemList = VirtualList.makeBlock<Item>()
-export const RootSlider = Slider.forRoot(() => document)
+export const EncodedPicker = Combobox.make(EncodedItem)
+export const MultiPicker = Combobox.Multi.make(Item)
+export const ListPicker = Listbox.make<Item>()
+export const MultiListPicker = Listbox.Multi.make<Item>()
+export const MenuPicker = Menu.make<Item>()
+export const RadioPicker = RadioGroup.make<Item>()
+export const TabPicker = Tabs.make<Item>()
+export const ItemList = VirtualList.make<Item>()
+export const RootSlider = Slider.make(() => document)
 
 export const ToastPayload = Schema.Struct({
   kind: Schema.Literals(['Saved', 'Failed']),
 })
-export const Notifications = Toast.makeBlock(ToastPayload)
+export const Notifications = Toast.make(ToastPayload)
 
 export const matchMenuOutMessage = MenuPicker.OutMessage.match<Item | 'Closed'>(
   {
@@ -167,14 +168,15 @@ export const ShopLive = Shop.toLayer(
 ).pipe(
   Layer.provide(
     Layer.mergeAll(
-      Picker.Live,
-      EncodedPicker.Live,
-      ListPicker.Live,
-      MenuPicker.Live,
-      Notifications.Live,
-      RootSlider.Live,
+      Picker,
+      EncodedPicker,
+      ListPicker,
+      MenuPicker,
+      Notifications,
+      RootSlider,
       Tooltip.TooltipLive,
       DragAndDrop.DragAndDropLive,
     ),
   ),
+  Layer.provide(Animation.AnimationLive),
 )

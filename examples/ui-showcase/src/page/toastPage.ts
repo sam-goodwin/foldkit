@@ -3,7 +3,7 @@ import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 
-import { Toast } from '@foldkit/ui'
+import { Animation, Toast } from '@foldkit/ui'
 import type { EntryHandlers, Variant } from '@foldkit/ui/toast'
 
 import * as Icon from '../domain/icon'
@@ -14,7 +14,7 @@ const ToastPayload = Schema.Struct({
 })
 type ToastPayload = typeof ToastPayload.Type
 
-const DemoToast = Toast.makeBlock(ToastPayload)
+const DemoToast = Toast.make(ToastPayload)
 
 const Model = Schema.Struct({
   toastDemo: DemoToast,
@@ -136,7 +136,7 @@ export const ToastPageLive = ToastPage.toLayer(() => ({
   },
 
   view,
-})).pipe(Layer.provide(DemoToast.Live))
+})).pipe(Layer.provide(DemoToast), Layer.provide(Animation.AnimationLive))
 
 type Entry = Model['toastDemo']['model']['entries'][number]
 

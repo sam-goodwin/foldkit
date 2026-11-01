@@ -10,7 +10,7 @@ const FRUITS: ReadonlyArray<Fruit> = [{ name: 'Apple' }, { name: 'Pear' }]
 
 const toFruitLabel = (fruit: Fruit): string => fruit.name
 
-const FruitPicker = Picker.makeBlock<Fruit>()
+const FruitPicker = Picker.make<Fruit>()
 
 export class Order extends Block<Order>()('Order', {
   Model: Schema.Struct({
@@ -41,4 +41,4 @@ export const OrderLive = Order.toLayer(() => ({
       [],
       [model.fruitPicker.view({ items: FRUITS, toLabel: toFruitLabel })],
     ),
-})).pipe(Layer.provide(FruitPicker.Live))
+})).pipe(Layer.provide(FruitPicker))

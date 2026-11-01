@@ -22,7 +22,7 @@ const Item = Schema.Struct({
   content: RowContent,
 })
 type Item = typeof Item.Type
-const ItemVirtualList = VirtualList.makeBlock<Item>()
+const ItemVirtualList = VirtualList.make<Item>()
 const Model = Schema.Struct({
   config: FixtureConfig,
   maybeList: Schema.Option(ItemVirtualList),
@@ -374,4 +374,4 @@ export const ApplicationLive = Application.toLayer(
       view,
     }
   }),
-).pipe(Layer.provide(ItemVirtualList.Live))
+).pipe(Layer.provide(ItemVirtualList))

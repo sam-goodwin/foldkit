@@ -6,7 +6,7 @@ A custom select dropdown with keyboard navigation, typeahead search, and anchor 
 
 ### Create a Typed Listbox
 
-Call the [`Listbox.makeBlock<Item, Value?>()` factory](/ui/selection-blocks) once at module scope: `const PlanListbox = Listbox.makeBlock<Plan>()`. It returns a Block class bound to `Plan`, with its Layer attached as `Live`, so the view takes `Plan` items and the `Selected` OutMessage carries a `Plan`. Create an instance with `new PlanListbox('listbox', { id: 'plan' })` in the parent's `init`, hold it in the parent Model, and provide `PlanListbox.Live` to the parent's Layer.
+Call the [`Listbox.make<Item, Value?>()` factory](/ui/selection-blocks) once at module scope: `const PlanListbox = Listbox.make<Plan>()`. It returns a Block class bound to `Plan` and declared with its implementation, so the view takes `Plan` items, the `Selected` OutMessage carries a `Plan`, and the class is its own Layer. Create an instance with `new PlanListbox('listbox', { id: 'plan' })` in the parent's `init`, hold it in the parent Model, and provide `PlanListbox` and `AnimationLive` to the parent's Layer.
 
 The class type is [`ListboxClass<Item, Value>` from `@foldkit/ui/listbox`](/ui/selection-blocks#completed-type), and an instance is `Listbox<Item, Value>`. The multi-select namespace exports its own `ListboxClass` and `Listbox` types, for the cases where either has to be named.
 
@@ -30,7 +30,7 @@ Pass an `itemToConfig` callback that maps each item to its content. The context 
 
 ### Multi-select
 
-Use `Listbox.Multi.makeBlock()` for multi-selection. The dropdown stays open on selection and items toggle on/off. The parent stores the selected values and handles each `Selected` OutMessage by toggling the value in its array.
+Use `Listbox.Multi.make()` for multi-selection. The dropdown stays open on selection and items toggle on/off. The parent stores the selected values and handles each `Selected` OutMessage by toggling the value in its array.
 
 ::Demo{name="multi-select"}
 
@@ -117,7 +117,7 @@ Two ViewInputs fields cover the cases a `<label for>` does not. Pass `ariaLabel`
 
 ### InitConfig {#init-config}
 
-The args a parent passes when it creates an instance with `new`, for both `Listbox.makeBlock()` and `Listbox.Multi.makeBlock()`.
+The args a parent passes when it creates an instance with `new`, for both `Listbox.make()` and `Listbox.Multi.make()`.
 
 | Name          | Type                         | Default      | Description                                                                                                                                          |
 | ------------- | ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -128,7 +128,7 @@ The args a parent passes when it creates an instance with `new`, for both `Listb
 
 ### ViewInputs {#view-config}
 
-Pass these fields to the instance's `view`, as in `model.listbox.view({ ... })`. Spread the attribute groups the component passes to your callbacks unchanged, and wrap handler-bearing attributes you pass in with `childAttributes`. See [View input](/core/block#callback-dispatch-boundaries). The same structure is used for `Listbox.Multi.makeBlock()` except where noted.
+Pass these fields to the instance's `view`, as in `model.listbox.view({ ... })`. Spread the attribute groups the component passes to your callbacks unchanged, and wrap handler-bearing attributes you pass in with `childAttributes`. See [View input](/core/block#callback-dispatch-boundaries). The same structure is used for `Listbox.Multi.make()` except where noted.
 
 | Name                                           | Type                                      | Default | Description                                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------------------- | ----------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -160,7 +160,7 @@ Pass these fields to the instance's `view`, as in `model.listbox.view({ ... })`.
 
 ### OutMessage {#out-message}
 
-Facts the component reports to its parent. Handle them by spreading the class's `.on({ ... })`, such as `...PlanListbox.on({ ... })`, into the parent's update record. Variants without a handler are ignored. The same shape applies to `Listbox.Multi.makeBlock()`.
+Facts the component reports to its parent. Handle them by spreading the class's `.on({ ... })`, such as `...PlanListbox.on({ ... })`, into the parent's update record. Variants without a handler are ignored. The same shape applies to `Listbox.Multi.make()`.
 
 | Name       | Type               | Default | Description                                                                                                                                                                                                                                                                                                                                                  |
 | ---------- | ------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

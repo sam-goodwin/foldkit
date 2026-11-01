@@ -30,7 +30,7 @@ import { type Html, type HtmlBuilder, childAttributes } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-import { DatePicker, Listbox } from '@foldkit/ui'
+import { Animation, DatePicker, Listbox } from '@foldkit/ui'
 
 import * as DatePickerView from '../domain/datePicker'
 import * as FieldView from '../domain/field'
@@ -38,7 +38,7 @@ import * as Icon from '../domain/icon'
 import * as PronounOption from '../domain/pronounOption'
 import { revealFieldErrors } from '../domain/validation'
 
-const PronounsListbox = Listbox.makeBlock()
+const PronounsListbox = Listbox.make()
 
 const Model = Schema.Struct({
   firstName: Field(Schema.String),
@@ -196,9 +196,8 @@ export const PersonalInfoLive = PersonalInfo.toLayer(() => ({
 
   view,
 })).pipe(
-  Layer.provide(
-    Layer.mergeAll(PronounsListbox.Live, DatePicker.DatePickerLive),
-  ),
+  Layer.provide(Layer.mergeAll(PronounsListbox, DatePicker.DatePickerLive)),
+  Layer.provide(Animation.AnimationLive),
 )
 
 // VALIDATION

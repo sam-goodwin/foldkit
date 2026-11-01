@@ -78,9 +78,11 @@ of a release tag. After an upgrade, use the same command with `pull` in place of
   an update handler, store it in the parent Model, and provide
   `Dialog.DialogLive` to the parent's Layer.
 - Call a generic component factory once at module scope, such as
-  `const ResultListbox = Listbox.makeBlock<Result>()`. It returns a class
-  with its Layer attached as `ResultListbox.Live`. Never call the factory
-  again to recover a Model or class.
+  `const ResultListbox = Listbox.make<Result>()`. It returns a class
+  declared with its implementation, so the class is its own Layer:
+  `Layer.provide(ResultListbox)`, with `AnimationLive` for a Combobox,
+  Listbox, Menu, or Toast class. Never call the factory again to recover a
+  Model or class.
 - Call stateless render helpers directly with the caller's builder and Model.
   Do not turn a render helper into a Block merely for structural symmetry.
 - Use `modifyFields` transformers directly when they depend only on that field's

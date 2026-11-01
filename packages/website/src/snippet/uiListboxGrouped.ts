@@ -3,7 +3,7 @@ import { Block } from 'foldkit'
 import { childAttributes } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
 
-import { Listbox } from '@foldkit/ui'
+import { Animation, Listbox } from '@foldkit/ui'
 
 type Character = Readonly<{
   firstName: string
@@ -15,7 +15,7 @@ const characterName = (character: Character): string =>
 
 // Typed for the source item. The `Selected` OutMessage carries the string
 // returned by `itemToValue`.
-const CharacterListbox = Listbox.makeBlock<Character>()
+const CharacterListbox = Listbox.make<Character>()
 
 const characters: ReadonlyArray<Character> = [
   { firstName: 'Michael', lastName: 'Bluth' },
@@ -86,4 +86,7 @@ export const CharacterPickerLive = CharacterPicker.toLayer(() => ({
       backdropClassName: 'fixed inset-0',
       anchor: { placement: 'bottom-start', gap: 4, padding: 8 },
     }),
-})).pipe(Layer.provide(CharacterListbox.Live))
+})).pipe(
+  Layer.provide(CharacterListbox),
+  Layer.provide(Animation.AnimationLive),
+)

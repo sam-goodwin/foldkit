@@ -8,7 +8,7 @@ import type { RenderInfo as RadioGroupRenderInfo } from '@foldkit/ui/radioGroup'
 const Plan = Schema.Literals(['Startup', 'Business', 'Enterprise'])
 type Plan = typeof Plan.Type
 
-const PlanRadioGroup = RadioGroup.makeBlock<Plan>()
+const PlanRadioGroup = RadioGroup.make<Plan>()
 
 const plans: ReadonlyArray<Plan> = ['Startup', 'Business', 'Enterprise']
 
@@ -76,4 +76,4 @@ export const PlanPickerLive = PlanPicker.toLayer(() => ({
       toView: radioGroupView,
     })
   },
-})).pipe(Layer.provide(PlanRadioGroup.Live))
+})).pipe(Layer.provide(PlanRadioGroup))

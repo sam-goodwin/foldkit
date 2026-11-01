@@ -8,7 +8,7 @@ import type { RenderInfo as TabsRenderInfo } from '@foldkit/ui/tabs'
 const Framework = Schema.Literals(['Foldkit', 'React', 'Elm'])
 type Framework = typeof Framework.Type
 
-const FrameworkTabs = Tabs.makeBlock<Framework>()
+const FrameworkTabs = Tabs.make<Framework>()
 
 const frameworks: ReadonlyArray<Framework> = ['Foldkit', 'React', 'Elm']
 
@@ -88,4 +88,4 @@ export const FrameworkPickerLive = FrameworkPicker.toLayer(() => ({
       toView: tabsView,
     })
   },
-})).pipe(Layer.provide(FrameworkTabs.Live))
+})).pipe(Layer.provide(FrameworkTabs))

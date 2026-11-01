@@ -10,7 +10,7 @@ import {
   type PanelMount,
   findFirstEnabledIndex,
   keyToIndex,
-  makeBlock,
+  make,
   wrapIndex,
 } from './tabs.js'
 
@@ -21,7 +21,7 @@ const disabledAt =
   (index: number) =>
     indices.includes(index)
 
-const TestTabs = makeBlock()
+const TestTabs = make()
 
 type TabsHarnessArgs = Readonly<{
   config: InitConfig
@@ -70,7 +70,7 @@ const makeTabsHarnessLive = ({ config, panelMount }: TabsHarnessArgs) =>
             ],
           ),
       }),
-  })).pipe(Layer.provide(TestTabs.Live))
+  })).pipe(Layer.provide(TestTabs))
 
 const automatic: TabsHarnessArgs = {
   config: { id: 'test' },

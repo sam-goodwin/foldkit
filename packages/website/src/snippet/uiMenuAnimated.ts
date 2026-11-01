@@ -1,11 +1,11 @@
 import { Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 
-import { Menu } from '@foldkit/ui'
+import { Animation, Menu } from '@foldkit/ui'
 
 type Action = 'Edit' | 'Duplicate' | 'Archive' | 'Delete'
 
-const ActionMenu = Menu.makeBlock<Action>()
+const ActionMenu = Menu.make<Action>()
 
 const actions: ReadonlyArray<Action> = [
   'Edit',
@@ -41,4 +41,4 @@ export const ToolbarLive = Toolbar.toLayer(() => ({
       backdropClassName: 'fixed inset-0',
       anchor: { placement: 'bottom-start', gap: 4, padding: 8 },
     }),
-})).pipe(Layer.provide(ActionMenu.Live))
+})).pipe(Layer.provide(ActionMenu), Layer.provide(Animation.AnimationLive))

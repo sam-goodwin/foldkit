@@ -9,7 +9,8 @@ import { expect } from 'vitest'
 
 import { describe, it } from '@effect/vitest'
 
-import { makeBlock } from './multi.js'
+import * as Animation from '../animation/block.js'
+import { make } from './multi.js'
 import type { InitConfig, Model as ListboxModel, ViewInputs } from './multi.js'
 import {
   AnchorListbox,
@@ -23,14 +24,15 @@ import {
 
 type Model = BlockTypes.Resolved<ListboxModel>
 
-const TestListbox = makeBlock()
+const TestListbox = make()
+const TestListboxLive = TestListbox.pipe(Layer.provide(Animation.AnimationLive))
 const testConfig: InitConfig = { id: 'test' }
 
 const initialModel = (config: InitConfig): Model => {
   let model!: Model
   Effect.runSync(
     story(
-      TestListbox.Live,
+      TestListboxLive,
       config,
       Story.model(constructedModel => {
         model = constructedModel
@@ -54,7 +56,7 @@ const makeListboxSceneLive = (viewInputs: ViewInputs<string>) =>
       }),
     },
     view: model => model.listbox.view(viewInputs),
-  })).pipe(Layer.provide(TestListbox.Live))
+  })).pipe(Layer.provide(TestListboxLive))
 
 const acknowledgeAnchor = Scene.Mount.resolve(
   AnchorListbox,
@@ -105,7 +107,7 @@ describe('Listbox.Multi', () => {
     describe('SelectedItem (multiple)', () => {
       it.effect('emits Selected with the item value', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpenMulti,
           Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -115,7 +117,7 @@ describe('Listbox.Multi', () => {
 
       it.effect('stays open after selection', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpenMulti,
           Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -129,7 +131,7 @@ describe('Listbox.Multi', () => {
         'emits Selected again when the same item is activated (parent toggles off)',
         () =>
           story(
-            TestListbox.Live,
+            TestListboxLive,
             testConfig,
             givenOpenMulti,
             Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -141,7 +143,7 @@ describe('Listbox.Multi', () => {
 
       it.effect('emits Selected for each activated item', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpenMulti,
           Story.message(Message.SelectedItem({ item: 'apple' })),
@@ -153,7 +155,7 @@ describe('Listbox.Multi', () => {
 
       it.effect('preserves active item after selection', () =>
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpenMulti,
           Story.message(
@@ -179,7 +181,7 @@ describe('Listbox.Multi', () => {
       let model!: Model
       Effect.runSync(
         story(
-          TestListbox.Live,
+          TestListboxLive,
           testConfig,
           givenOpenMulti,
           Story.model(extractedModel => {

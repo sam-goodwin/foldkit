@@ -192,7 +192,7 @@ Each `@foldkit/ui` component with state is a Block. Create an instance with `new
 
 ::Snippet{name="previewMigrationUiAfter" label="After: a Dialog held by its parent"}
 
-A component module exports its class under the component name and its Layer with a `Live` suffix, such as `Dialog.Dialog` and `Dialog.DialogLive`. A component whose state depends on an item type keeps a factory: `const ActionMenu = Menu.makeBlock<Action>()` returns a class, and `ActionMenu.Live` is its Layer. Create each factory class once at module scope. Each component's args replace the stable init config, such as `{ id, isAnimated? }` for Dialog. The [UI overview](/ui/overview) and each component page show the current calls.
+A component module exports its class under the component name and its Layer with a `Live` suffix, such as `Dialog.Dialog` and `Dialog.DialogLive`. A component whose state depends on an item type keeps a factory: `const ActionMenu = Menu.make<Action>()` returns a class declared with its implementation, and the class is its own Layer: `Layer.provide(ActionMenu)`. Create each factory class once at module scope. Each component's args replace the stable init config, such as `{ id, isAnimated? }` for Dialog. The [UI overview](/ui/overview) and each component page show the current calls.
 
 ## Migrate Tests
 

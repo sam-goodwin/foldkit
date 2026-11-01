@@ -2,6 +2,7 @@ import { Array, Layer, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
+import * as Animation from '@foldkit/ui/animation'
 import { buttonId } from '@foldkit/ui/listbox'
 
 import type { Member } from './domain/domain'
@@ -67,4 +68,7 @@ export const MemberSwitcherLive = MemberSwitcher.toLayer(() => ({
         ),
       ],
     ),
-})).pipe(Layer.provide(WorkspaceListbox.Live))
+})).pipe(
+  Layer.provide(WorkspaceListbox),
+  Layer.provide(Animation.AnimationLive),
+)

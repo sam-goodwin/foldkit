@@ -16,13 +16,13 @@ A Listbox over a literal-union `Plan` type:
 
 ## Make a typed Block {#make-block-factory}
 
-A call to `Listbox.makeBlock<Plan>()` returns a Block class whose entry points are all bound to `Plan`, with its Layer attached as `Live`. Its view accepts `items: ReadonlyArray<Plan>`, and its `Selected` OutMessage carries a `Plan`, whether the user picked the item or the parent sent `RequestedSelectItem({ item })`. Call the factory once at module scope, name the result, and use that class at every site that needs it. Each call declares a different Block. Create instances with `new PlanListbox('listbox', { id })` and provide `PlanListbox.Live` to the parent's Layer.
+A call to `Listbox.make<Plan>()` returns a Block class whose entry points are all bound to `Plan`, declared with its implementation, so the class is its own Layer. Its view accepts `items: ReadonlyArray<Plan>`, and its `Selected` OutMessage carries a `Plan`, whether the user picked the item or the parent sent `RequestedSelectItem({ item })`. Call the factory once at module scope, name the result, and use that class at every site that needs it. Each call declares a different Block. Create instances with `new PlanListbox('listbox', { id })` and provide the class to the parent's Layer with `Layer.provide(PlanListbox)`. A Listbox, Combobox, or Menu holds Animation instances, so provide `AnimationLive` as well.
 
 There is no Message that informs the Block of the selection: the parent owns it outright and passes it in as `maybeSelectedValue` (`selectedValues` for multi-select), so there is no child Model field to update. When an external value changes the selection, the parent writes its own field. Components that store parent-provided configuration accept Messages for it instead: Calendar and DatePicker accept `InformedOfMinDateChange`, `InformedOfMaxDateChange`, `InformedOfDisabledDatesChange`, and `InformedOfDisabledDaysOfWeekChange`; Slider accepts `InformedOfRangeChange`. See [Parent to child](/core/block#informing-external-state).
 
 ## Naming What a Factory Returns {#completed-type}
 
-Each component subpath exports two types for what its factory returns: a class type and an instance type. `ListboxClass<Plan>` from `@foldkit/ui/listbox` is what `Listbox.makeBlock<Plan>()` returns, and `Listbox<Plan>` is the type of one of its instances. The Combobox, multi-select Listbox and Combobox, Tabs, Menu, and RadioGroup subpaths expose the matching `ComboboxClass` and `Combobox`, `TabsClass` and `Tabs`, `MenuClass` and `Menu`, and `RadioGroupClass` and `RadioGroup` types.
+Each component subpath exports two types for what its factory returns: a class type and an instance type. `ListboxClass<Plan>` from `@foldkit/ui/listbox` is what `Listbox.make<Plan>()` returns, and `Listbox<Plan>` is the type of one of its instances. The Combobox, multi-select Listbox and Combobox, Tabs, Menu, and RadioGroup subpaths expose the matching `ComboboxClass` and `Combobox`, `TabsClass` and `Tabs`, `MenuClass` and `Menu`, and `RadioGroupClass` and `RadioGroup` types.
 
 ### When to Name the Type
 
@@ -60,20 +60,20 @@ Each generic selection Block has a root factory export. Its inputs differ by wha
 
 ### Listbox
 
-`Listbox.makeBlock<Item, Value>()` takes two type parameters, or `Listbox.makeBlock<Item>()` when relying on the default. `Item` is the shape of the items the consumer supplies. `Value` is the shape of the value the OutMessage carries; it defaults to `Item` when `Item extends string`, else `string`. The two-parameter shape supports object-typed items via an `itemToValue` callback that extracts the stringy identifier from each `Item`.
+`Listbox.make<Item, Value>()` takes two type parameters, or `Listbox.make<Item>()` when relying on the default. `Item` is the shape of the items the consumer supplies. `Value` is the shape of the value the OutMessage carries; it defaults to `Item` when `Item extends string`, else `string`. The two-parameter shape supports object-typed items via an `itemToValue` callback that extracts the stringy identifier from each `Item`.
 
-`Listbox.Multi.makeBlock<Item, Value>()` (or `Listbox.Multi.makeBlock<Item>()`) is the multi-select variant. Same type-parameter shape; the `Selected` OutMessage carries only the activated `value`, and the parent toggles that value in and out of the selection it owns.
+`Listbox.Multi.make<Item, Value>()` (or `Listbox.Multi.make<Item>()`) is the multi-select variant. Same type-parameter shape; the `Selected` OutMessage carries only the activated `value`, and the parent toggles that value in and out of the selection it owns.
 
 ### Combobox
 
-`Combobox.makeBlock(Item)` takes one string Schema, such as `Combobox.makeBlock(City)`. Combobox items may be a literal union, a branded string Schema, or plain `Schema.String`.
+`Combobox.make(Item)` takes one string Schema, such as `Combobox.make(City)`. Combobox items may be a literal union, a branded string Schema, or plain `Schema.String`.
 
-`Combobox.Multi.makeBlock(Item)` is the multi-select variant. It takes the same Schema shape; the `Selected` OutMessage carries only the activated `value`, and the parent toggles that value in and out of the selection it owns.
+`Combobox.Multi.make(Item)` is the multi-select variant. It takes the same Schema shape; the `Selected` OutMessage carries only the activated `value`, and the parent toggles that value in and out of the selection it owns.
 
 ### Tabs
 
-`Tabs.makeBlock<Value>()` takes one type parameter, `Value extends string`. The view accepts `ReadonlyArray<Value>` as its tab list (a literal union `Value` is assignable to `string`), and the OutMessage carries both the picked `value: Value` and its `index: number`. The single parameter is enough because Tabs values are always inline strings; there is no object form.
+`Tabs.make<Value>()` takes one type parameter, `Value extends string`. The view accepts `ReadonlyArray<Value>` as its tab list (a literal union `Value` is assignable to `string`), and the OutMessage carries both the picked `value: Value` and its `index: number`. The single parameter is enough because Tabs values are always inline strings; there is no object form.
 
 ### Menu
 
-`Menu.makeBlock<Item>()` takes one type parameter, `Item extends string`. The view accepts `ReadonlyArray<Item>` as its menu items, and the OutMessage carries both the picked `value: Item` and its `index: number`. The picked value arrives directly in the OutMessage, so consumers do not need to look it up in their own items array.
+`Menu.make<Item>()` takes one type parameter, `Item extends string`. The view accepts `ReadonlyArray<Item>` as its menu items, and the OutMessage carries both the picked `value: Item` and its `index: number`. The picked value arrives directly in the OutMessage, so consumers do not need to look it up in their own items array.

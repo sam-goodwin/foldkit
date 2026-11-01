@@ -1,4 +1,4 @@
-export { makeBlock } from './single.js'
+export { make } from './single.js'
 export { inputId, groupContiguous, ActivationTrigger } from './shared.js'
 export type {
   Combobox,

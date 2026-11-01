@@ -46,6 +46,7 @@ import { defineTaggedUnion } from 'foldkit/schema'
 import { modifyFields } from 'foldkit/struct'
 
 import { BrowserKeyValueStore } from '@effect/platform-browser'
+import * as Animation from '@foldkit/ui/animation'
 import * as Listbox from '@foldkit/ui/listbox'
 import * as Slider from '@foldkit/ui/slider'
 import * as Switch from '@foldkit/ui/switch'
@@ -62,8 +63,8 @@ const getDevToolsShadowRoot = (): ShadowRoot => {
   return shadow
 }
 
-const BlockFilterListbox = Listbox.makeBlock<string>()
-const ScrubberSlider = Slider.forRoot(getDevToolsShadowRoot)
+const BlockFilterListbox = Listbox.make<string>()
+const ScrubberSlider = Slider.make(getDevToolsShadowRoot)
 
 // MODEL
 
@@ -106,7 +107,7 @@ const SCRUBBER_SLIDER_ID = 'dt-scrubber'
 const InspectorTab = Schema.Literals(['Model', 'Message', 'Commands', 'Mounts'])
 type InspectorTab = typeof InspectorTab.Type
 const INSPECTOR_TABS: ReadonlyArray<InspectorTab> = InspectorTab.literals
-const InspectorTabs = Tabs.makeBlock<InspectorTab>()
+const InspectorTabs = Tabs.make<InspectorTab>()
 
 /**
  * `Schema.Unknown` whose equivalence is reference equality. Effect 4's default
@@ -2861,12 +2862,9 @@ export const createOverlay = (
     const program = Program.makeElement(Application, {
       layer: ApplicationLive.pipe(
         Layer.provide(
-          Layer.mergeAll(
-            InspectorTabs.Live,
-            BlockFilterListbox.Live,
-            ScrubberSlider.Live,
-          ),
+          Layer.mergeAll(InspectorTabs, BlockFilterListbox, ScrubberSlider),
         ),
+        Layer.provide(Animation.AnimationLive),
         Layer.provide(InitialStateLayer),
         Layer.provide(ServicesLayer),
       ),

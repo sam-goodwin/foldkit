@@ -4,7 +4,7 @@
 
 A stack of transient notifications positioned along an edge of the viewport. Each entry has its own enter and leave animation and hover state. Non-sticky entries have independent auto-dismiss timers that pause on hover. Swipe-to-dismiss is opt-in for the container. Keep the container at the app root and add entries by sending it the Message `Toast.requestShow` builds.
 
-Toast is parameterized on a payload Schema that you provide. The component owns entry IDs, variants, animations, optional dismiss timers, hover state, and swipe state. Your payload holds the content rendered by `entryToView`. `Toast.makeBlock(PayloadSchema)` returns a Block class bound to that payload type, with its Layer attached as `Live` and a `requestShow` helper that builds the show Message. Call it once at module scope, create an instance with `new` in the parent's `init`, and provide its `Live` to the parent's Layer.
+Toast is parameterized on a payload Schema that you provide. The component owns entry IDs, variants, animations, optional dismiss timers, hover state, and swipe state. Your payload holds the content rendered by `entryToView`. `Toast.make(PayloadSchema)` returns a Block class bound to that payload type and declared with its implementation, with a `requestShow` helper that builds the show Message. Call it once at module scope, create an instance with `new` in the parent's `init`, and provide the class to the parent's Layer with `Layer.provide(AppToast)`. Each entry animates through an Animation instance, so provide `AnimationLive` as well.
 
 :::Info{label="See it in an app"}
 Check out how Toast is wired up in a [real Foldkit app](https://github.com/foldkit/foldkit/blob/main/examples/ui-showcase/src/page/toastPage.ts).
@@ -65,7 +65,7 @@ The container has `role="region"` and `aria-live="polite"`. It stays in the DOM 
 
 ## Testing
 
-Use the `test.drainEntry` helper on the class `Toast.makeBlock` returns in a [Story test](/testing/story) to resolve the animation and timer Commands for a newly shown toast that auto-dismisses:
+Use the `test.drainEntry` helper on the class `Toast.make` returns in a [Story test](/testing/story) to resolve the animation and timer Commands for a newly shown toast that auto-dismisses:
 
 ::Snippet{name="uiToastDrainEntry" label="Draining a fresh Toast entry in Story"}
 
@@ -87,11 +87,11 @@ The args a parent passes when it creates an instance with `new`.
 
 ### ShowInput {#show-input}
 
-Input shape for `Toast.requestShow(input)`, called on the class `Toast.makeBlock` returns.
+Input shape for `Toast.requestShow(input)`, called on the class `Toast.make` returns.
 
 | Name       | Type                                          | Default  | Description                                                                                                                                                                                                                 |
 | ---------- | --------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `payload`  | `A (your payload type)`                       | —        | Content for this entry, in the shape you supplied to `Toast.makeBlock`. Toast passes it to your `entryToView` callback without reading it.                                                                                  |
+| `payload`  | `A (your payload type)`                       | —        | Content for this entry, in the shape you supplied to `Toast.make`. Toast passes it to your `entryToView` callback without reading it.                                                                                       |
 | `variant`  | `'Info' \| 'Success' \| 'Warning' \| 'Error'` | `'Info'` | Semantic category. Maps to data-variant for styling and to role=status (Info, Success) or role=alert (Warning, Error) for accessibility. The only content-adjacent field the component owns. Everything else is in payload. |
 | `duration` | `Duration.Input`                              | —        | Overrides the container's defaultDuration for this entry. No auto-dismiss timer is scheduled when `sticky: true`.                                                                                                           |
 | `sticky`   | `boolean`                                     | `false`  | When true, the entry does not auto-dismiss. It can still be closed with the close button, an enabled swipe, or a `RequestedDismiss` Message from the parent.                                                                |

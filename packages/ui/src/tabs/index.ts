@@ -1,5 +1,5 @@
 export {
-  makeBlock,
+  make,
   Orientation,
   ActivationMode,
   type InitConfig,

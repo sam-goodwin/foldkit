@@ -2,7 +2,7 @@ import { Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
-import { Listbox } from '@foldkit/ui'
+import { Animation, Listbox } from '@foldkit/ui'
 import { buttonId as ListboxButtonId } from '@foldkit/ui/listbox'
 
 const Plan = Schema.Literals(['Free', 'Pro', 'Enterprise'])
@@ -10,7 +10,7 @@ type Plan = typeof Plan.Type
 
 // Declare a typed Listbox once at module scope. Its view takes
 // `items: ReadonlyArray<Plan>` and its `Selected` OutMessage carries a `Plan`.
-const PlanListbox = Listbox.makeBlock<Plan>()
+const PlanListbox = Listbox.make<Plan>()
 
 const plans: ReadonlyArray<Plan> = ['Free', 'Pro', 'Enterprise']
 
@@ -70,4 +70,4 @@ export const PlanPickerLive = PlanPicker.toLayer(() => ({
         }),
       ],
     ),
-})).pipe(Layer.provide(PlanListbox.Live))
+})).pipe(Layer.provide(PlanListbox), Layer.provide(Animation.AnimationLive))

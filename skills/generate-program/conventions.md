@@ -8,7 +8,7 @@
 
 Name a Block class for the feature it is (`Search`, `IssueBoard`, `Application`) and its Layer with a `Live` suffix (`SearchLive`, `ApplicationLive`). The class's string id matches the class name. Name the root Service provider `ApplicationLayer` and its test alternative `ApplicationTestLayer`. Name the root Route union `ApplicationRoute`. Reserve `Layer` for the Effect module.
 
-A generic factory is called once at module scope and the result is named for its role: `const ResultListbox = Listbox.makeBlock<Result>()`, provided as `ResultListbox.Live`.
+A generic factory is called once at module scope and the result is named for its role: `const ResultListbox = Listbox.make<Result>()`. The class is declared with its implementation, so it is its own Layer: `Layer.provide(ResultListbox)`, with `Layer.provide(AnimationLive)` for a Combobox, Listbox, Menu, or Toast class.
 
 Name a child instance for its role in the parent, and use that name for both the Model field and the id: `search: new Search('search', args)`. A collection item takes a stable domain id, such as `new Column(column.id, args)` stored in `columns`. Ids are unique among one parent's children.
 

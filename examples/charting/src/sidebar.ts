@@ -27,9 +27,9 @@ export const CHART_MODE_RADIO_GROUP_ID = 'chart-mode'
 export const PACKAGE_RADIO_GROUP_ID = 'package'
 export const PERIOD_RADIO_GROUP_ID = 'period'
 
-export const ChartModeRadioGroup = RadioGroup.makeBlock<ChartMode>()
-export const PackageRadioGroup = RadioGroup.makeBlock<PackageId>()
-export const PeriodRadioGroup = RadioGroup.makeBlock<Period>()
+export const ChartModeRadioGroup = RadioGroup.make<ChartMode>()
+export const PackageRadioGroup = RadioGroup.make<PackageId>()
+export const PeriodRadioGroup = RadioGroup.make<Period>()
 
 const Model = Schema.Struct({
   chartMode: ChartMode,
@@ -114,11 +114,7 @@ export const SidebarLive = Sidebar.toLayer(() => ({
     ),
 })).pipe(
   Layer.provide(
-    Layer.mergeAll(
-      ChartModeRadioGroup.Live,
-      PeriodRadioGroup.Live,
-      PackageRadioGroup.Live,
-    ),
+    Layer.mergeAll(ChartModeRadioGroup, PeriodRadioGroup, PackageRadioGroup),
   ),
 )
 

@@ -4,9 +4,11 @@ import { afterEach, expect, vi } from 'vitest'
 
 import { describe, it } from '@effect/vitest'
 
-import { makeBlock } from './public.js'
+import * as Animation from '../animation/block.js'
+import { make } from './public.js'
 
-const TestListbox = makeBlock<string>()
+const TestListbox = make<string>()
+const TestListboxLive = TestListbox.pipe(Layer.provide(Animation.AnimationLive))
 
 class ListboxTriggerClickTest extends Block<ListboxTriggerClickTest>()(
   'ListboxTriggerClickTest',
@@ -35,7 +37,7 @@ const ListboxTriggerClickTestLive = ListboxTriggerClickTest.toLayer(() => ({
         }),
       ],
     ),
-})).pipe(Layer.provide(TestListbox.Live))
+})).pipe(Layer.provide(TestListboxLive))
 
 const requireElement = (id: string): HTMLElement => {
   const element = document.getElementById(id)

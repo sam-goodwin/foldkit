@@ -9,12 +9,13 @@ import { modifyFields } from 'foldkit/struct'
 import { describe, it } from '@effect/vitest'
 
 import * as Animation from '../animation/block.js'
-import { SwipeState, type Variant, makeBlock } from './toast.js'
+import { SwipeState, type Variant, make } from './toast.js'
 
 const TestPayload = Schema.Struct({ body: Schema.String })
 type TestPayload = typeof TestPayload.Type
 
-const Toast = makeBlock(TestPayload)
+const Toast = make(TestPayload)
+const ToastLive = Toast.pipe(Layer.provide(Animation.AnimationLive))
 
 type Model = Resolved<typeof Toast.Model.Type>
 type Entry = Model['entries'][number]
@@ -130,7 +131,7 @@ const makeToastSceneLive = ({ seed, entryView, ariaLabel }: ToastSceneArgs) =>
           }),
         ],
       ),
-  })).pipe(Layer.provide(Toast.Live))
+  })).pipe(Layer.provide(ToastLive))
 
 const discardSeedCommands = <SimulationModel, SimulationMessage, OutMessage>(
   simulation: Scene.SceneSimulation<

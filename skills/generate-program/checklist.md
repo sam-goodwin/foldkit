@@ -192,7 +192,7 @@ Alongside the greps, eyeball each file's imports. Every symbol you imported shou
 
 ## Blocks and Program wiring
 
-- [ ] Each Block is a class named for its feature (`Search`, `Application`) with a matching string id, and its Layer is `SearchLive` / `ApplicationLive`. A generic UI factory's result is named once at module scope and provided through `.Live`.
+- [ ] Each Block is a class named for its feature (`Search`, `Application`) with a matching string id, and its Layer is `SearchLive` / `ApplicationLive`. A generic UI factory's result is named once at module scope and provided as its own Layer (`Layer.provide(ResultListbox)`).
 - [ ] Messages, OutMessages, Commands, and Mounts are declared at module level, before the class, and listed on it.
 - [ ] Each Layer is `XLive = X.toLayer(() => ({ ... }))`, or `X.toLayer(Effect.gen(...))` when its handlers need Services, directly after the class. Either returns the shared module: `init` builds the starting Model synchronously from args, and `start` returns startup Commands. No async work in the constructor or `init`.
 - [ ] The constructor holds no per-instance state. Every arg and id the Block needs after `init` is stored in the Model, and Commands receive per-instance values as Command args.
@@ -316,7 +316,7 @@ Foldkit ships these; reaching past them is a finding, not a style choice.
 
 - [ ] Foldkit UI components used where the interaction matches (Dialog, Tabs, Menu, Combobox, DatePicker, FileDrop, Toast, Tooltip, DragAndDrop, etc.). Never hand-roll accessible widgets
 - [ ] **Form inputs use `Input.view`, `Textarea.view`, `Button.view` from `@foldkit/ui`.** Hand-rolled `input`/`textarea`/`button` elements in a form are a fail unless the file has a NOTE explaining why the component couldn't be used.
-- [ ] Each stateful component is a child instance: created with `new Dialog.Dialog(id, args)` (or a named `makeBlock` result), stored in the Model with the class as its field Schema, driven by sent Messages, handled with `Dialog.Dialog.on`, rendered with `model.x.view({ ... })`, and its Live Layer provided. Stateless render helpers (`Button`, `Input`, `Textarea`, `Select`, `Fieldset`, `Checkbox`, `Switch`, `Disclosure`, `Nav`) are called directly in view with your `h`; the controlled ones take the current value from the parent Model, which stores the new value on toggle
+- [ ] Each stateful component is a child instance: created with `new Dialog.Dialog(id, args)` (or a named `make` result), stored in the Model with the class as its field Schema, driven by sent Messages, handled with `Dialog.Dialog.on`, rendered with `model.x.view({ ... })`, and its Layer provided (`Dialog.DialogLive`, or a factory class itself). Stateless render helpers (`Button`, `Input`, `Textarea`, `Select`, `Fieldset`, `Checkbox`, `Switch`, `Disclosure`, `Nav`) are called directly in view with your `h`; the controlled ones take the current value from the parent Model, which stores the new value on toggle
 - [ ] Only the components your Models hold have their Layers provided; components that depend on others (Dialog on Animation, DatePicker on Calendar and Popover) already provide them
 - [ ] No custom keyboard navigation or ARIA attributes for patterns covered by Foldkit UI components
 

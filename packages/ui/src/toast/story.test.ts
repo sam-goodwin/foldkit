@@ -1,4 +1,4 @@
-import { Array, Duration, Option, Schema } from 'effect'
+import { Array, Duration, Layer, Option, Schema } from 'effect'
 import { Block } from 'foldkit'
 import type { Resolved } from 'foldkit/block'
 import * as Story from 'foldkit/story'
@@ -8,14 +8,14 @@ import { expect } from 'vitest'
 import { describe, it } from '@effect/vitest'
 
 import * as Animation from '../animation/block.js'
-import { type InitConfig, Message, SwipeState, makeBlock } from './toast.js'
+import { type InitConfig, Message, SwipeState, make } from './toast.js'
 import { WaitBeforeDismissal, WaitForSwipeSettled } from './update.js'
 
 const TestPayload = Schema.Struct({ body: Schema.String })
 type TestPayload = typeof TestPayload.Type
 
-const Toast = makeBlock(TestPayload)
-const ToastLive = Toast.Live
+const Toast = make(TestPayload)
+const ToastLive = Toast.pipe(Layer.provide(Animation.AnimationLive))
 const toastConfig = { id: 'test' }
 
 type Model = Resolved<typeof Toast.Model.Type>

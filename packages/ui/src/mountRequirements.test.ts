@@ -18,10 +18,10 @@ import * as Tooltip from './tooltip/public.js'
 import * as VirtualList from './virtualList/public.js'
 import * as VirtualListInternal from './virtualList/virtualList.js'
 
-const TestCombobox = Combobox.makeBlock(Schema.String)
-const TestListbox = Listbox.makeBlock()
-const TestMenu = Menu.makeBlock()
-const TestVirtualList = VirtualList.makeBlock<string>()
+const TestCombobox = Combobox.make(Schema.String)
+const TestListbox = Listbox.make()
+const TestMenu = Menu.make()
+const TestVirtualList = VirtualList.make<string>()
 
 it('declares each component Mount registry on its Block class', () => {
   expectTypeOf<

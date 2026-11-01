@@ -9,7 +9,7 @@ import type { RenderInfo } from '@foldkit/ui/radioGroup'
 const Plan = Schema.Literals(['Startup', 'Business', 'Enterprise'])
 type Plan = typeof Plan.Type
 
-const PlanRadioGroup = RadioGroup.makeBlock<Plan>()
+const PlanRadioGroup = RadioGroup.make<Plan>()
 
 const Model = Schema.Struct({
   verticalRadioGroupDemo: PlanRadioGroup,
@@ -51,7 +51,7 @@ export const RadioGroupPageLive = RadioGroupPage.toLayer(() => ({
   },
 
   view,
-})).pipe(Layer.provide(PlanRadioGroup.Live))
+})).pipe(Layer.provide(PlanRadioGroup))
 
 const plans: ReadonlyArray<Plan> = ['Startup', 'Business', 'Enterprise']
 

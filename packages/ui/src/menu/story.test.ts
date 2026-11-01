@@ -27,15 +27,17 @@ import {
   type ViewInputs,
   buttonId,
   groupContiguous,
-  makeBlock,
+  make,
   resolveTypeaheadMatch,
 } from './menu.js'
 
 type MenuModel = BlockTypes.Resolved<Model>
 
-const TestMenu = makeBlock()
+const TestMenu = make()
+const TestMenuLive = TestMenu.pipe(Layer.provide(Animation.AnimationLive))
 
-const RefinedMenu = makeBlock<'Edit' | 'Duplicate' | 'Delete'>()
+const RefinedMenu = make<'Edit' | 'Duplicate' | 'Delete'>()
+const RefinedMenuLive = RefinedMenu.pipe(Layer.provide(Animation.AnimationLive))
 
 type SceneOverrides = Pick<
   Partial<ViewInputs<string>>,
@@ -56,7 +58,7 @@ const makeMenuSceneLive = (overrides: SceneOverrides) =>
         buttonContent: h.span([], ['Actions']),
         ...overrides,
       }),
-  })).pipe(Layer.provide(TestMenu.Live))
+  })).pipe(Layer.provide(TestMenuLive))
 
 class RefinedMenuScene extends Block<RefinedMenuScene>()('RefinedMenuScene', {
   Model: Schema.Struct({ menu: RefinedMenu }),
@@ -70,7 +72,7 @@ const RefinedMenuSceneLive = RefinedMenuScene.toLayer(() => ({
       itemToConfig: item => ({ content: h.span([], [item]) }),
       buttonContent: h.span([], ['Actions']),
     }),
-})).pipe(Layer.provide(RefinedMenu.Live))
+})).pipe(Layer.provide(RefinedMenuLive))
 
 const button = Scene.selector('#test-button')
 
@@ -179,7 +181,7 @@ describe('Menu', () => {
   describe('constructor', () => {
     it.effect('defaults to closed with no active item', () =>
       Story.story(
-        TestMenu.Live,
+        TestMenuLive,
         closed,
         Story.model(model => {
           expect(model).toStrictEqual(closedModel)
@@ -189,7 +191,7 @@ describe('Menu', () => {
 
     it.effect('accepts isAnimated option', () =>
       Story.story(
-        TestMenu.Live,
+        TestMenuLive,
         animated,
         Story.model(model => {
           expect(model.isAnimated).toBe(true)
@@ -200,7 +202,7 @@ describe('Menu', () => {
 
     it.effect('defaults isModal to false', () =>
       Story.story(
-        TestMenu.Live,
+        TestMenuLive,
         closed,
         Story.model(model => {
           expect(model.isModal).toBe(false)
@@ -210,7 +212,7 @@ describe('Menu', () => {
 
     it.effect('accepts isModal option', () =>
       Story.story(
-        TestMenu.Live,
+        TestMenuLive,
         modal,
         Story.model(model => {
           expect(model.isModal).toBe(true)
@@ -270,7 +272,7 @@ describe('Menu', () => {
     describe('Opened', () => {
       it.effect('opens the menu with the given active item', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(
             Message.Opened({ maybeActiveItemIndex: Option.some(2) }),
@@ -285,7 +287,7 @@ describe('Menu', () => {
 
       it.effect('resets search state on open', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.given(
             modifyFields(closedModel, {
@@ -306,7 +308,7 @@ describe('Menu', () => {
 
       it.effect('sets trigger to Keyboard when opened with active item', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(
             Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -320,7 +322,7 @@ describe('Menu', () => {
 
       it.effect('sets trigger to Pointer when opened without active item', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(
             Message.Opened({ maybeActiveItemIndex: Option.none() }),
@@ -335,7 +337,7 @@ describe('Menu', () => {
 
       it.effect('resets pointer position on open', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.given(
             modifyFields(closedModel, {
@@ -360,7 +362,7 @@ describe('Menu', () => {
     describe('Closed', () => {
       it.effect('closes the menu and resets state', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(Message.Closed()),
@@ -388,7 +390,7 @@ describe('Menu', () => {
         'returns no Command and no OutMessage when already closed',
         () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             closed,
             Story.message(Message.Closed()),
             Story.expectNoOutMessage(),
@@ -403,7 +405,7 @@ describe('Menu', () => {
     describe('RequestedClose', () => {
       it.effect('emits Closed when an operation closes the menu', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(Message.RequestedClose()),
@@ -419,7 +421,7 @@ describe('Menu', () => {
     describe('BlurredItems', () => {
       it.effect('closes the menu without restoring button focus', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(Message.BlurredItems()),
@@ -436,7 +438,7 @@ describe('Menu', () => {
     describe('PressedPointerOnButton', () => {
       it.effect('records pointer type for touch without toggling', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(
             Message.PressedPointerOnButton({
@@ -458,7 +460,7 @@ describe('Menu', () => {
 
       it.effect('records pointer type for pen without toggling', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(
             Message.PressedPointerOnButton({
@@ -480,7 +482,7 @@ describe('Menu', () => {
 
       it.effect('opens the menu on mouse left button when closed', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(
             Message.PressedPointerOnButton({
@@ -510,7 +512,7 @@ describe('Menu', () => {
         'closes the menu on mouse left button when open and preserves pointer type',
         () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             closed,
             givenOpen,
             Story.message(
@@ -539,7 +541,7 @@ describe('Menu', () => {
 
       it.effect('does not toggle on mouse right button', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(
             Message.PressedPointerOnButton({
@@ -561,7 +563,7 @@ describe('Menu', () => {
 
       it.effect('always records maybeLastButtonPointerType', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(
             Message.PressedPointerOnButton({
@@ -599,7 +601,7 @@ describe('Menu', () => {
     describe('IgnoredMouseClick', () => {
       it.effect('resets maybeLastButtonPointerType', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -644,7 +646,7 @@ describe('Menu', () => {
         'keeps the menu open after the click that follows a mouse press',
         () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             closed,
             Story.message(mousePress),
             acknowledgeFocusItems,
@@ -660,7 +662,7 @@ describe('Menu', () => {
 
       it.effect('opens when the click did not follow a mouse press', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           Story.message(Message.ClickedButton()),
           acknowledgeFocusItems,
@@ -675,7 +677,7 @@ describe('Menu', () => {
         'closes an open menu when the click did not follow a mouse press',
         () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             closed,
             givenOpen,
             Story.message(Message.ClickedButton()),
@@ -706,7 +708,7 @@ describe('Menu', () => {
 
       it.effect('no-ops when no pointer origin', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -721,7 +723,7 @@ describe('Menu', () => {
 
       it.effect('no-ops when movement is below threshold', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpenAndOrigin,
           Story.message(
@@ -736,7 +738,7 @@ describe('Menu', () => {
 
       it.effect('no-ops when hold time is below threshold', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpenAndOrigin,
           Story.message(
@@ -751,7 +753,7 @@ describe('Menu', () => {
 
       it.effect('no-ops when no active item', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpenAndOrigin,
           Story.model(model => {
@@ -769,7 +771,7 @@ describe('Menu', () => {
 
       it.effect('issues click command when all thresholds met', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpenAndOrigin,
           Story.message(
@@ -796,7 +798,7 @@ describe('Menu', () => {
     describe('ActivatedItem', () => {
       it.effect('sets the active item index', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -814,7 +816,7 @@ describe('Menu', () => {
 
       it.effect('replaces the previous active item', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -839,7 +841,7 @@ describe('Menu', () => {
 
       it.effect('stores activation trigger in model', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -853,7 +855,7 @@ describe('Menu', () => {
 
       it.effect('returns scroll command for keyboard activation', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -871,7 +873,7 @@ describe('Menu', () => {
 
       it.effect('returns no commands for pointer activation', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -884,7 +886,7 @@ describe('Menu', () => {
     describe('DeactivatedItem', () => {
       it.effect('clears active item when pointer-activated', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -899,7 +901,7 @@ describe('Menu', () => {
 
       it.effect('preserves active item when keyboard-activated', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -920,7 +922,7 @@ describe('Menu', () => {
     describe('MovedPointerOverItem', () => {
       it.effect('activates item on first pointer move', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -942,7 +944,7 @@ describe('Menu', () => {
 
       it.effect('activates when position differs from stored', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -970,7 +972,7 @@ describe('Menu', () => {
 
       it.effect('returns model unchanged when position matches', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -995,7 +997,7 @@ describe('Menu', () => {
 
       it.effect('does not return scroll commands', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -1012,7 +1014,7 @@ describe('Menu', () => {
     describe('SelectedItem', () => {
       it.effect('closes the menu and returns a focus command', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(Message.SelectedItem({ index: 2, item: 'item-2' })),
@@ -1031,7 +1033,7 @@ describe('Menu', () => {
         'returns no Command when an item is selected while already closed',
         () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             closed,
             Story.message(Message.SelectedItem({ index: 2, item: 'item-2' })),
             Story.expectOutMessage(
@@ -1048,7 +1050,7 @@ describe('Menu', () => {
     describe('RequestedItemClick', () => {
       it.effect('returns model unchanged with a click command', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(Message.RequestedItemClick({ index: 2 })),
@@ -1066,7 +1068,7 @@ describe('Menu', () => {
     describe('Searched', () => {
       it.effect('appends the key to the search query', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -1104,7 +1106,7 @@ describe('Menu', () => {
 
       it.effect('bumps the search version', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -1142,7 +1144,7 @@ describe('Menu', () => {
 
       it.effect('updates active item when a match is found', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -1165,7 +1167,7 @@ describe('Menu', () => {
 
       it.effect('keeps existing active item when no match is found', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -1188,7 +1190,7 @@ describe('Menu', () => {
 
       it.effect('returns a delay command for debounce', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -1213,7 +1215,7 @@ describe('Menu', () => {
     describe('CompletedDelayClearMenuSearch', () => {
       it.effect('clears search query when version matches', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -1240,7 +1242,7 @@ describe('Menu', () => {
 
       it.effect('ignores stale version', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(
@@ -1281,7 +1283,7 @@ describe('Menu', () => {
     describe('CompletedFocusMenuItems', () => {
       it.effect('returns model unchanged', () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           closed,
           givenOpen,
           Story.message(Message.CompletedFocusMenuItems()),
@@ -1298,7 +1300,7 @@ describe('Menu', () => {
           'sets EnterStart and emits focus + afterPaint on Opened',
           () =>
             Story.story(
-              TestMenu.Live,
+              TestMenuLive,
               animated,
               Story.message(
                 Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -1328,7 +1330,7 @@ describe('Menu', () => {
           'advances EnterStart to EnterAnimating on CompletedWaitForPaint',
           () =>
             Story.story(
-              TestMenu.Live,
+              TestMenuLive,
               animated,
               Story.message(
                 Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -1353,7 +1355,7 @@ describe('Menu', () => {
 
         it.effect('completes EnterAnimating to Idle on EndedAnimation', () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             animated,
             Story.message(
               Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -1379,7 +1381,7 @@ describe('Menu', () => {
       describe('leave flow', () => {
         it.effect('starts no leave cascade on Closed when already closed', () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             animated,
             Story.message(Message.Closed()),
             Story.expectNoOutMessage(),
@@ -1393,7 +1395,7 @@ describe('Menu', () => {
 
         it.effect('sets LeaveStart on Closed', () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             animated,
             givenOpenAnimated,
             Story.message(Message.Closed()),
@@ -1423,7 +1425,7 @@ describe('Menu', () => {
           'begins the leave animation when the items container blurs',
           () =>
             Story.story(
-              TestMenu.Live,
+              TestMenuLive,
               animated,
               givenOpenAnimated,
               Story.message(Message.BlurredItems()),
@@ -1450,7 +1452,7 @@ describe('Menu', () => {
 
         it.effect('sets LeaveStart on SelectedItem', () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             animated,
             givenOpenAnimated,
             Story.message(Message.SelectedItem({ index: 0, item: 'item-0' })),
@@ -1482,7 +1484,7 @@ describe('Menu', () => {
           'advances LeaveStart to LeaveAnimating on CompletedWaitForPaint',
           () =>
             Story.story(
-              TestMenu.Live,
+              TestMenuLive,
               animated,
               givenOpenAnimated,
               Story.message(Message.Closed()),
@@ -1511,7 +1513,7 @@ describe('Menu', () => {
 
         it.effect('completes LeaveAnimating to Idle on EndedAnimation', () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             animated,
             givenOpenAnimated,
             Story.message(Message.Closed()),
@@ -1536,7 +1538,7 @@ describe('Menu', () => {
       describe('non-animated', () => {
         it.effect('keeps transitionState Idle on Opened', () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             closed,
             Story.message(
               Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -1550,7 +1552,7 @@ describe('Menu', () => {
 
         it.effect('keeps transitionState Idle on Closed', () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             closed,
             givenOpen,
             Story.message(Message.Closed()),
@@ -1568,7 +1570,7 @@ describe('Menu', () => {
       describe('stale messages', () => {
         it.effect('ignores CompletedWaitForPaint when Idle', () =>
           Story.story(
-            TestMenu.Live,
+            TestMenuLive,
             closed,
             givenOpen,
             Story.message(
@@ -1589,7 +1591,7 @@ describe('Menu', () => {
           'ignores CompletedDetectMenuMovementOrAnimationEnd when Idle',
           () =>
             Story.story(
-              TestMenu.Live,
+              TestMenuLive,
               closed,
               givenOpen,
               Story.message(completedDetectMenuMovementOrAnimationEnd(0)),
@@ -1606,7 +1608,7 @@ describe('Menu', () => {
           'transitions to LeaveStart when Closed during EnterStart',
           () =>
             Story.story(
-              TestMenu.Live,
+              TestMenuLive,
               animated,
               Story.message(
                 Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -1647,7 +1649,7 @@ describe('Menu', () => {
           'transitions to LeaveStart when Closed during EnterAnimating',
           () =>
             Story.story(
-              TestMenu.Live,
+              TestMenuLive,
               animated,
               Story.message(
                 Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -1705,7 +1707,7 @@ describe('Menu', () => {
       'emits lockScroll and inertOthers commands on Opened when isModal is true',
       () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           modal,
           Story.message(
             Message.Opened({ maybeActiveItemIndex: Option.some(0) }),
@@ -1725,7 +1727,7 @@ describe('Menu', () => {
       'emits unlockScroll and restoreInert commands on Closed when isModal is true',
       () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           modal,
           givenOpenModal,
           Story.message(Message.Closed()),
@@ -1744,7 +1746,7 @@ describe('Menu', () => {
       'emits no Commands on Closed when already closed in modal mode',
       () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           modal,
           Story.message(Message.Closed()),
           Story.expectNoOutMessage(),
@@ -1774,7 +1776,7 @@ describe('Menu', () => {
       'emits no Commands when RequestedOpen receives an open modal Model',
       () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           modal,
           Story.given(openModalModel),
           Story.message(Message.RequestedOpen()),
@@ -1788,7 +1790,7 @@ describe('Menu', () => {
       'emits no Commands when Opened receives an open modal Model',
       () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           modal,
           Story.given(openModalModel),
           Story.message(
@@ -1804,7 +1806,7 @@ describe('Menu', () => {
       'emits unlockScroll and restoreInert commands when the items container blurs in modal mode',
       () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           modal,
           givenOpenModal,
           Story.message(Message.BlurredItems()),
@@ -1822,7 +1824,7 @@ describe('Menu', () => {
       'emits no Commands when the items container blurs on a closed menu in modal mode',
       () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           modal,
           Story.message(Message.BlurredItems()),
           Story.expectNoOutMessage(),
@@ -1837,7 +1839,7 @@ describe('Menu', () => {
       'emits unlockScroll and restoreInert commands on SelectedItem when isModal is true',
       () =>
         Story.story(
-          TestMenu.Live,
+          TestMenuLive,
           modal,
           givenOpenModal,
           Story.message(Message.SelectedItem({ index: 0, item: 'item-0' })),
@@ -1854,7 +1856,7 @@ describe('Menu', () => {
 
     it.effect('does not emit modal commands when isModal is false', () =>
       Story.story(
-        TestMenu.Live,
+        TestMenuLive,
         closed,
         Story.message(Message.Opened({ maybeActiveItemIndex: Option.some(0) })),
         acknowledgeFocusItems,

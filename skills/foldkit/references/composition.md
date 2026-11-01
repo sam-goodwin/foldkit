@@ -354,14 +354,15 @@ Provide `Dialog.DialogLive` to the parent's Layer. A component that depends on
 another component provides it inside its own Layer (`DialogLive` already
 provides Animation), so provide only the component you use.
 
-A generic factory is called once at module scope and returns a class with
-`.Live`:
+A generic factory is called once at module scope and returns a class declared
+with its implementation, so the class is its own Layer. A Combobox, Listbox,
+Menu, or Toast class holds Animation instances, so provide `AnimationLive` too:
 
 ```ts
-const ResultListbox = Listbox.makeBlock<Result>()
+const ResultListbox = Listbox.make<Result>()
 // parent init: listbox: new ResultListbox('listbox', { id: 'results' })
 // Model field: listbox: ResultListbox
-// Layer:       Layer.provide(ResultListbox.Live)
+// Layer:       Layer.provide(ResultListbox), Layer.provide(AnimationLive)
 ```
 
 ## Keep a resource per instance

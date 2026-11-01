@@ -21,7 +21,7 @@ const HistoryLoad = defineTaggedUnion({
   Complete: {},
 })
 
-const MessageList = VirtualList.makeBlock<ChatMessage>()
+const MessageList = VirtualList.make<ChatMessage>()
 
 const historyRows: VirtualList.HistoryRows<ChatMessage> = {
   itemToKey: message => message.id,
@@ -203,4 +203,4 @@ export const ConversationLive = Conversation.toLayer(() => ({
         }),
       ],
     ),
-})).pipe(Layer.provide(MessageList.Live))
+})).pipe(Layer.provide(MessageList))

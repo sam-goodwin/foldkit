@@ -1,6 +1,7 @@
 import {
   Context,
   Effect,
+  Effectable,
   Layer,
   Option,
   Predicate,
@@ -410,6 +411,7 @@ export type BlockClassDeclaration<
   ...args: ConstructorArgs<Args>
 ) => InstanceMembers<C, Args, ViewInput>) &
   Omit<Schema.declare<Self>, 'make'> &
+  Effect.Effect<Implementation<C, Args, ViewInput>, never, Self> &
   Readonly<{
     /** The Block id. */
     id: Id
@@ -458,6 +460,79 @@ export type BlockClassDeclaration<
         message: MessageOf<C>,
       ) => boolean,
     ) => OnEntry<ParentModel>
+    /** Types a Block's `init` written outside its implementation. Returns
+     *  the function unchanged. */
+    init: (
+      init: (args: Args, context: InitContext) => ModelOf<C>,
+    ) => (args: Args, context: InitContext) => ModelOf<C>
+    /** Types a Block's update record written outside its implementation,
+     *  including the `Child.on` entries spread into it. Returns the record
+     *  unchanged. */
+    update: (
+      update: UpdateRecord<
+        ModelOf<C>,
+        MessageOf<C>,
+        OutMessageOf<C>,
+        CommandOf<DefinitionsOf<C, 'Command'>, MessageOf<C>>
+      >,
+    ) => UpdateRecord<
+      ModelOf<C>,
+      MessageOf<C>,
+      OutMessageOf<C>,
+      CommandOf<DefinitionsOf<C, 'Command'>, MessageOf<C>>
+    >
+    /** Types a reusable transition written outside the implementation: it
+     *  takes the Model and any extra arguments and returns an update result.
+     *  Returns the function unchanged. */
+    step: <Rest extends ReadonlyArray<unknown> = []>(
+      step: (
+        model: ModelOf<C>,
+        ...rest: Rest
+      ) => Result<
+        ModelOf<C>,
+        OutMessageOf<C>,
+        CommandOf<DefinitionsOf<C, 'Command'>, MessageOf<C>>
+      >,
+    ) => (
+      model: ModelOf<C>,
+      ...rest: Rest
+    ) => Result<
+      ModelOf<C>,
+      OutMessageOf<C>,
+      CommandOf<DefinitionsOf<C, 'Command'>, MessageOf<C>>
+    >
+    /** Types a Block's view written outside its implementation. Returns
+     *  the function unchanged. */
+    view: (
+      view: ViewFunction<
+        ModelOf<C>,
+        MessageOf<C>,
+        ViewInput,
+        MountRequirementsOf<DefinitionsOf<C, 'Mount'>>
+      >,
+    ) => ViewFunction<
+      ModelOf<C>,
+      MessageOf<C>,
+      ViewInput,
+      MountRequirementsOf<DefinitionsOf<C, 'Mount'>>
+    >
+    /** Types a Block's Command handlers written outside its implementation.
+     *  Returns the record unchanged. */
+    commands: (
+      commands: HandlerRecord<DefinitionsOf<C, 'Command'>>,
+    ) => HandlerRecord<DefinitionsOf<C, 'Command'>>
+    /** Types a Block's Mount handlers written outside its implementation.
+     *  Returns the record unchanged. */
+    mounts: (
+      mounts: HandlerRecord<DefinitionsOf<C, 'Mount'>>,
+    ) => HandlerRecord<DefinitionsOf<C, 'Mount'>>
+    /** Types a Block's Subscriptions written outside its implementation.
+     *  Returns the record unchanged. */
+    subscriptions: (
+      subscriptions: Readonly<
+        Record<string, Subscription<ModelOf<C>, MessageOf<C>>>
+      >,
+    ) => Readonly<Record<string, Subscription<ModelOf<C>, MessageOf<C>>>>
   }>
 
 /** A Block class. Declare one with
@@ -498,8 +573,8 @@ const nonCopiedSchemaKeys: ReadonlySet<PropertyKey> = new Set([
   'make',
 ])
 
-const copySchemaMembers = (schema: object, target: object): void => {
-  let current: object | null = schema
+const copyMembers = (source: object, target: object): void => {
+  let current: object | null = source
   while (
     current !== null &&
     current !== Object.prototype &&
@@ -520,6 +595,25 @@ const copySchemaMembers = (schema: object, target: object): void => {
     current = Object.getPrototypeOf(current)
   }
 }
+
+class ImplementationEffect extends Effectable.Class<unknown, never, unknown> {
+  readonly effect: Effect.Effect<unknown, never, unknown>
+
+  constructor(effect: Effect.Effect<unknown, never, unknown>) {
+    super()
+    this.effect = effect
+  }
+
+  asEffect(): Effect.Effect<unknown, never, unknown> {
+    return this.effect
+  }
+}
+
+const makeImplementationEffect = (
+  effect: Effect.Effect<unknown, never, unknown>,
+): object => new ImplementationEffect(effect)
+
+const identity = <A>(value: A): A => value
 
 const registry = new Set<RuntimeBlock>()
 let blockCount = 0
@@ -584,12 +678,48 @@ const asRuntimeInstance = (instance: object): RuntimeInstance =>
  * }) {}
  * ```
  */
-export const Block =
-  <Self, Args = void, ViewInput = void>() =>
+/** Declares a Block class from its id and contract, and optionally its
+ *  implementation. A class declared with an implementation is also its own
+ *  Layer: provide it with `Layer.provide(X)`. */
+/** The implementation a Block declaration may take as its third argument:
+ *  a function returning the module, a function returning an Effect that
+ *  yields services and returns the module, or that Effect itself. */
+export type InlineImplementation<C extends Contract, Args, ViewInput, E, R> =
+  | (() => Implementation<C, Args, ViewInput>)
+  | (() => Effect.Effect<Implementation<C, Args, ViewInput>, E, R>)
+  | Effect.Effect<Implementation<C, Args, ViewInput>, E, R>
+
+/** Declares a Block class from its id and contract, and optionally its
+ *  implementation. A class declared with an implementation is also its own
+ *  Layer: provide it with `Layer.provide(X)`. */
+export interface DeclareBlock<Self, Args, ViewInput> {
+  <const Id extends string, const C extends Contract, E = never, R = never>(
+    id: Id,
+    contract: C,
+    implementation: InlineImplementation<C, Args, ViewInput, E, R>,
+  ): BlockClass<Self, Id, Args, ViewInput, C> &
+    Layer.Layer<Self, E, Exclude<R, Scope.Scope> | InstancesIn<ModelOf<C>>>
   <const Id extends string, const C extends Contract = {}>(
     id: Id,
     contract?: C,
-  ): BlockClass<Self, Id, Args, ViewInput, C> => {
+  ): BlockClass<Self, Id, Args, ViewInput, C>
+}
+
+export const Block = <Self, Args = void, ViewInput = void>(): DeclareBlock<
+  Self,
+  Args,
+  ViewInput
+> =>
+  // oxlint-disable-next-line typescript/consistent-type-assertions
+  ((
+    id: string,
+    contract?: Contract,
+    maybeImplementation?:
+      | (() =>
+          | RuntimeImplementation
+          | Effect.Effect<RuntimeImplementation, unknown, unknown>)
+      | Effect.Effect<RuntimeImplementation, unknown, unknown>,
+  ): unknown => {
     blockCount += 1
     const service = Context.Service<unknown, RuntimeModule>(
       `foldkit/Block/${id}#${blockCount}`,
@@ -644,7 +774,20 @@ export const Block =
         toCodecJson: () => instanceJsonLink(runtimeBlock, contract?.Model),
       },
     )
-    copySchemaMembers(schema, Instance)
+    copyMembers(schema, Instance)
+
+    const toLayer = (
+      input:
+        | (() => RuntimeImplementation)
+        | Effect.Effect<RuntimeImplementation, unknown, unknown>,
+    ) =>
+      Layer.effect(
+        service,
+        Effect.flatMap(
+          Effect.isEffect(input) ? input : Effect.sync(input),
+          impl => makeModule(runtimeBlock, impl),
+        ),
+      )
 
     const statics = {
       id,
@@ -653,18 +796,14 @@ export const Block =
       OutMessage: contract?.OutMessage,
       Command: contract?.Command,
       Mount: contract?.Mount,
-      toLayer: (
-        input:
-          | (() => RuntimeImplementation)
-          | Effect.Effect<RuntimeImplementation, unknown, unknown>,
-      ) =>
-        Layer.effect(
-          service,
-          Effect.flatMap(
-            Effect.isEffect(input) ? input : Effect.sync(input),
-            impl => makeModule(runtimeBlock, impl),
-          ),
-        ),
+      toLayer,
+      init: identity,
+      update: identity,
+      step: identity,
+      view: identity,
+      commands: identity,
+      mounts: identity,
+      subscriptions: identity,
       on: (handlers: unknown) => onEntry(runtimeBlock, handlers),
       onAll: (handlers: unknown) => onEntry(runtimeBlock, handlers),
       when: (predicate: unknown) => gateEntry(runtimeBlock, predicate),
@@ -678,9 +817,29 @@ export const Block =
       })
     }
 
-    /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-    return Instance as unknown as BlockClass<Self, Id, Args, ViewInput, C>
-  }
+    // yielding the class returns its implementation, like a Context tag
+    copyMembers(
+      makeImplementationEffect(Effect.map(service, ({ impl }) => impl)),
+      Instance,
+    )
+
+    if (maybeImplementation !== undefined) {
+      const implementation = maybeImplementation
+      copyMembers(
+        toLayer(
+          Effect.suspend(() => {
+            const built = Effect.isEffect(implementation)
+              ? implementation
+              : implementation()
+            return Effect.isEffect(built) ? built : Effect.succeed(built)
+          }),
+        ),
+        Instance,
+      )
+    }
+
+    return Instance
+  }) as never
 
 /** Addresses a Message to a Block instance by its path from the root. Use it
  *  in tests to deliver a child's Message through its ancestors. */

@@ -14,7 +14,7 @@ import type { Html, HtmlBuilder } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
 
-import { Button, Input, Listbox } from '@foldkit/ui'
+import { Animation, Button, Input, Listbox } from '@foldkit/ui'
 
 import {
   GroupBy,
@@ -218,13 +218,8 @@ export const IssueListLive = IssueList.toLayer(() => ({
     )
   },
 })).pipe(
-  Layer.provide(
-    Layer.mergeAll(
-      StatusFilterListbox.Live,
-      SortListbox.Live,
-      GroupListbox.Live,
-    ),
-  ),
+  Layer.provide(Layer.mergeAll(StatusFilterListbox, SortListbox, GroupListbox)),
+  Layer.provide(Animation.AnimationLive),
 )
 
 const priorityOrder = Order.mapInput(Order.Number, (issue: Issue) =>

@@ -1,5 +1,5 @@
 export {
-  makeBlock,
+  make,
   informHistoryPrepended,
   informItemsChanged,
   requestScrollTo,

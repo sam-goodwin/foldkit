@@ -5,7 +5,7 @@
 Lint class Blocks. The rules recognize a Block class, its `layer` implementation, and the `init`, `update`, `view`, `commands`, `mounts`, and `subscriptions` of the module the Layer returns.
 
 - Add `foldkit/block-name-matches-variable` to the recommended and all presets. It requires a Block class to be named for its Block id, such as `class Search extends Block<Search>()('Search', ...)`, and its Layer to be named `<BlockId>Live`, such as `SearchLive`.
-- Rename `foldkit/selection-submodel-factory-at-module-scope` to `foldkit/selection-block-factory-at-module-scope`. It reports a UI factory such as `Listbox.makeBlock` called inside a function instead of at module scope.
+- Rename `foldkit/selection-submodel-factory-at-module-scope` to `foldkit/selection-block-factory-at-module-scope`. It reports a UI factory such as `Listbox.make` called inside a function instead of at module scope.
 - `foldkit/command-define-pascal-const` also requires the const that holds a Command to have the Command's name, which `foldkit/command-binding-matches-name` used to check. Replace that rule with `foldkit/command-define-pascal-const` in explicit configurations.
 - `foldkit/mount-factory-must-use-element` checks the handlers in a Block's `mounts` record.
 - `foldkit/no-disabling-dev-guardrails` checks for `slow: false` in options passed to `Program.make` and `Program.makeElement`, imported from `foldkit` or `foldkit/program`.

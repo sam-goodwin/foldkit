@@ -24,7 +24,7 @@ const STATS_REFETCH_INTERVAL = Duration.seconds(5)
 const Tab = Schema.Literals(['Posts', 'Stats'])
 type Tab = typeof Tab.Type
 
-export const ApplicationTabs = Tabs.makeBlock<Tab>()
+export const ApplicationTabs = Tabs.make<Tab>()
 
 const Model = Schema.Struct({
   tabs: ApplicationTabs,
@@ -148,9 +148,7 @@ export const ApplicationLive = Application.toLayer(() => ({
     ),
   }),
 })).pipe(
-  Layer.provide(
-    Layer.mergeAll(ApplicationTabs.Live, PostsTabLive, StatsTabLive),
-  ),
+  Layer.provide(Layer.mergeAll(ApplicationTabs, PostsTabLive, StatsTabLive)),
 )
 
 const tabButtonClassName =

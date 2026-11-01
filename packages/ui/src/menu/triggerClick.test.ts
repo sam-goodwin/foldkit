@@ -4,9 +4,11 @@ import { afterEach, expect, vi } from 'vitest'
 
 import { describe, it } from '@effect/vitest'
 
-import { makeBlock } from './public.js'
+import * as Animation from '../animation/block.js'
+import { make } from './public.js'
 
-const TestMenu = makeBlock<string>()
+const TestMenu = make<string>()
+const TestMenuLive = TestMenu.pipe(Layer.provide(Animation.AnimationLive))
 
 class MenuTriggerClickTest extends Block<MenuTriggerClickTest>()(
   'MenuTriggerClickTest',
@@ -29,7 +31,7 @@ const MenuTriggerClickTestLive = MenuTriggerClickTest.toLayer(() => ({
         }),
       ],
     ),
-})).pipe(Layer.provide(TestMenu.Live))
+})).pipe(Layer.provide(TestMenuLive))
 
 const requireElement = (id: string): HTMLElement => {
   const element = document.getElementById(id)

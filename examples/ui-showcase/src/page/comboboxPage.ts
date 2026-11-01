@@ -3,7 +3,7 @@ import { Block } from 'foldkit'
 import type { Html, HtmlBuilder } from 'foldkit/html'
 import { modifyFields } from 'foldkit/struct'
 
-import { Combobox } from '@foldkit/ui'
+import { Animation, Combobox } from '@foldkit/ui'
 import { inputId } from '@foldkit/ui/combobox'
 
 import {
@@ -13,7 +13,7 @@ import {
   comboboxInputs,
 } from '../domain/city'
 
-const CityMultiCombobox = Combobox.Multi.makeBlock(City)
+const CityMultiCombobox = Combobox.Multi.make(City)
 
 const Model = Schema.Struct({
   comboboxDemo: CityCombobox,
@@ -87,7 +87,8 @@ export const ComboboxPageLive = ComboboxPage.toLayer(() => ({
 
   view,
 })).pipe(
-  Layer.provide(Layer.mergeAll(CityCombobox.Live, CityMultiCombobox.Live)),
+  Layer.provide(Layer.mergeAll(CityCombobox, CityMultiCombobox)),
+  Layer.provide(Animation.AnimationLive),
 )
 
 const selectCity = (model: Model, id: string, value: City): Model =>

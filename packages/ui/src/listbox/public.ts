@@ -1,4 +1,4 @@
-export { makeBlock } from './single.js'
+export { make } from './single.js'
 export {
   buttonId,
   Orientation,

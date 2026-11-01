@@ -2,4 +2,4 @@ import { Menu } from '@foldkit/ui'
 
 import type { ExampleSlug } from '../example/meta'
 
-export const PlaygroundMenu = Menu.makeBlock<ExampleSlug>()
+export const PlaygroundMenu = Menu.make<ExampleSlug>()

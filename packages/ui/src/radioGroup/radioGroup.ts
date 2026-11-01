@@ -87,7 +87,7 @@ type OutMessageSchema<Value extends string = string> =
     : never
 
 /** Generic over `Value extends string` so consumers using
- *  `RadioGroup.makeBlock<MyUnion>()` receive `value: MyUnion` in the
+ *  `RadioGroup.make<MyUnion>()` receive `value: MyUnion` in the
  *  `Selected` OutMessage. Defaults to `string`. */
 export type OutMessage<Value extends string = string> = Selected<Value>
 
@@ -159,7 +159,7 @@ export type RenderInfo<Value extends string = string> = Readonly<{
 }>
 
 /** View input a parent passes to `radioGroup.view(...)`. Generic over `Value extends string` so consumers using
- *  `RadioGroup.makeBlock<MyUnion>()` receive `option.value: MyUnion` in `toView`
+ *  `RadioGroup.make<MyUnion>()` receive `option.value: MyUnion` in `toView`
  *  and `(value: MyUnion, index) => boolean` in `isOptionDisabled`, without
  *  casting.
  *
@@ -427,7 +427,8 @@ export interface RadioGroup<
   Value extends string = string,
 > extends BlockTypes.Instance<Contract<Value>, InitConfig, ViewInputs<Value>> {}
 
-/** A RadioGroup class refined to one Value type, with its Layer as `Live`. */
+/** A RadioGroup class refined to one Value type, declared with its
+ *  implementation. The class is its own Layer. */
 export type RadioGroupClass<Value extends string = string> =
   BlockTypes.BlockClass<
     RadioGroup<Value>,
@@ -436,17 +437,16 @@ export type RadioGroupClass<Value extends string = string> =
     ViewInputs<Value>,
     Contract<Value>
   > &
-    Readonly<{ Live: Layer.Layer<RadioGroup<Value>> }>
+    Layer.Layer<RadioGroup<Value>>
 
 /**
- * Creates a RadioGroup class refined to one Value type, with its Layer
- * attached as `Live`. Declare `RadioGroup.makeBlock<Plan>()` once at module
- * scope, create instances with `new PlanRadioGroup(id, { id })` in a parent's
- * Model, and provide `PlanRadioGroup.Live` to the parent's Layer.
- * Its view input and `Selected.value` share the Value type; the parent Model
- * owns the selected option.
+ * Creates a RadioGroup class refined to one Value type, declared with its
+ * implementation. Declare `const PlanRadioGroup = RadioGroup.make<Plan>()` once at
+ * module scope, create instances with `new PlanRadioGroup(id, { id })` in a parent's Model, and
+ * provide the class itself to the parent's Layer. Its view input and
+ * `Selected.value` share the Value type; the parent Model owns the selected option.
  */
-export const makeBlock = <
+export const make = <
   Value extends string = string,
 >(): RadioGroupClass<Value> => {
   const contract: Contract<Value> = {
@@ -457,43 +457,39 @@ export const makeBlock = <
     Command: [FocusOption],
   }
 
-  const RadioGroupClass = Block<
-    RadioGroup<Value>,
-    InitConfig,
-    ViewInputs<Value>
-  >()('RadioGroup', contract)
-
   const selected = (value: string, index: number): Selected<Value> =>
     /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
     contract.OutMessage.Selected({ value: value as Value, index })
 
-  const RadioGroupLive = RadioGroupClass.toLayer(() => ({
-    init: config => ({ id: config.id, maybeFocusedIndex: Option.none() }),
-    update: {
-      SelectedOption: (model, { index, value }) => ({
-        model: modifyFields(model, {
-          maybeFocusedIndex: () => Option.none(),
+  return Block<RadioGroup<Value>, InitConfig, ViewInputs<Value>>()(
+    'RadioGroup',
+    contract,
+    () => ({
+      init: config => ({ id: config.id, maybeFocusedIndex: Option.none() }),
+      update: {
+        SelectedOption: (model, { index, value }) => ({
+          model: modifyFields(model, {
+            maybeFocusedIndex: () => Option.none(),
+          }),
+          commands: [FocusOption({ id: model.id, index })],
+          outMessage: selected(value, index),
         }),
-        commands: [FocusOption({ id: model.id, index })],
-        outMessage: selected(value, index),
-      }),
-      FocusedOption: (model, { index }) => ({
-        model: modifyFields(model, {
-          maybeFocusedIndex: () => Option.some(index),
+        FocusedOption: (model, { index }) => ({
+          model: modifyFields(model, {
+            maybeFocusedIndex: () => Option.some(index),
+          }),
+          commands: [FocusOption({ id: model.id, index })],
         }),
-        commands: [FocusOption({ id: model.id, index })],
-      }),
-      CompletedFocusOption: model => ({ model }),
-    },
-    commands: {
-      FocusOption: ({ id, index }) =>
-        Dom.focus(idSelector(optionId(id, index))).pipe(
-          Effect.ignore,
-          Effect.as(Message.CompletedFocusOption()),
-        ),
-    },
-    view: (model, h, viewInputs) => renderView(model, viewInputs, h),
-  }))
-
-  return Object.assign(RadioGroupClass, { Live: RadioGroupLive })
+        CompletedFocusOption: model => ({ model }),
+      },
+      commands: {
+        FocusOption: ({ id, index }) =>
+          Dom.focus(idSelector(optionId(id, index))).pipe(
+            Effect.ignore,
+            Effect.as(Message.CompletedFocusOption()),
+          ),
+      },
+      view: (model, h, viewInputs) => renderView(model, viewInputs, h),
+    }),
+  )
 }

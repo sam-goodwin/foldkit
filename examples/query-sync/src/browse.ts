@@ -17,6 +17,7 @@ import { defineMessageUnion } from 'foldkit/message'
 import { replaceUrl } from 'foldkit/navigation'
 import { modifyFields } from 'foldkit/struct'
 
+import * as Animation from '@foldkit/ui/animation'
 import * as Button from '@foldkit/ui/button'
 import * as Input from '@foldkit/ui/input'
 import * as Listbox from '@foldkit/ui/listbox'
@@ -198,8 +199,8 @@ const dinosaurs: ReadonlyArray<Dinosaur> = [
 
 const dietFilterItems: ReadonlyArray<string> = ['', ...Diet.literals]
 const periodFilterItems: ReadonlyArray<string> = ['', ...Period.literals]
-export const DietListbox = Listbox.makeBlock()
-export const PeriodListbox = Listbox.makeBlock()
+export const DietListbox = Listbox.make()
+export const PeriodListbox = Listbox.make()
 
 const Model = Schema.Struct({
   fields: BrowseFields,
@@ -299,7 +300,10 @@ export const BrowseLive = Browse.toLayer(() => ({
   },
 
   view: browseView,
-})).pipe(Layer.provide(Layer.mergeAll(DietListbox.Live, PeriodListbox.Live)))
+})).pipe(
+  Layer.provide(Layer.mergeAll(DietListbox, PeriodListbox)),
+  Layer.provide(Animation.AnimationLive),
+)
 
 type BrowseViewBuilder = HtmlBuilder<Message>
 

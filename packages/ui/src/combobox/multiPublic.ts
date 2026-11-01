@@ -1,4 +1,4 @@
-export { makeBlock } from './multi.js'
+export { make } from './multi.js'
 export { inputId } from './shared.js'
 export type {
   Combobox,

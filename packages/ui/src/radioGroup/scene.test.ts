@@ -5,12 +5,12 @@ import { modifyFields } from 'foldkit/struct'
 
 import { describe, it } from '@effect/vitest'
 
-import { FocusOption, type ViewInputs, makeBlock } from './radioGroup.js'
+import { FocusOption, type ViewInputs, make } from './radioGroup.js'
 
 const RADIO_ID = 'test'
 const options: ReadonlyArray<string> = ['Brush', 'Fill', 'Eraser']
 
-const TestRadioGroup = makeBlock()
+const TestRadioGroup = make()
 
 type Overrides = Omit<
   Partial<ViewInputs>,
@@ -58,7 +58,7 @@ const makeRadioGroupSceneLive = (overrides: Overrides) =>
             ),
           ),
       }),
-  })).pipe(Layer.provide(TestRadioGroup.Live))
+  })).pipe(Layer.provide(TestRadioGroup))
 
 const modelWith = (maybeSelectedValue: Option.Option<string>) => ({
   radioGroup: { id: RADIO_ID, maybeFocusedIndex: Option.none() },

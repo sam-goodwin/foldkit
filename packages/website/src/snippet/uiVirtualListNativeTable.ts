@@ -12,7 +12,7 @@ const Invoice = Schema.Struct({
 })
 type Invoice = typeof Invoice.Type
 
-const InvoiceRows = VirtualList.makeBlock<Invoice>()
+const InvoiceRows = VirtualList.make<Invoice>()
 
 const Message = defineMessageUnion({ ClickedJumpToLastInvoice: {} })
 
@@ -109,4 +109,4 @@ export const InvoiceTableLive = InvoiceTable.toLayer(() => ({
         ),
       ],
     ),
-})).pipe(Layer.provide(InvoiceRows.Live))
+})).pipe(Layer.provide(InvoiceRows))
