@@ -12,7 +12,7 @@ If the project uses a stable release, start with [Migrate from Stable Foldkit](/
 The Definitions preview split each feature into stages: a Definition owned the contracts and effect handlers, a Composition owned the child graph and authored init, update, and view, and assembly produced the completed `FeatureBlock`. A parent reached each child through a Binding. In this preview, a Block is one class plus one Layer:
 
 - The class declares the contract: Model, Message, OutMessage, and the Commands and Mounts the Block owns.
-- `Feature.toLayer(Effect.gen(function* () { ... }))` implements it and returns a Layer, `FeatureLive`. The Effect runs once, yields the services the Block uses, and returns the Block's module: `init`, update handlers, effect handlers, Subscriptions, and view. Every instance shares that module.
+- `Feature.toLayer(...)` implements it and returns a Layer, `FeatureLive`. It takes `() => ({ ... })` when the Block uses no services, or `Effect.gen(function* () { ... })` when its handlers do. Either runs once. The Effect form yields the services the Block uses, and returns the Block's module: `init`, update handlers, effect handlers, Subscriptions, and view. Every instance shares that module.
 - A child instance is plain data. The parent creates it with `new Child(id, args)` and holds it in its Model. The instance replaces the Binding: the parent sends it Messages, handles its OutMessages with `Child.on`, and renders it with `.view()`.
 
 The architecture is the same. Messages record facts, update is pure, and the Runtime performs the Commands update returns. Most changes are mechanical once you see where each old piece goes.

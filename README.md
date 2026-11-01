@@ -69,57 +69,53 @@ export class Application extends Block<Application>()('Application', {
   Message,
 }) {}
 
-export const ApplicationLive = Application.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
-      update: {
-        ClickedDecrement: model => ({
-          model: modifyFields(model, { count: Number.decrement }),
-        }),
-        ClickedIncrement: model => ({
-          model: modifyFields(model, { count: Number.increment }),
-        }),
-        ClickedReset: model => ({
-          model: modifyFields(model, { count: () => 0 }),
-        }),
-      },
-      view: (model, h) => ({
-        title: `Counter: ${model.count}`,
-        body: h.div(
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0 }),
+  update: {
+    ClickedDecrement: model => ({
+      model: modifyFields(model, { count: Number.decrement }),
+    }),
+    ClickedIncrement: model => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+    ClickedReset: model => ({
+      model: modifyFields(model, { count: () => 0 }),
+    }),
+  },
+  view: (model, h) => ({
+    title: `Counter: ${model.count}`,
+    body: h.div(
+      [
+        h.Class(
+          'min-h-screen bg-white flex flex-col items-center justify-center gap-6 p-6',
+        ),
+      ],
+      [
+        h.div(
+          [h.Class('text-6xl font-bold text-gray-800')],
+          [model.count.toString()],
+        ),
+        h.div(
+          [h.Class('flex flex-wrap justify-center gap-4')],
           [
-            h.Class(
-              'min-h-screen bg-white flex flex-col items-center justify-center gap-6 p-6',
+            h.button(
+              [h.OnClick(Message.ClickedDecrement()), h.Class(buttonStyle)],
+              ['-'],
             ),
-          ],
-          [
-            h.div(
-              [h.Class('text-6xl font-bold text-gray-800')],
-              [model.count.toString()],
+            h.button(
+              [h.OnClick(Message.ClickedReset()), h.Class(buttonStyle)],
+              ['Reset'],
             ),
-            h.div(
-              [h.Class('flex flex-wrap justify-center gap-4')],
-              [
-                h.button(
-                  [h.OnClick(Message.ClickedDecrement()), h.Class(buttonStyle)],
-                  ['-'],
-                ),
-                h.button(
-                  [h.OnClick(Message.ClickedReset()), h.Class(buttonStyle)],
-                  ['Reset'],
-                ),
-                h.button(
-                  [h.OnClick(Message.ClickedIncrement()), h.Class(buttonStyle)],
-                  ['+'],
-                ),
-              ],
+            h.button(
+              [h.OnClick(Message.ClickedIncrement()), h.Class(buttonStyle)],
+              ['+'],
             ),
           ],
         ),
-      }),
-    }
+      ],
+    ),
   }),
-)
+}))
 
 const buttonStyle = 'bg-black text-white hover:bg-gray-700 px-4 py-2 transition'
 ```

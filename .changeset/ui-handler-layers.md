@@ -43,19 +43,15 @@ export class Toolbar extends Block<Toolbar>()('Toolbar', {
   Model: Schema.Struct({ menu: ActionMenu }),
 }) {}
 
-export const ToolbarLive = Toolbar.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ menu: new ActionMenu('menu', { id: 'actions' }) }),
-      update: {
-        ...ActionMenu.on({
-          Selected: (model, { value }) => ({ model }),
-        }),
-      },
-      view: (model, h) => model.menu.view(menuViewInputs),
-    }
-  }),
-).pipe(Layer.provide(ActionMenu.Live))
+export const ToolbarLive = Toolbar.toLayer(() => ({
+  init: () => ({ menu: new ActionMenu('menu', { id: 'actions' }) }),
+  update: {
+    ...ActionMenu.on({
+      Selected: (model, { value }) => ({ model }),
+    }),
+  },
+  view: (model, h) => model.menu.view(menuViewInputs),
+})).pipe(Layer.provide(ActionMenu.Live))
 ```
 
 Drive a component by sending one of its `Requested*` Messages. The free functions that returned an updated child Model, such as `Dialog.open`, `Dialog.close`, `Animation.show`, and `VirtualList.scrollToIndex`, are removed. For example, `model.dialog.send(Dialog.Dialog.Message.RequestedOpen())` opens a Dialog, and VirtualList's `requestScrollTo`, `requestScrollToIndex`, `requestScrollToKey`, `requestScrollToOffset`, `requestScrollToEnd`, `informItemsChanged`, and `informHistoryPrepended` build the Messages to send to a list instance.

@@ -176,50 +176,44 @@ export class Board extends Block<Board>()('Board', {
   }),
 }) {}
 
-export const BoardLive = Board.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        summary: new Counter('summary', { max: 10 }),
-        maybeBonus: Option.none(),
-        rows: [],
-        nextRowId: 0,
-      }),
-      update: {
-        ClickedShowBonus: model => ({
-          model: modifyFields(model, {
-            maybeBonus: () => Option.some(new Counter('bonus', { max: 1 })),
-          }),
-        }),
-        ClickedAddRow: model => ({
-          model: modifyFields(model, {
-            rows: Array.append(
-              new Counter(`row-${model.nextRowId}`, { max: 3 }),
-            ),
-            nextRowId: Number.increment,
-          }),
-        }),
-        ...Counter.on({
-          ReachedMax: (model, _, counter) => ({
-            model: modifyFields(model, {
-              rows: Array.filter(({ id }) => id !== counter.id),
-            }),
-          }),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.summary.view(),
-            ...Array.map(model.rows, counter =>
-              h.keyed('section')(counter.id, [], [counter.view()]),
-            ),
-          ],
-        ),
-    }
+export const BoardLive = Board.toLayer(() => ({
+  init: () => ({
+    summary: new Counter('summary', { max: 10 }),
+    maybeBonus: Option.none(),
+    rows: [],
+    nextRowId: 0,
   }),
-)
+  update: {
+    ClickedShowBonus: model => ({
+      model: modifyFields(model, {
+        maybeBonus: () => Option.some(new Counter('bonus', { max: 1 })),
+      }),
+    }),
+    ClickedAddRow: model => ({
+      model: modifyFields(model, {
+        rows: Array.append(new Counter(`row-${model.nextRowId}`, { max: 3 })),
+        nextRowId: Number.increment,
+      }),
+    }),
+    ...Counter.on({
+      ReachedMax: (model, _, counter) => ({
+        model: modifyFields(model, {
+          rows: Array.filter(({ id }) => id !== counter.id),
+        }),
+      }),
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.summary.view(),
+        ...Array.map(model.rows, counter =>
+          h.keyed('section')(counter.id, [], [counter.view()]),
+        ),
+      ],
+    ),
+}))
 ```
 
 - `new Child(id, args)` creates a value and runs nothing. Foldkit calls

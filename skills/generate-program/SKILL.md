@@ -360,7 +360,8 @@ For each symbol you'll call, write one line. For example:
 
 ```text
 class X extends Block<X, Args?, ViewInput?>()('X', { Model?, Message?, OutMessage?, Command?: [...], Mount?: [...] }) {}
-XLive = X.toLayer(Effect.gen(function* () { ...yield services; return { init: (args, { id, path }) => Model, start?: (model, args) => [Commands], update, commands?, mounts?, subscriptions?, view } }))
+XLive = X.toLayer(() => ({ init: (args, { id, path }) => Model, start?: (model, args) => [Commands], update, commands?, mounts?, subscriptions?, view }))
+XLive = X.toLayer(Effect.gen(function* () { ...yield services; return { init, start?, update, commands?, mounts?, subscriptions?, view } }))
 update handler: (model, message) => { model, commands?, outMessage?, messages? }
 instance: new Child(id, args) anywhere; .id, .model, .view(input?), .send(Child.Message.X())
 parent update record: ...Child.on({ Tag: (model, outMessage, instance) => result }), ...Child.onAll({ ... }), ...Child.when((model, message) => boolean)
@@ -465,7 +466,7 @@ A child Block that reports facts to its parent declares an `OutMessage` union th
 
 ### Layer (init and startup Commands)
 
-- Implement each Block with `XLive = X.toLayer(Effect.gen(function* () { ... }))` directly after the class. The constructor runs once per Block, when the program's Layer is built, and returns the module every instance shares
+- Implement each Block with `XLive = X.toLayer(() => ({ ... }))`, or `X.toLayer(Effect.gen(function* () { ... }))` when its handlers need Services, directly after the class. The constructor runs once per Block, when the program's Layer is built, and returns the module every instance shares
 - Yield Services in the constructor. Hold nothing per instance there
 - Return `init: (args, { id, path }) => Model`, the starting Model of each new instance. Copy into the Model every arg and id the Block needs later. Create child instances inside it with `new Child(id, args)`
 - When startup work is needed, return `start: (model, args) => [LoadX({ ... })]`. Foldkit runs these Commands when an instance appears in the Model. Do not fetch, read storage, or read the clock in the constructor or `init`

@@ -139,57 +139,50 @@ export class Board extends Block<Board>()('Board', {
   Message,
 }) {}
 
-export const BoardLive = Board.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        search: new Search('search', { placeholder: 'Find' }),
-        maybeDialog: Option.none(),
-        columns: [],
-      }),
-      update: {
-        ClickedOpenDialog: model => ({
-          model: modifyFields(model, {
-            maybeDialog: () =>
-              Option.some(new Dialog('dialog', { id: 'confirm' })),
-          }),
-        }),
-        ClickedAddColumn: (model, { columnId }) => ({
-          model: modifyFields(model, {
-            columns: Array.append(
-              new Column(columnId, { isCollapsible: true }),
-            ),
-          }),
-        }),
-        ...Search.on({
-          SubmittedQuery: (model, { query }) => ({
-            model,
-            messages: Array.map(model.columns, column =>
-              column.send(Column.Message.InformedOfQuery({ query })),
-            ),
-          }),
-        }),
-        ...Column.on({
-          RequestedRemove: (model, _, removedColumn) => ({
-            model: modifyFields(model, {
-              columns: Array.filter(({ id }) => id !== removedColumn.id),
-            }),
-          }),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.search.view(),
-            ...Array.map(model.columns, column =>
-              h.keyed('section')(column.id, [], [column.view()]),
-            ),
-          ],
-        ),
-    }
+export const BoardLive = Board.toLayer(() => ({
+  init: () => ({
+    search: new Search('search', { placeholder: 'Find' }),
+    maybeDialog: Option.none(),
+    columns: [],
   }),
-)
+  update: {
+    ClickedOpenDialog: model => ({
+      model: modifyFields(model, {
+        maybeDialog: () => Option.some(new Dialog('dialog', { id: 'confirm' })),
+      }),
+    }),
+    ClickedAddColumn: (model, { columnId }) => ({
+      model: modifyFields(model, {
+        columns: Array.append(new Column(columnId, { isCollapsible: true })),
+      }),
+    }),
+    ...Search.on({
+      SubmittedQuery: (model, { query }) => ({
+        model,
+        messages: Array.map(model.columns, column =>
+          column.send(Column.Message.InformedOfQuery({ query })),
+        ),
+      }),
+    }),
+    ...Column.on({
+      RequestedRemove: (model, _, removedColumn) => ({
+        model: modifyFields(model, {
+          columns: Array.filter(({ id }) => id !== removedColumn.id),
+        }),
+      }),
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.search.view(),
+        ...Array.map(model.columns, column =>
+          h.keyed('section')(column.id, [], [column.view()]),
+        ),
+      ],
+    ),
+}))
 ```
 
 - Name a single child for its role and use that name for both the Model field and the id: `search: new Search('search', args)`. A collection item takes its key as the id: `new Column(columnId, args)`.

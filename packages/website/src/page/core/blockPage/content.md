@@ -55,7 +55,7 @@ Every field of the contract is optional. A Block with no Model is stateless, and
 
 ::Snippet{name="blockSettingsLive" label="Implementing Settings"}
 
-The Effect yields `SettingsStore` and returns the Settings module. These are its fields:
+The Effect yields `SettingsStore` and returns the Settings module. A Block that uses no services passes a function returning its module instead, `Counter.toLayer(() => ({ init, update, view }))`. Both forms run once, when the program's Layer is built. These are its fields:
 
 | Field           | Required when                   | What it holds                                                                      |
 | --------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
@@ -356,16 +356,16 @@ DevTools shows each instance's state inside its parent's Model. A Message delive
 
 ## API
 
-| Name                                                            | What it does                                                                                      |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `class X extends Block<X, Args, ViewInput>()('X', contract) {}` | Declares a Block class                                                                            |
-| `X.toLayer(Effect.gen(function* () { ... }))`                   | Implements the Block. The Effect runs once and returns the module. Returns `Layer<X>`             |
-| `new X(id, args)`                                               | Creates an instance. It starts when it appears in a Model                                         |
-| `instance.view(input?)`                                         | Renders the instance                                                                              |
-| `instance.send(message)`                                        | Creates a Message for the instance. Return it under `messages`                                    |
-| `instance.model`                                                | The instance's current Model                                                                      |
-| `instance.id`                                                   | The instance id                                                                                   |
-| `X.on(handlers)` / `X.onAll(handlers)`                          | Handles OutMessages from every X the parent's Model holds. Spread into the parent's update record |
-| `X.when(predicate)`                                             | Gates the Messages of every X the parent's Model holds. Spread into the parent's update record    |
-| `X.Model`, `X.Message`, `X.OutMessage`                          | The contract's Schemas and constructors                                                           |
-| `Block.deliver(X, path, message)`                               | In tests, addresses a Message to the instance at `path`                                           |
+| Name                                                            | What it does                                                                                                |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `class X extends Block<X, Args, ViewInput>()('X', contract) {}` | Declares a Block class                                                                                      |
+| `X.toLayer(() => ({ ... }))` or `X.toLayer(Effect.gen(...))`    | Implements the Block. Runs once and returns the module; the Effect form yields services. Returns `Layer<X>` |
+| `new X(id, args)`                                               | Creates an instance. It starts when it appears in a Model                                                   |
+| `instance.view(input?)`                                         | Renders the instance                                                                                        |
+| `instance.send(message)`                                        | Creates a Message for the instance. Return it under `messages`                                              |
+| `instance.model`                                                | The instance's current Model                                                                                |
+| `instance.id`                                                   | The instance id                                                                                             |
+| `X.on(handlers)` / `X.onAll(handlers)`                          | Handles OutMessages from every X the parent's Model holds. Spread into the parent's update record           |
+| `X.when(predicate)`                                             | Gates the Messages of every X the parent's Model holds. Spread into the parent's update record              |
+| `X.Model`, `X.Message`, `X.OutMessage`                          | The contract's Schemas and constructors                                                                     |
+| `Block.deliver(X, path, message)`                               | In tests, addresses a Message to the instance at `path`                                                     |

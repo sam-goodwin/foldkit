@@ -131,18 +131,14 @@ The view takes the Model and the builder `h` and returns Html. It must not acces
 The Layer constructor yields Services. `init` returns an instance's starting Model synchronously, including any child instances it creates. Work that loads data, reads storage, or reads the clock belongs in a Command returned from `start`, which Foldkit runs when the instance appears in the Model:
 
 ```ts
-export const PeopleLive = People.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: ({ route }) => ({
-        searchInput: routeSearchText(route),
-        results: SearchResults.Loading(),
-      }),
-      start: model => [FetchPeople({ searchText: model.searchInput })],
-      // ...
-    }
+export const PeopleLive = People.toLayer(() => ({
+  init: ({ route }) => ({
+    searchInput: routeSearchText(route),
+    results: SearchResults.Loading(),
   }),
-)
+  start: model => [FetchPeople({ searchText: model.searchInput })],
+  // ...
+}))
 ```
 
 A Ref or a Service may hold execution bookkeeping, such as worker availability or protocol request IDs. The Model and update own pending work shown to the user, selections, and submission rules. A `Ref` created in the Layer constructor is shared by every instance and must not become the source of truth for workflow decisions or state read by view.
@@ -295,57 +291,50 @@ export class Board extends Block<Board>()('Board', {
   Message,
 }) {}
 
-export const BoardLive = Board.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        search: new Search('search', { placeholder: 'Find' }),
-        maybeDialog: Option.none(),
-        columns: [],
-      }),
-      update: {
-        ClickedOpenDialog: model => ({
-          model: modifyFields(model, {
-            maybeDialog: () =>
-              Option.some(new Dialog('dialog', { id: 'confirm' })),
-          }),
-        }),
-        ClickedAddColumn: (model, { columnId }) => ({
-          model: modifyFields(model, {
-            columns: Array.append(
-              new Column(columnId, { isCollapsible: true }),
-            ),
-          }),
-        }),
-        ...Search.on({
-          SubmittedQuery: (model, { query }) => ({
-            model,
-            messages: Array.map(model.columns, boardColumn =>
-              boardColumn.send(Column.Message.InformedOfQuery({ query })),
-            ),
-          }),
-        }),
-        ...Column.on({
-          RequestedRemove: (model, _, removedColumn) => ({
-            model: modifyFields(model, {
-              columns: Array.filter(({ id }) => id !== removedColumn.id),
-            }),
-          }),
-        }),
-      },
-      view: (model, h) =>
-        h.div(
-          [],
-          [
-            model.search.view(),
-            ...Array.map(model.columns, boardColumn =>
-              h.keyed('section')(boardColumn.id, [], [boardColumn.view()]),
-            ),
-          ],
-        ),
-    }
+export const BoardLive = Board.toLayer(() => ({
+  init: () => ({
+    search: new Search('search', { placeholder: 'Find' }),
+    maybeDialog: Option.none(),
+    columns: [],
   }),
-)
+  update: {
+    ClickedOpenDialog: model => ({
+      model: modifyFields(model, {
+        maybeDialog: () => Option.some(new Dialog('dialog', { id: 'confirm' })),
+      }),
+    }),
+    ClickedAddColumn: (model, { columnId }) => ({
+      model: modifyFields(model, {
+        columns: Array.append(new Column(columnId, { isCollapsible: true })),
+      }),
+    }),
+    ...Search.on({
+      SubmittedQuery: (model, { query }) => ({
+        model,
+        messages: Array.map(model.columns, boardColumn =>
+          boardColumn.send(Column.Message.InformedOfQuery({ query })),
+        ),
+      }),
+    }),
+    ...Column.on({
+      RequestedRemove: (model, _, removedColumn) => ({
+        model: modifyFields(model, {
+          columns: Array.filter(({ id }) => id !== removedColumn.id),
+        }),
+      }),
+    }),
+  },
+  view: (model, h) =>
+    h.div(
+      [],
+      [
+        model.search.view(),
+        ...Array.map(model.columns, boardColumn =>
+          h.keyed('section')(boardColumn.id, [], [boardColumn.view()]),
+        ),
+      ],
+    ),
+}))
 ```
 
 - `new Child(id, args)` creates an instance value anywhere: in `init`, in an update handler, or in a test's `given`. It runs nothing by itself. Foldkit calls the child's `init` the first time the instance appears in a Model and runs its `start` Commands then.
@@ -460,17 +449,13 @@ export class Application extends Block<
   Readonly<{ flags: Flags }>
 >()('Application', { Model, Message, Command: [SaveTodos] }) {}
 
-export const ApplicationLive = Application.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags }) => ({
-        todos: Option.getOrElse(flags.todos, () => []),
-        // ...
-      }),
-      // ...
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags }) => ({
+    todos: Option.getOrElse(flags.todos, () => []),
+    // ...
   }),
-)
+  // ...
+}))
 ```
 
 Wire it at the entry:

@@ -56,27 +56,23 @@ export class Application extends Block<Application>()('Application', {
   Command: [WaitBeforeReset],
 }) {}
 
-export const ApplicationLive = Application.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
-      update: {
-        ClickedResetAfterDelay: model => ({
-          model,
-          commands: [WaitBeforeReset()],
-        }),
-        CompletedWaitBeforeReset: () => ({ model: { count: 0 } }),
-      },
-      commands: {
-        WaitBeforeReset: () =>
-          Effect.sleep('1 second').pipe(
-            Effect.as(Message.CompletedWaitBeforeReset()),
-          ),
-      },
-      view,
-    }
-  }),
-)
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ count: 0 }),
+  update: {
+    ClickedResetAfterDelay: model => ({
+      model,
+      commands: [WaitBeforeReset()],
+    }),
+    CompletedWaitBeforeReset: () => ({ model: { count: 0 } }),
+  },
+  commands: {
+    WaitBeforeReset: () =>
+      Effect.sleep('1 second').pipe(
+        Effect.as(Message.CompletedWaitBeforeReset()),
+      ),
+  },
+  view,
+}))
 ```
 
 `Command.define` no longer accepts `execute`. It declares the Command's name, `args`, result `messages`, and optional `interrupt`. A handler must convert expected failures into result Messages, and the services it uses come from the Layer's Effect. `Mount.define` and `Mount.defineStream` move the same way: remove `execute`, list the Mount under `Mount: [...]`, and implement it under `mounts`. The view attaches it with `h.OnMount(...)` as before, and attaching a Mount the class does not list is a type error. A Command or Mount definition is a declaration only. Outside a Block, implement one with its `toLayer` method, which takes the handler, or an Effect that yields services and returns the handler, and returns a Layer that requires what the handler or Effect requires: `SaveCountLive = SaveCount.toLayer(Effect.gen(function* () { const store = yield* CountStore; return ({ count }) => ... }))`.
@@ -108,28 +104,24 @@ export class Application extends Block<Application>()('Application', {
   Message: defineMessageUnion({ ClickedResetSettings: {} }),
 }) {}
 
-export const ApplicationLive = Application.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        settings: new Settings('settings'),
-        previewTheme: 'System',
-      }),
-      update: {
-        ClickedResetSettings: model => ({
-          model,
-          messages: [model.settings.send(Settings.Message.RequestedReset())],
-        }),
-        ...Settings.on({
-          ChangedTheme: (model, { theme }) => ({
-            model: modifyFields(model, { previewTheme: () => theme }),
-          }),
-        }),
-      },
-      view: (model, h) => h.main([], [model.settings.view()]),
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({
+    settings: new Settings('settings'),
+    previewTheme: 'System',
   }),
-).pipe(Layer.provide(SettingsLive))
+  update: {
+    ClickedResetSettings: model => ({
+      model,
+      messages: [model.settings.send(Settings.Message.RequestedReset())],
+    }),
+    ...Settings.on({
+      ChangedTheme: (model, { theme }) => ({
+        model: modifyFields(model, { previewTheme: () => theme }),
+      }),
+    }),
+  },
+  view: (model, h) => h.main([], [model.settings.view()]),
+})).pipe(Layer.provide(SettingsLive))
 ```
 
 A parent and child meet in four places:
@@ -151,31 +143,27 @@ export class Table extends Block<Table>()('Table', {
   Message: defineMessageUnion({ ClickedAddRow: {} }),
 }) {}
 
-export const TableLive = Table.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ rows: [], nextRowId: 0 }),
-      update: {
-        ClickedAddRow: model => ({
-          model: modifyFields(model, {
-            rows: Array.append(
-              new Row(`row-${model.nextRowId}`, { label: 'New row' }),
-            ),
-            nextRowId: Number.increment,
-          }),
+export const TableLive = Table.toLayer(() => ({
+  init: () => ({ rows: [], nextRowId: 0 }),
+  update: {
+    ClickedAddRow: model => ({
+      model: modifyFields(model, {
+        rows: Array.append(
+          new Row(`row-${model.nextRowId}`, { label: 'New row' }),
+        ),
+        nextRowId: Number.increment,
+      }),
+    }),
+    ...Row.on({
+      RequestedRemoval: (model, _outMessage, removedRow) => ({
+        model: modifyFields(model, {
+          rows: Array.filter(({ id }) => id !== removedRow.id),
         }),
-        ...Row.on({
-          RequestedRemoval: (model, _outMessage, removedRow) => ({
-            model: modifyFields(model, {
-              rows: Array.filter(({ id }) => id !== removedRow.id),
-            }),
-          }),
-        }),
-      },
-      view,
-    }
-  }),
-).pipe(Layer.provide(RowLive))
+      }),
+    }),
+  },
+  view,
+})).pipe(Layer.provide(RowLive))
 ```
 
 `Update.foldChild`, `Update.foldChildAt`, `Update.foldChildInit`, `Update.foldChildInits`, and `Update.foldChildStep`, with their `ChildFold*`, `Fold*`, and `FoldContext` types, are removed.
@@ -295,18 +283,14 @@ export class Application extends Block<
   Readonly<{ flags: Flags; url: Url.Url }>
 >()('Application', { Model, Message }) {}
 
-export const ApplicationLive = Application.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: ({ flags, url }) => ({
-        route: urlToRoute(url),
-        theme: flags.theme,
-      }),
-      update,
-      view,
-    }
+export const ApplicationLive = Application.toLayer(() => ({
+  init: ({ flags, url }) => ({
+    route: urlToRoute(url),
+    theme: flags.theme,
   }),
-)
+  update,
+  view,
+}))
 
 const program = Program.make(Application, {
   layer: ApplicationLive.pipe(Layer.provide(ApplicationLayer)),

@@ -55,20 +55,16 @@ export class Counter extends Block<Counter>()('Counter', {
   Mount: [FocusInput],
 }) {}
 
-export const CounterLive = Counter.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ count: 0 }),
-      update: {
-        ClickedIncrement: model => ({ model: { count: model.count + 1 } }),
-      },
-      mounts: {
-        FocusInput: ({ element }) => Effect.sync(() => element.focus()),
-      },
-      view: (model, h) => h.div([], [`${model.count}`]),
-    }
-  }),
-)
+export const CounterLive = Counter.toLayer(() => ({
+  init: () => ({ count: 0 }),
+  update: {
+    ClickedIncrement: model => ({ model: { count: model.count + 1 } }),
+  },
+  mounts: {
+    FocusInput: ({ element }) => Effect.sync(() => element.focus()),
+  },
+  view: (model, h) => h.div([], [`${model.count}`]),
+}))
 ```
 
 The rules read the implementation's slots as follows:

@@ -132,25 +132,21 @@ export class Application extends Block<Application>()('Application', {
   Model,
 }) {}
 
-export const ApplicationLive = Application.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({ counter: new Counter('counter') }),
-      view: (model, h) =>
-        Markdown.view(post, {
-          islands: Markdown.islandsFor(islandAttributes, {
-            Counter: ({ label }, _content, occurrenceIndex) =>
-              h.div(
-                [h.Id(`counter-${occurrenceIndex}`)],
-                [h.span([], [label ?? 'Counter']), model.counter.view()],
-              ),
-            Note: (_attributes, content) =>
-              h.aside([h.Class('rounded border p-4')], content),
-          }),
-        }),
-    }
-  }),
-)
+export const ApplicationLive = Application.toLayer(() => ({
+  init: () => ({ counter: new Counter('counter') }),
+  view: (model, h) =>
+    Markdown.view(post, {
+      islands: Markdown.islandsFor(islandAttributes, {
+        Counter: ({ label }, _content, occurrenceIndex) =>
+          h.div(
+            [h.Id(`counter-${occurrenceIndex}`)],
+            [h.span([], [label ?? 'Counter']), model.counter.view()],
+          ),
+        Note: (_attributes, content) =>
+          h.aside([h.Class('rounded border p-4')], content),
+      }),
+    }),
+}))
 ```
 
 Attribute values are strings on the wire, so transforming field schemas decode past them: `Schema.NumberFromString` turns `::Chart{height="240"}` into `height: number`. A plain `islands` record of untyped views (`Readonly<Record<string, IslandView>>`) also works when you want to skip the schemas.

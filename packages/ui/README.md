@@ -54,30 +54,26 @@ class ConfirmDelete extends Block<ConfirmDelete>()('ConfirmDelete', {
   Model: Schema.Struct({ dialog: Dialog.Dialog }),
 }) {}
 
-const ConfirmDeleteLive = ConfirmDelete.toLayer(
-  Effect.gen(function* () {
-    return {
-      init: () => ({
-        dialog: new Dialog.Dialog('dialog', { id: 'confirm-delete' }),
-      }),
-      update: {
-        ...Dialog.Dialog.on({
-          Closed: model => ({ model }),
-        }),
-      },
-      view: (model, h) =>
-        model.dialog.view({
-          toView: ({ dialog, panel, title, isVisible }) =>
-            h.dialog(
-              [...dialog],
-              isVisible
-                ? [h.div([...panel], [h.h2([...title], ['Delete issue?'])])]
-                : [],
-            ),
-        }),
-    }
+const ConfirmDeleteLive = ConfirmDelete.toLayer(() => ({
+  init: () => ({
+    dialog: new Dialog.Dialog('dialog', { id: 'confirm-delete' }),
   }),
-).pipe(Layer.provide(Dialog.DialogLive))
+  update: {
+    ...Dialog.Dialog.on({
+      Closed: model => ({ model }),
+    }),
+  },
+  view: (model, h) =>
+    model.dialog.view({
+      toView: ({ dialog, panel, title, isVisible }) =>
+        h.dialog(
+          [...dialog],
+          isVisible
+            ? [h.div([...panel], [h.h2([...title], ['Delete issue?'])])]
+            : [],
+        ),
+    }),
+})).pipe(Layer.provide(Dialog.DialogLive))
 ```
 
 Component subpaths also expose domain helpers and types. Generic factories are separate exports: `Combobox.makeBlock(City)` returns a Block class with Schema-refined payloads, and `Tabs.makeBlock<Tab>()` refines a type-only tab value. Each factory's class carries its Layer as `.Live`. Import component ViewInputs and other helper types from their subpaths.
