@@ -682,11 +682,10 @@ const asRuntimeInstance = (instance: object): RuntimeInstance =>
  *  implementation. A class declared with an implementation is also its own
  *  Layer: provide it with `Layer.provide(X)`. */
 /** The implementation a Block declaration may take as its third argument:
- *  a function returning the module, a function returning an Effect that
- *  yields services and returns the module, or that Effect itself. */
+ *  a function returning the module, or an Effect that yields services and
+ *  returns the module. */
 export type InlineImplementation<C extends Contract, Args, ViewInput, E, R> =
   | (() => Implementation<C, Args, ViewInput>)
-  | (() => Effect.Effect<Implementation<C, Args, ViewInput>, E, R>)
   | Effect.Effect<Implementation<C, Args, ViewInput>, E, R>
 
 /** Declares a Block class from its id and contract, and optionally its
@@ -715,9 +714,7 @@ export const Block = <Self, Args = void, ViewInput = void>(): DeclareBlock<
     id: string,
     contract?: Contract,
     maybeImplementation?:
-      | (() =>
-          | RuntimeImplementation
-          | Effect.Effect<RuntimeImplementation, unknown, unknown>)
+      | (() => RuntimeImplementation)
       | Effect.Effect<RuntimeImplementation, unknown, unknown>,
   ): unknown => {
     blockCount += 1
@@ -824,18 +821,7 @@ export const Block = <Self, Args = void, ViewInput = void>(): DeclareBlock<
     )
 
     if (maybeImplementation !== undefined) {
-      const implementation = maybeImplementation
-      copyMembers(
-        toLayer(
-          Effect.suspend(() => {
-            const built = Effect.isEffect(implementation)
-              ? implementation
-              : implementation()
-            return Effect.isEffect(built) ? built : Effect.succeed(built)
-          }),
-        ),
-        Instance,
-      )
+      copyMembers(toLayer(maybeImplementation), Instance)
     }
 
     return Instance

@@ -56,30 +56,29 @@ type PanelModel = typeof PanelModel.Type
 class Panel extends Block<Panel>()(
   'Panel',
   { Model: PanelModel, Message: PanelMessage, Command: [Save] },
-  () =>
-    Effect.gen(function* () {
-      const store = yield* Store
-      return {
-        init: () => ({
-          counter: new Counter('counter', { max: 2 }),
-          reachedMax: false,
+  Effect.gen(function* () {
+    const store = yield* Store
+    return {
+      init: () => ({
+        counter: new Counter('counter', { max: 2 }),
+        reachedMax: false,
+      }),
+      update: {
+        ...Counter.on<PanelModel>({
+          ReachedMax: model => ({ model: { ...model, reachedMax: true } }),
         }),
-        update: {
-          ...Counter.on<PanelModel>({
-            ReachedMax: model => ({ model: { ...model, reachedMax: true } }),
-          }),
-          ClickedSave: model => ({
-            model,
-            commands: [Save({ count: model.counter.model.count })],
-          }),
-          CompletedSave: model => ({ model }),
-        },
-        commands: {
-          Save: ({ count }) =>
-            store.save(count).pipe(Effect.as(PanelMessage.CompletedSave())),
-        },
-      }
-    }),
+        ClickedSave: model => ({
+          model,
+          commands: [Save({ count: model.counter.model.count })],
+        }),
+        CompletedSave: model => ({ model }),
+      },
+      commands: {
+        Save: ({ count }) =>
+          store.save(count).pipe(Effect.as(PanelMessage.CompletedSave())),
+      },
+    }
+  }),
 ) {}
 
 const ShelfMessage = defineMessageUnion({ ClickedReset: {} })
